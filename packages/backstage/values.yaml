@@ -2,6 +2,11 @@
 ingress:
   enabled: true
   className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/hostname: backstage.timedevops.click
+    argocd.argoproj.io/sync-wave: "30"
+  host: backstage.timedevops.click
   extraHosts: []
   path: "/"
   tls:
@@ -12,35 +17,44 @@ backstage:
   image:
     registry: ghcr.io
     repository: cnoe-io/backstage-app
-    tag: 135c0cb26f3e004a27a11edb6a4779035aff9805
+    tag: latest
     pullPolicy: IfNotPresent
   command: ["node", "packages/backend"]
   extraEnvVarsSecrets:
     - backstage-env-vars
-  extraVolumeMounts:
-    - name: backstage-config
-      mountPath: "/app/config"
-      readOnly: true
-  extraVolumes:
-    - name: backstage-config
-      projected:
-        sources:
-          - secret:
-              name: integrations
-              items:
-                - key: github-integration.yaml
-                  path: github-integration.yaml
-          - secret:
-              name: k8s-config
-              items:
-                - key: k8s-config.yaml
-                  path: k8s-config.yaml
+  extraEnvVars:
+    - name: BACKSTAGE_FRONTEND_URL
+      value: https://backstage.timedevops.click
+    - name: KEYCLOAK_NAME_METADATA
+      value: https://keycloak.timedevops.click/auth/realms/cnoe/.well-known/openid-configuration
+    - name: ARGO_CD_URL
+      value: https://argocd.timedevops.click
+    - name: ARGO_WORKFLOWS_URL
+      value: https://argo-workflows.timedevops.click
+  # extraVolumeMounts:
+  #   - name: backstage-config
+  #     mountPath: "/app/config"
+  #     readOnly: true
+  # extraVolumes:
+  #   - name: backstage-config
+  #     projected:
+  #       sources:
+  #         - secret:
+  #             name: integrations
+  #             items:
+  #               - key: github-integration.yaml
+  #                 path: github-integration.yaml
+  #         - secret:
+  #             name: k8s-config
+  #             items:
+  #               - key: k8s-config.yaml
+  #                 path: k8s-config.yaml
   appConfig:
     app:
-      title: CNOE Backstage
+      title: Darede Backstage
       baseUrl: ${BACKSTAGE_FRONTEND_URL}
     organization:
-      name: CNOE
+      name: darede
     backend:
       baseUrl: ${BACKSTAGE_FRONTEND_URL}
       csp:
@@ -61,8 +75,20 @@ backstage:
     integrations:
       github:
         - host: github.com
-          apps:
-            - $include: /app/config/github-integration.yaml
+          token: ${GITHUB_TOKEN}
+    catalog:
+      # Refresh automático dos templates e catalog entities
+      refreshIntervalSeconds: 100
+      locations:
+        - type: url
+          target: https://github.com/darede-labs/infrastructureidp/blob/main/catalog-info.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API]
+      processors:
+        githubOrg:
+          providers:
+            - target: https://github.com
+              token: ${GITHUB_TOKEN}
     proxy:
       '/argo-workflows/api':
         target: ${ARGO_WORKFLOWS_URL}
@@ -88,13 +114,23 @@ backstage:
       session:
         secret: "MW2sV-sIPngEl26vAzatV-6VqfsgAx4bPIz7PuE_2Lk="
       providers:
+        guest: {}
         keycloak-oidc:
           development:
             metadataUrl: ${KEYCLOAK_NAME_METADATA}
             clientId: backstage
             clientSecret: ${BACKSTAGE_CLIENT_SECRET}
-            additionalScopes: 'openid profile email groups'
+            scope: 'openid profile email'
             prompt: auto
+            # Desabilitar adição automática de scopes adicionais (como groups)
+            # que causam erro no Keycloak 17
+            dangerouslyAllowSignInWithoutUserInCatalog: true
+            # Desabilitar resolução automática de groups
+            resolver: {}
+            signIn:
+              resolvers:
+                - resolver: emailMatchingUserEntityProfileEmail
+
     scaffolder:
     catalog:
       import:
@@ -106,7 +142,8 @@ backstage:
       serviceLocatorMethod:
         type: multiTenant
       clusterLocatorMethods:
-        - $include: /app/config/k8s-config.yaml
+        - type: 'config'
+          clusters: []
     argocd:
       username: admin
       password: ${ARGOCD_ADMIN_PASSWORD}
@@ -121,6 +158,10 @@ backstage:
       baseUrl: ${ARGO_WORKFLOWS_URL}
 postgresql:
   enabled: true
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+    tag: 17.6.0-debian-12-r4
   auth:
     username: "backstage"
     existingSecret: "backstage-env-vars"
