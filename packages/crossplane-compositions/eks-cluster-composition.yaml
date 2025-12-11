@@ -1,0 +1,430 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: eks-cluster-with-vpc
+  labels:
+    provider: aws
+    service: eks
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  compositeTypeRef:
+    apiVersion: platform.darede.io/v1alpha1
+    kind: XEKSCluster
+
+  resources:
+    # VPC
+    - name: vpc
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: VPC
+        spec:
+          forProvider:
+            cidrBlock: 10.0.0.0/16
+            enableDnsHostnames: true
+            enableDnsSupport: true
+            tags:
+              Name: eks-cluster-vpc
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-vpc"
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.clusterName
+          toFieldPath: spec.forProvider.tags.Name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-vpc"
+
+    # Internet Gateway
+    - name: internet-gateway
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: InternetGateway
+        spec:
+          forProvider:
+            vpcIdSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-igw"
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+
+    # Public Subnet 1
+    - name: public-subnet-1
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: us-east-1a
+            access: public
+        spec:
+          forProvider:
+            availabilityZone: us-east-1a
+            cidrBlock: 10.0.1.0/24
+            mapPublicIpOnLaunch: true
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              kubernetes.io/role/elb: "1"
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-public-1"
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.clusterName
+          toFieldPath: spec.forProvider.tags["kubernetes.io/cluster/%s"]
+          transforms:
+            - type: string
+              string:
+                fmt: "shared"
+
+    # Public Subnet 2
+    - name: public-subnet-2
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: us-east-1b
+            access: public
+        spec:
+          forProvider:
+            availabilityZone: us-east-1b
+            cidrBlock: 10.0.2.0/24
+            mapPublicIpOnLaunch: true
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              kubernetes.io/role/elb: "1"
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-public-2"
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.clusterName
+          toFieldPath: spec.forProvider.tags["kubernetes.io/cluster/%s"]
+          transforms:
+            - type: string
+              string:
+                fmt: "shared"
+
+    # Private Subnet 1
+    - name: private-subnet-1
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: us-east-1a
+            access: private
+        spec:
+          forProvider:
+            availabilityZone: us-east-1a
+            cidrBlock: 10.0.10.0/24
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              kubernetes.io/role/internal-elb: "1"
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-private-1"
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.clusterName
+          toFieldPath: spec.forProvider.tags["kubernetes.io/cluster/%s"]
+          transforms:
+            - type: string
+              string:
+                fmt: "shared"
+
+    # Private Subnet 2
+    - name: private-subnet-2
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Subnet
+        metadata:
+          labels:
+            zone: us-east-1b
+            access: private
+        spec:
+          forProvider:
+            availabilityZone: us-east-1b
+            cidrBlock: 10.0.11.0/24
+            vpcIdSelector:
+              matchControllerRef: true
+            tags:
+              kubernetes.io/role/internal-elb: "1"
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-private-2"
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.clusterName
+          toFieldPath: spec.forProvider.tags["kubernetes.io/cluster/%s"]
+          transforms:
+            - type: string
+              string:
+                fmt: "shared"
+
+    # Route Table for Public Subnets
+    - name: public-route-table
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: RouteTable
+        spec:
+          forProvider:
+            vpcIdSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-public-rt"
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+
+    # Route to Internet Gateway
+    - name: public-route
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Route
+        spec:
+          forProvider:
+            destinationCidrBlock: 0.0.0.0/0
+            gatewayIdSelector:
+              matchControllerRef: true
+            routeTableIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                type: public
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-public-route"
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+
+    # IAM Role for EKS Cluster
+    - name: eks-cluster-role
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: Role
+        spec:
+          forProvider:
+            assumeRolePolicy: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [{
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "eks.amazonaws.com"
+                  },
+                  "Action": "sts:AssumeRole"
+                }]
+              }
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-cluster-role"
+
+    # Attach EKS Cluster Policy
+    - name: eks-cluster-policy-attachment
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: RolePolicyAttachment
+        spec:
+          forProvider:
+            policyArn: arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+            roleSelector:
+              matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-cluster-policy"
+
+    # IAM Role for Node Group
+    - name: node-group-role
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: Role
+        spec:
+          forProvider:
+            assumeRolePolicy: |
+              {
+                "Version": "2012-10-17",
+                "Statement": [{
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "ec2.amazonaws.com"
+                  },
+                  "Action": "sts:AssumeRole"
+                }]
+              }
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-node-role"
+
+    # Attach Node Policies
+    - name: node-worker-policy
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: RolePolicyAttachment
+        spec:
+          forProvider:
+            policyArn: arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+            roleSelector:
+              matchControllerRef: true
+              matchLabels:
+                role: nodegroup
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-node-worker"
+
+    - name: node-cni-policy
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: RolePolicyAttachment
+        spec:
+          forProvider:
+            policyArn: arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+            roleSelector:
+              matchControllerRef: true
+              matchLabels:
+                role: nodegroup
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-node-cni"
+
+    - name: node-registry-policy
+      base:
+        apiVersion: iam.aws.upbound.io/v1beta1
+        kind: RolePolicyAttachment
+        spec:
+          forProvider:
+            policyArn: arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+            roleSelector:
+              matchControllerRef: true
+              matchLabels:
+                role: nodegroup
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-node-registry"
+
+    # EKS Cluster
+    - name: eks-cluster
+      base:
+        apiVersion: eks.aws.upbound.io/v1beta1
+        kind: Cluster
+        spec:
+          forProvider:
+            roleArnSelector:
+              matchControllerRef: true
+              matchLabels:
+                role: cluster
+            vpcConfig:
+              - endpointPrivateAccess: true
+                endpointPublicAccess: true
+                subnetIdSelector:
+                  matchControllerRef: true
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.kubernetesVersion
+          toFieldPath: spec.forProvider.version
+
+    # EKS Node Group
+    - name: node-group
+      base:
+        apiVersion: eks.aws.upbound.io/v1beta1
+        kind: NodeGroup
+        spec:
+          forProvider:
+            clusterNameSelector:
+              matchControllerRef: true
+            nodeRoleArnSelector:
+              matchControllerRef: true
+              matchLabels:
+                role: nodegroup
+            subnetIdSelector:
+              matchControllerRef: true
+              matchLabels:
+                access: private
+            scalingConfig:
+              - minSize: 2
+                maxSize: 10
+                desiredSize: 3
+            instanceTypes:
+              - t3.medium
+      patches:
+        - fromFieldPath: spec.clusterName
+          toFieldPath: metadata.name
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-nodes"
+        - fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - fromFieldPath: spec.nodeGroupSize.min
+          toFieldPath: spec.forProvider.scalingConfig[0].minSize
+        - fromFieldPath: spec.nodeGroupSize.max
+          toFieldPath: spec.forProvider.scalingConfig[0].maxSize
+        - fromFieldPath: spec.nodeGroupSize.desired
+          toFieldPath: spec.forProvider.scalingConfig[0].desiredSize
+        - fromFieldPath: spec.nodeInstanceType
+          toFieldPath: spec.forProvider.instanceTypes[0]

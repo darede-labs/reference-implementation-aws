@@ -1,0 +1,189 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xeksclusters.darede.io
+spec:
+  group: darede.io
+  names:
+    kind: XEKSCluster
+    plural: xeksclusters
+  claimNames:
+    kind: EKSCluster
+    plural: eksclusters
+
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                clusterName:
+                  type: string
+                  description: "Nome do cluster EKS"
+                kubernetesVersion:
+                  type: string
+                  description: "Versão do Kubernetes"
+                  default: "1.28"
+                  enum:
+                    - "1.25"
+                    - "1.26"
+                    - "1.27"
+                    - "1.28"
+                    - "1.29"
+                    - "1.30"
+                region:
+                  type: string
+                  description: "Região AWS"
+                  default: "us-east-1"
+                subnetIds:
+                  type: array
+                  description: "IDs das subnets para o cluster (mínimo 2 AZs)"
+                  items:
+                    type: string
+                  minItems: 2
+                endpointPrivateAccess:
+                  type: boolean
+                  description: "Habilitar acesso privado ao endpoint"
+                  default: true
+                endpointPublicAccess:
+                  type: boolean
+                  description: "Habilitar acesso público ao endpoint"
+                  default: true
+
+                # Node Groups Configuration
+                nodeGroups:
+                  type: array
+                  description: "Configuração dos node groups"
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: "Nome do node group"
+                      instanceTypes:
+                        type: array
+                        description: "Tipos de instância"
+                        items:
+                          type: string
+                        default: ["t3.medium"]
+                      diskSize:
+                        type: integer
+                        description: "Tamanho do disco em GB"
+                        default: 20
+                        minimum: 20
+                        maximum: 1000
+                      desiredSize:
+                        type: integer
+                        description: "Número desejado de nodes"
+                        default: 2
+                        minimum: 1
+                      minSize:
+                        type: integer
+                        description: "Número mínimo de nodes (autoscaling)"
+                        default: 1
+                        minimum: 1
+                      maxSize:
+                        type: integer
+                        description: "Número máximo de nodes (autoscaling)"
+                        default: 4
+                        minimum: 1
+                      capacityType:
+                        type: string
+                        description: "Tipo de capacidade"
+                        default: "ON_DEMAND"
+                        enum:
+                          - "ON_DEMAND"
+                          - "SPOT"
+                      labels:
+                        type: object
+                        description: "Labels do node group"
+                        additionalProperties:
+                          type: string
+                      taints:
+                        type: array
+                        description: "Taints do node group"
+                        items:
+                          type: object
+                          properties:
+                            key:
+                              type: string
+                            value:
+                              type: string
+                            effect:
+                              type: string
+                              enum:
+                                - "NO_SCHEDULE"
+                                - "NO_EXECUTE"
+                                - "PREFER_NO_SCHEDULE"
+                    required:
+                      - name
+
+                # Fargate Configuration
+                enableFargate:
+                  type: boolean
+                  description: "Habilitar Fargate profiles"
+                  default: false
+                fargateProfiles:
+                  type: array
+                  description: "Configuração dos Fargate profiles"
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: "Nome do profile"
+                      namespace:
+                        type: string
+                        description: "Namespace para o profile"
+                      labels:
+                        type: object
+                        description: "Labels para seleção de pods"
+                        additionalProperties:
+                          type: string
+                    required:
+                      - name
+                      - namespace
+
+                # Add-ons
+                enableCoreAddons:
+                  type: boolean
+                  description: "Instalar add-ons core (VPC CNI, CoreDNS, kube-proxy)"
+                  default: true
+
+                tags:
+                  type: object
+                  description: "Tags customizadas"
+                  additionalProperties:
+                    type: string
+
+              required:
+                - clusterName
+                - subnetIds
+
+            status:
+              type: object
+              properties:
+                clusterId:
+                  type: string
+                  description: "ID do cluster"
+                clusterArn:
+                  type: string
+                  description: "ARN do cluster"
+                endpoint:
+                  type: string
+                  description: "Endpoint do cluster"
+                nodeGroupArns:
+                  type: array
+                  description: "ARNs dos node groups"
+                  items:
+                    type: string
+                fargateProfileArns:
+                  type: array
+                  description: "ARNs dos Fargate profiles"
+                  items:
+                    type: string

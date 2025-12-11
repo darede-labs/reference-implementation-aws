@@ -1,0 +1,199 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: aws-eks-cluster
+  title: AWS EKS Cluster (Crossplane)
+  description: Provisiona cluster EKS completo com VPC, subnets, IAM roles, e node groups
+  tags:
+    - aws
+    - eks
+    - kubernetes
+    - infrastructure
+    - recommended
+spec:
+  owner: team-platform
+  type: resource
+
+  parameters:
+    - title: Configuração do Cluster EKS
+      required:
+        - clusterName
+        - region
+        - owner
+      properties:
+        clusterName:
+          title: Nome do Cluster
+          type: string
+          description: Nome único do cluster EKS (lowercase, hífens)
+          pattern: '^[a-z0-9-]+$'
+          ui:autofocus: true
+          maxLength: 40
+
+        region:
+          title: AWS Region
+          type: string
+          description: Região AWS onde o cluster será criado
+          enum:
+            - us-east-1
+            - us-west-2
+            - sa-east-1
+          default: us-east-1
+
+        kubernetesVersion:
+          title: Kubernetes Version
+          type: string
+          description: Versão do Kubernetes
+          enum:
+            - "1.28"
+            - "1.29"
+            - "1.30"
+            - "1.31"
+            - "1.32"
+            - "1.33"
+          default: "1.33"
+
+        owner:
+          title: Owner Team
+          type: string
+          description: Time responsável pelo cluster
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+
+        costCenter:
+          title: Cost Center
+          type: string
+          description: Centro de custo para billing
+
+    - title: Configuração dos Node Groups
+      required:
+        - nodeInstanceType
+      properties:
+        nodeInstanceType:
+          title: Node Instance Type
+          type: string
+          description: Tipo de instância EC2 para os nodes
+          enum:
+            - t3.small    # 2 vCPU, 2 GB RAM
+            - t3.medium   # 2 vCPU, 4 GB RAM
+            - t3.large    # 2 vCPU, 8 GB RAM
+            - t3.xlarge   # 4 vCPU, 16 GB RAM
+            - m5.large    # 2 vCPU, 8 GB RAM
+            - m5.xlarge   # 4 vCPU, 16 GB RAM
+          default: t3.medium
+
+        minNodes:
+          title: Minimum Nodes
+          type: integer
+          description: Número mínimo de nodes
+          minimum: 1
+          maximum: 50
+          default: 2
+
+        maxNodes:
+          title: Maximum Nodes
+          type: integer
+          description: Número máximo de nodes
+          minimum: 1
+          maximum: 50
+          default: 10
+
+        desiredNodes:
+          title: Desired Nodes
+          type: integer
+          description: Número desejado de nodes
+          minimum: 1
+          maximum: 50
+          default: 3
+
+    - title: Repositório de Infraestrutura
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Infrastructure Repository
+          type: string
+          description: Repositório onde os manifestos Crossplane serão commitados
+          default: github.com?repo=infrastructure&owner=darede-labs
+
+  steps:
+    - id: fetch-template
+      name: Fetch Crossplane Template
+      action: fetch:template
+      input:
+        url: ./templates/eks-cluster
+        values:
+          clusterName: ${{ parameters.clusterName }}
+          region: ${{ parameters.region }}
+          kubernetesVersion: ${{ parameters.kubernetesVersion }}
+          nodeInstanceType: ${{ parameters.nodeInstanceType }}
+          minNodes: ${{ parameters.minNodes }}
+          maxNodes: ${{ parameters.maxNodes }}
+          desiredNodes: ${{ parameters.desiredNodes }}
+          owner: ${{ parameters.owner }}
+          costCenter: ${{ parameters.costCenter }}
+
+    - id: create-pr
+      name: Create Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: add-eks-cluster-${{ parameters.clusterName }}
+        title: 'feat: Add EKS cluster ${{ parameters.clusterName }}'
+        description: |
+          ## EKS Cluster Configuration
+
+          **Cluster Details:**
+          - **Cluster Name:** ${{ parameters.clusterName }}
+          - **Region:** ${{ parameters.region }}
+          - **Kubernetes Version:** ${{ parameters.kubernetesVersion }}
+
+          **Node Group:**
+          - **Instance Type:** ${{ parameters.nodeInstanceType }}
+          - **Min Nodes:** ${{ parameters.minNodes }}
+          - **Max Nodes:** ${{ parameters.maxNodes }}
+          - **Desired Nodes:** ${{ parameters.desiredNodes }}
+
+          **Ownership:**
+          - **Owner:** ${{ parameters.owner }}
+          - **Cost Center:** ${{ parameters.costCenter }}
+
+          ---
+
+          **⚠️ IMPORTANTE:**
+          - Este cluster será provisionado via Crossplane
+          - Tempo estimado de criação: ~15-20 minutos
+          - VPC completa será criada automaticamente
+          - IAM roles serão criados automaticamente
+
+          **Recursos que serão criados:**
+          - ✅ VPC (10.0.0.0/16)
+          - ✅ 2 Public Subnets (10.0.1.0/24, 10.0.2.0/24)
+          - ✅ 2 Private Subnets (10.0.10.0/24, 10.0.11.0/24)
+          - ✅ Internet Gateway
+          - ✅ Route Tables
+          - ✅ IAM Role for EKS Cluster
+          - ✅ IAM Role for Node Group
+          - ✅ EKS Cluster
+          - ✅ EKS Node Group
+
+          Provisioned via Backstage Self-Service Platform 🚀
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['create-pr'].output.repoContentsUrl }}
+        catalogInfoPath: '/eks-clusters/${{ parameters.clusterName }}/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['create-pr'].output.remoteUrl }}
+        icon: github
+      - title: View in Catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}
+      - title: AWS Console - EKS
+        url: https://console.aws.amazon.com/eks/home?region=${{ parameters.region }}#/clusters/${{ parameters.clusterName }}

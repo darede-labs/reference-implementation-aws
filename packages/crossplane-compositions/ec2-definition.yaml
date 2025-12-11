@@ -1,0 +1,130 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xec2instances.darede.io
+spec:
+  group: darede.io
+  names:
+    kind: XEC2Instance
+    plural: xec2instances
+  claimNames:
+    kind: EC2Instance
+    plural: ec2instances
+
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                instanceName:
+                  type: string
+                  description: "Nome da instância EC2"
+                instanceType:
+                  type: string
+                  description: "Tipo da instância"
+                  default: "t3.micro"
+                  enum:
+                    - t3.micro
+                    - t3.small
+                    - t3.medium
+                    - t3.large
+                    - t3.xlarge
+                    - t3.2xlarge
+                    - t3a.micro
+                    - t3a.small
+                    - t3a.medium
+                    - m5.large
+                    - m5.xlarge
+                    - c5.large
+                    - c5.xlarge
+                ami:
+                  type: string
+                  description: "AMI ID (opcional, usa Amazon Linux 2023 se vazio)"
+                  default: "ami-0c7217cdde317cfec"  # Amazon Linux 2023 us-east-1
+                region:
+                  type: string
+                  description: "Região AWS"
+                  default: "us-east-1"
+                subnetId:
+                  type: string
+                  description: "ID da subnet onde criar a instância"
+                securityGroupIds:
+                  type: array
+                  description: "IDs dos Security Groups"
+                  items:
+                    type: string
+                keyName:
+                  type: string
+                  description: "Nome do Key Pair SSH"
+                userData:
+                  type: string
+                  description: "User data script (base64 encoded)"
+                rootVolume:
+                  type: object
+                  description: "Configuração do volume root"
+                  properties:
+                    size:
+                      type: integer
+                      description: "Tamanho em GB"
+                      default: 20
+                      minimum: 8
+                      maximum: 16000
+                    type:
+                      type: string
+                      description: "Tipo do volume"
+                      default: "gp3"
+                      enum:
+                        - gp3
+                        - gp2
+                        - io1
+                        - io2
+                    iops:
+                      type: integer
+                      description: "IOPS (apenas para gp3, io1, io2)"
+                      default: 3000
+                    throughput:
+                      type: integer
+                      description: "Throughput em MB/s (apenas gp3)"
+                      default: 125
+                    encrypted:
+                      type: boolean
+                      description: "Encriptar volume"
+                      default: true
+                    deleteOnTermination:
+                      type: boolean
+                      description: "Deletar volume ao terminar instância"
+                      default: true
+                monitoring:
+                  type: boolean
+                  description: "Habilitar CloudWatch detailed monitoring"
+                  default: false
+                associatePublicIp:
+                  type: boolean
+                  description: "Associar IP público"
+                  default: false
+                tags:
+                  type: object
+                  description: "Tags customizadas"
+                  additionalProperties:
+                    type: string
+              required:
+                - instanceName
+                - subnetId
+            status:
+              type: object
+              properties:
+                instanceId:
+                  type: string
+                  description: "ID da instância criada"
+                publicIp:
+                  type: string
+                  description: "IP público"
+                privateIp:
+                  type: string
+                  description: "IP privado"

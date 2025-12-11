@@ -1,0 +1,101 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xec2instance.darede.io
+  labels:
+    crossplane.io/xrd: xec2instances.darede.io
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: darede.io/v1alpha1
+    kind: XEC2Instance
+
+  resources:
+    - name: ec2-instance
+      base:
+        apiVersion: ec2.aws.upbound.io/v1beta1
+        kind: Instance
+        spec:
+          forProvider:
+            region: us-east-1
+            instanceType: t3.micro
+            ami: ami-0c7217cdde317cfec
+            associatePublicIpAddress: false
+            monitoring: false
+            rootBlockDevice:
+              - volumeSize: 20
+                volumeType: gp3
+                iops: 3000
+                throughput: 125
+                encrypted: true
+                deleteOnTermination: true
+            tags:
+              managed-by: crossplane
+              created-via: backstage
+          providerConfigRef:
+            name: default
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.instanceName
+          toFieldPath: metadata.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.instanceType
+          toFieldPath: spec.forProvider.instanceType
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.ami
+          toFieldPath: spec.forProvider.ami
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.region
+          toFieldPath: spec.forProvider.region
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.subnetId
+          toFieldPath: spec.forProvider.subnetId
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.securityGroupIds
+          toFieldPath: spec.forProvider.vpcSecurityGroupIds
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.keyName
+          toFieldPath: spec.forProvider.keyName
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.userData
+          toFieldPath: spec.forProvider.userDataBase64
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.monitoring
+          toFieldPath: spec.forProvider.monitoring
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.associatePublicIp
+          toFieldPath: spec.forProvider.associatePublicIpAddress
+        # Root Volume patches
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.rootVolume.size
+          toFieldPath: spec.forProvider.rootBlockDevice[0].volumeSize
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.rootVolume.type
+          toFieldPath: spec.forProvider.rootBlockDevice[0].volumeType
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.rootVolume.iops
+          toFieldPath: spec.forProvider.rootBlockDevice[0].iops
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.rootVolume.throughput
+          toFieldPath: spec.forProvider.rootBlockDevice[0].throughput
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.rootVolume.encrypted
+          toFieldPath: spec.forProvider.rootBlockDevice[0].encrypted
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.rootVolume.deleteOnTermination
+          toFieldPath: spec.forProvider.rootBlockDevice[0].deleteOnTermination
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.tags
+          toFieldPath: spec.forProvider.tags
+          policy:
+            mergeOptions:
+              keepMapValues: true
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.id
+          toFieldPath: status.instanceId
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.publicIp
+          toFieldPath: status.publicIp
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.privateIp
+          toFieldPath: status.privateIp
