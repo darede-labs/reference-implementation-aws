@@ -132,6 +132,7 @@ backstage:
                 - resolver: emailMatchingUserEntityProfileEmail
 
     scaffolder:
+      # Scaffolder configurations
     catalog:
       import:
         entityFilename: catalog-info.yaml
@@ -143,7 +144,12 @@ backstage:
         type: multiTenant
       clusterLocatorMethods:
         - type: 'config'
-          clusters: []
+          clusters:
+            - url: https://kubernetes.default.svc
+              name: local
+              authProvider: serviceAccount
+              serviceAccountToken: ${K8S_SA_TOKEN}
+              skipTLSVerify: true
     argocd:
       username: admin
       password: ${ARGOCD_ADMIN_PASSWORD}

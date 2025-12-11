@@ -180,13 +180,23 @@ kubectl create configmap domain-config \
 # Read GitHub token from config.yaml
 GITHUB_TOKEN=$(yq eval '.github_token' ${REPO_ROOT}/config.yaml)
 
+echo -e "${CYAN}🔐 Creating Backstage environment variables secret..."
+# Create service account for Backstage Kubernetes plugin
+kubectl create serviceaccount backstage-k8s -n backstage --dry-run=client -o yaml | kubectl apply -f -
+kubectl create clusterrolebinding backstage-k8s --clusterrole=view --serviceaccount=backstage:backstage-k8s --dry-run=client -o yaml | kubectl apply -f -
+
+# Create secret with K8s token and other env vars
+K8S_TOKEN=$(kubectl -n backstage create token backstage-k8s --duration=87600h 2>/dev/null || kubectl -n backstage create token backstage-k8s --duration=24h)
 kubectl create secret generic backstage-env-vars \
-  --namespace backstage \
+  -n backstage \
+  --from-literal=POSTGRES_HOST=backstage-postgresql \
+  --from-literal=POSTGRES_PORT=5432 \
+  --from-literal=POSTGRES_USER=backstage \
   --from-literal=POSTGRES_PASSWORD=backstage123 \
-  --from-literal=BACKEND_SECRET=backstage-backend-secret \
-  --from-literal=GITHUB_TOKEN=${GITHUB_TOKEN} \
+  --from-literal=GITHUB_TOKEN=$GITHUB_TOKEN \
+  --from-literal=ARGOCD_ADMIN_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) \
   --from-literal=BACKSTAGE_CLIENT_SECRET=backstage-secret-2024 \
-  --from-literal=KEYCLOAK_NAME_METADATA=https://keycloak.${DOMAIN_NAME}/auth/realms/cnoe/.well-known/openid-configuration \
+  --from-literal=K8S_SA_TOKEN="$K8S_TOKEN" \
   --dry-run=client -o yaml | kubectl apply -f - --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
 
 # ArgoCD repository credential for private infrastructure repo
@@ -207,6 +217,60 @@ stringData:
   username: ${GITHUB_TOKEN}
   password: x-oauth-basic
 EOF
+
+echo "🔧 Creating secret for ArgoCD GitHub OAuth integration..."
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-github-oauth-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-github-oauth-secret
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+data:
+  clientId: $(echo -n "$github_oauth_client_id" | base64)
+  clientSecret: $(echo -n "$github_oauth_client_secret" | base64)
+EOF
+
+echo "🔐 Configuring ArgoCD with Keycloak SSO..."
+# Configure ArgoCD OIDC with Keycloak
+kubectl -n argocd patch cm argocd-cm --type merge -p '{
+  "data": {
+    "oidc.config": "name: Keycloak\nissuer: https://keycloak.timedevops.click/auth/realms/cnoe\nclientId: argocd\nclientSecret: argocd-secret-2024\nrequestedScopes: [\"openid\", \"profile\", \"email\", \"groups\"]\nrequestedIDTokenClaims: {\"groups\": {\"essential\": true}}"
+  }
+}'
+
+# Configure ArgoCD RBAC
+kubectl -n argocd patch cm argocd-rbac-cm --type merge -p '{
+  "data": {
+    "policy.csv": "g, superusers, role:admin\ng, developers, role:readonly\np, role:readonly, applications, get, *, allow\np, role:readonly, clusters, get, *, allow\np, role:readonly, repositories, get, *, allow\np, role:readonly, certificates, get, *, allow",
+    "policy.default": "role:readonly"
+  }
+}'
+
+echo "👥 Creating Keycloak groups and users..."
+# Wait for Keycloak to be ready
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=keycloak -n keycloak --timeout=300s
+
+# Create groups in Keycloak
+kubectl exec -n keycloak keycloak-0 -- bash -c '
+/opt/jboss/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080/auth --realm master --user admin --password admin
+# Create ArgoCD client if not exists
+/opt/jboss/keycloak/bin/kcadm.sh create clients -r cnoe -s clientId=argocd -s "redirectUris=[\"https://argocd.timedevops.click/auth/callback\"]" -s publicClient=false -s protocol=openid-connect -s enabled=true -s clientAuthenticatorType=client-secret -s "defaultClientScopes=[\"openid\",\"profile\",\"email\",\"groups\"]" -s secret=argocd-secret-2024 2>/dev/null || true
+# Update client if exists
+CLIENT_ID=$(/opt/jboss/keycloak/bin/kcadm.sh get clients -r cnoe -q clientId=argocd | grep "\"id\"" | head -1 | sed "s/.*\"id\" *: *\"\([^\"]*\)\".*/\1/")
+if [ ! -z "$CLIENT_ID" ]; then
+  /opt/jboss/keycloak/bin/kcadm.sh update clients/$CLIENT_ID -r cnoe -s secret=argocd-secret-2024 -s "defaultClientScopes=[\"openid\",\"profile\",\"email\",\"groups\"]"
+fi
+# Create groups
+/opt/jboss/keycloak/bin/kcadm.sh create groups -r cnoe -s name=superusers 2>/dev/null || true
+/opt/jboss/keycloak/bin/kcadm.sh create groups -r cnoe -s name=developers 2>/dev/null || true
+'
+
+echo "🔄 Restarting ArgoCD server to apply SSO configuration..."
+kubectl rollout restart -n argocd deployment/argocd-server
 
 # Apply Crossplane Compositions (S3, VPC, SecurityGroup, EC2, RDS, EKS)
 echo -e "${CYAN}🔧 Creating Crossplane Compositions...${NC}"
