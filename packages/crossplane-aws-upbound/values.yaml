@@ -48,5 +48,32 @@ providerConfig:
       source: PodIdentity
 
 providers:
-- dynamodb
+# Networking (VPC, Subnets, Route Tables, IGW, NAT, Security Groups)
+- ec2
+# IAM (Roles, Policies para EKS e Node Groups)
+- iam
+# EKS (Cluster, Node Groups, Addons, Fargate Profiles)
+- eks
+# Storage
 - s3
+- ebs
+- efs
+# Databases
+- rds
+- dynamodb
+- elasticache
+# Compute
+- autoscaling
+- elb
+- elbv2
+# Monitoring e Logs
+- cloudwatch
+- cloudwatchlogs
+# Messaging
+- sqs
+- sns
+# Serverless
+- lambda
+# Secrets
+- secretsmanager
+- kms

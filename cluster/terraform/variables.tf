@@ -1,18 +1,15 @@
-variable "cluster_name" {
-  description = "Name of the EKS cluster"
-  type        = string
-  default     = "cnoe-ref-impl"
-}
+# ⚠️ DEPRECATED: Variables are now loaded from ../../config.yaml via locals.tf
+#
+# This file is kept for backward compatibility only.
+# All configuration should be done in config.yaml at the repository root.
+#
+# See config.yaml for:
+#   - cluster_name
+#   - region
+#   - auto_mode
+#   - node_groups (instance types, scaling, capacity type)
+#   - vpc (create/existing, CIDR, AZs, NAT gateway)
+#   - domains and subdomains
+#   - tags
 
-variable "region" {
-  description = "AWS region"
-  type        = string
-  default     = "us-west-2"
-}
-
-variable "auto_mode" {
-  description = "Enable EKS Auto Mode. When enabled, EKS automatically manages compute resources and many addons."
-  type        = bool
-  default     = false
-}
-
+# No variables needed - everything comes from config.yaml

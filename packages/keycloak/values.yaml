@@ -1,16 +1,23 @@
 adminRealm: "cnoe"
-production: true
+production: false
 usePasswordFiles: false
 proxyHeaders: "forwarded"
+proxy: "passthrough"
+httpRelativePath: "/"
+
+# Using bitnamilegacy images due to registry changes (versão estável)
+image:
+  registry: docker.io
+  repository: bitnamilegacy/keycloak
+  tag: 26.3.2-debian-12-r0
 
 global:
   defaultStorageClass: gp3
 
+# Auth credentials — chart cria Secret "keycloak" e variáveis corretas
 auth:
-  adminUser: cnoe-admin
-  adminPassword: cnoe-admin
-  existingSecret: keycloak-config
-  passwordSecretKey: KEYCLOAK_ADMIN_PASSWORD
+  adminUser: admin
+  adminPassword: admin
 
 ingress:
   enabled: true
@@ -23,10 +30,13 @@ ingress:
 
 postgresql:
   enabled: true
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+    tag: 17.6.0-debian-12-r4
   auth:
     username: keycloak
     database: keycloak
-    existingSecret: "keycloak-config"
-    secretKeys:
-      userPasswordKey: POSTGRES_PASSWORD
+    password: keycloak123
+    postgresPassword: postgres123
   architecture: standalone

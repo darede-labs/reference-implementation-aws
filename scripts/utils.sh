@@ -20,7 +20,7 @@ get_tags_from_config() {
 get_kubeconfig() {
   export KUBECONFIG_FILE=$(mktemp)
   echo -e "${PURPLE}🔑 Generating temporary kubeconfig for cluster ${BOLD}${CLUSTER_NAME}${NC}...${NC}"
-  aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1
+  aws eks update-kubeconfig ${AWS_PROFILE:+--profile $AWS_PROFILE} --region $AWS_REGION --name $CLUSTER_NAME --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1
 }
 
 # Wait for all Argo CD applications to report healthy status
@@ -76,7 +76,7 @@ export DOMAIN_NAME=$(yq '.domain' "$CONFIG_FILE")
 export PATH_ROUTING=$(yq '.path_routing' "$CONFIG_FILE")
 export AUTO_MODE=$(yq '.auto_mode' "$CONFIG_FILE")
 export APPSET_ADDON_NAME=$([[ "${PATH_ROUTING}" == "true" ]] && echo "addons-appset-pr" || echo "addons-appset")
-export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity ${AWS_PROFILE:+--profile $AWS_PROFILE} --query Account --output text)
 
 # Header
 echo -e "${BOLD}${ORANGE}✨ ========================================== ✨${NC}"
@@ -150,7 +150,12 @@ if [ $PHASE = "install" ]; then
   echo -e "${YELLOW}----------------------------------------------------${NC}"
 
   echo -e "\n${BOLD}${GREEN}❓ Are you sure you want to continue with installation?${NC}"
-  read -p '(yes/no): ' response
+  if [[ "${AUTO_CONFIRM}" == "yes" ]]; then
+    echo -e "${GREEN}✅ Auto-confirmed (AUTO_CONFIRM=yes)${NC}"
+    response="yes"
+  else
+    read -p '(yes/no): ' response
+  fi
   if [[ ! "$response" =~ ^[Yy][Ee][Ss]$ ]]; then
     echo -e "${YELLOW}⚠️  Installation cancelled.${NC}"
     exit 0
@@ -161,7 +166,12 @@ fi
 if [ $PHASE = "uninstall" ]; then
   echo -e "\n${BOLD}${RED}⚠️  WARNING: This will remove all deployed resources!${NC}"
   echo -e "${BOLD}${RED}❓ Are you sure you want to continue with uninstallation?${NC}"
-  read -p '(yes/no): ' response
+  if [[ "${AUTO_CONFIRM}" == "yes" ]]; then
+    echo -e "${GREEN}✅ Auto-confirmed (AUTO_CONFIRM=yes)${NC}"
+    response="yes"
+  else
+    read -p '(yes/no): ' response
+  fi
   if [[ ! "$response" =~ ^[Yy][Ee][Ss]$ ]]; then
     echo -e "${YELLOW}⚠️  Uninstallation cancelled.${NC}"
     exit 0
@@ -172,7 +182,12 @@ fi
 if [ $PHASE = "crd-uninstall" ]; then
   echo -e "\n${BOLD}${RED}⚠️  WARNING: This will remove all CRDs created by reference implementation!${NC}"
   echo -e "${BOLD}${RED}❓ Are you sure you want to continue with uninstallation?${NC}"
-  read -p '(yes/no): ' response
+  if [[ "${AUTO_CONFIRM}" == "yes" ]]; then
+    echo -e "${GREEN}✅ Auto-confirmed (AUTO_CONFIRM=yes)${NC}"
+    response="yes"
+  else
+    read -p '(yes/no): ' response
+  fi
   if [[ ! "$response" =~ ^[Yy][Ee][Ss]$ ]]; then
     echo -e "${YELLOW}⚠️ CRD Uninstallation cancelled.${NC}"
     exit 0
@@ -184,7 +199,12 @@ if [ $PHASE = "create-update-secrets" ]; then
   echo -e "${CYAN}🔐 Secret names:${NC} ${BOLD}${SECRET_NAME_PREFIX}/config & ${SECRET_NAME_PREFIX}/github-app ${NC}"
   echo -e "\n${BOLD}${RED}⚠️  WARNING: This will update the secrets if already they exists!!{NC}"
   echo -e "${BOLD}${GREEN}❓ Are you sure you want to continue?${NC}"
-  read -p '(yes/no): ' response
+  if [[ "${AUTO_CONFIRM}" == "yes" ]]; then
+    echo -e "${GREEN}✅ Auto-confirmed (AUTO_CONFIRM=yes)${NC}"
+    response="yes"
+  else
+    read -p '(yes/no): ' response
+  fi
   if [[ ! "$response" =~ ^[Yy][Ee][Ss]$ ]]; then
     echo -e "${YELLOW}⚠️ Secret creation cancelled.${NC}"
     exit 0

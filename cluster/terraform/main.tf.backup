@@ -1,6 +1,5 @@
 provider "aws" {
-  region  = local.region
-  profile = "darede"
+  region = var.region
 }
 
 data "aws_eks_cluster_auth" "this" {
@@ -10,7 +9,32 @@ data "aws_eks_cluster_auth" "this" {
 data "aws_caller_identity" "current" {}
 data "aws_availability_zones" "available" {}
 
-# Configuration is loaded from config.yaml via locals.tf
+data "template_file" "crossplane_boundary_policy" {
+  template = file("${path.module}/../iam-policies/crossplane-permissions-boundry.json")
+  vars = {
+    AWS_ACCOUNT_ID = data.aws_caller_identity.current.account_id
+  }
+}
+
+data "template_file" "external_secret_policy" {
+  template = file("${path.module}/../iam-policies/external-secrets.json")
+  vars = {
+    AWS_ACCOUNT_ID = data.aws_caller_identity.current.account_id
+  }
+}
+locals {
+  name   = var.cluster_name
+  region = var.region
+
+  vpc_cidr = "10.0.0.0/16"
+  azs      = slice(data.aws_availability_zones.available.names, 0, 3)
+
+  tags = {
+    githubRepo = "github.com/cnoe-io/reference-implementation-aws"
+    env = "dev"
+    project = "cnoe"
+  }
+}
 
 ################################################################################
 # Cluster
@@ -20,7 +44,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.37"
 
-  cluster_name                   = local.cluster_name
+  cluster_name                   = local.name
   cluster_version                = "1.33"
   cluster_endpoint_public_access = true
 
@@ -34,51 +58,32 @@ module "eks" {
   # EKS Auto Mode configuration
   # When enabled, EKS automatically manages compute resources and core addons
   # This eliminates the need for managed node groups and manual addon management
-  # Note: Commenting out for standard mode (auto_mode=false) as this parameter
-  # is only valid for Auto Mode clusters
-  # cluster_compute_config = {
-  #   enabled    = true
-  #   node_pools = ["general-purpose", "system"]
-  # }
+  cluster_compute_config = var.auto_mode ? {
+    enabled    = true
+    node_pools = ["general-purpose", "system"]
+  } : null
 
   # Only create managed node groups when not using Auto Mode
   # Auto Mode handles compute resources automatically
-  # Configuration loaded from config.yaml (node_groups section)
-  eks_managed_node_groups = local.auto_mode ? {} : {
-    configurable_nodes = {
-      name = "nodes"
+  eks_managed_node_groups = var.auto_mode ? {} : {
+    initial = {
+      instance_types = ["m5.large"]
+      
+      min_size     = 3
+      max_size     = 6
+      desired_size = 4
 
-      # Instance types from config.yaml
-      instance_types = local.instance_types
-
-      # Capacity type from config.yaml: SPOT or ON_DEMAND
-      capacity_type  = local.capacity_type
-
-      # Auto Scaling from config.yaml
-      min_size     = local.node_min_size
-      max_size     = local.node_max_size
-      desired_size = local.node_desired
-
-      # Disk size from config.yaml
-      disk_size = local.node_disk_size
-
-      # Labels from config.yaml
-      labels = local.node_labels
-
-      # Tags for Cluster Autoscaler
-      tags = merge(
-        local.tags,
-        {
-          "k8s.io/cluster-autoscaler/enabled" = "true"
-          "k8s.io/cluster-autoscaler/${local.cluster_name}" = "owned"
-        }
-      )
+      disk_size = 100
+      
+      labels = {
+        pool = "system"
+      }
     }
   }
 
   # Conditional cluster addons based on Auto Mode
   # Auto Mode automatically manages: CoreDNS, kube-proxy, VPC CNI, EBS CSI driver, AWS Load Balancer Controller, eks-pod-identity-agent
-  cluster_addons = local.auto_mode ? {
+  cluster_addons = var.auto_mode ? {
     # Auto Mode manages all addons automatically - no explicit addon configuration needed
   } : {
     # Standard mode requires all addons to be explicitly managed
@@ -88,7 +93,7 @@ module "eks" {
     vpc-cni = {}
     aws-ebs-csi-driver = {}
   }
-
+  
   tags = local.tags
 }
 
@@ -99,7 +104,7 @@ module "eks" {
 
 resource "aws_iam_policy" "crossplane_boundary" {
   name   = "crossplane-permissions-boundary"
-  policy = local.crossplane_boundary_policy
+  policy = data.template_file.crossplane_boundary_policy.rendered
 
   tags = local.tags
 }
@@ -110,7 +115,7 @@ resource "aws_iam_policy" "crossplane_boundary" {
 
 # AWS Load Balancer Controller - Only needed when not using Auto Mode
 module "aws_load_balancer_controller_pod_identity" {
-  count   = local.auto_mode ? 0 : 1
+  count   = var.auto_mode ? 0 : 1
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 1.0"
 
@@ -147,7 +152,7 @@ module "external_dns_pod_identity" {
 
 # EBS CSI Driver - Only needed when not using Auto Mode
 module "ebs_csi_driver_pod_identity" {
-  count   = local.auto_mode ? 0 : 1
+  count   = var.auto_mode ? 0 : 1
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 1.0"
 
@@ -187,15 +192,13 @@ module "crossplane_pod_identity" {
 }
 
 # External Secrets - Required for both Auto Mode and standard mode
-# Using Pod Identity (new method)
 module "external_secrets_pod_identity" {
-  count   = local.use_pod_identity ? 1 : 0
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 1.0"
 
   name = "external-secrets"
   attach_custom_policy = true
-  override_policy_documents = [local.external_secret_policy]
+  override_policy_documents = [data.template_file.external_secret_policy.rendered]
   associations = {
     external_secrets = {
       cluster_name    = module.eks.cluster_name
@@ -207,62 +210,23 @@ module "external_secrets_pod_identity" {
   tags = local.tags
 }
 
-# External Secrets - Using IRSA (traditional method, more compatible)
-module "external_secrets_irsa" {
-  count   = local.use_irsa ? 1 : 0
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.0"
-
-  role_name = "external-secrets-irsa"
-
-  role_policy_arns = {
-    policy = aws_iam_policy.external_secrets_policy[0].arn
-  }
-
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["external-secrets:external-secrets"]
-    }
-  }
-
-  tags = local.tags
-}
-
-resource "aws_iam_policy" "external_secrets_policy" {
-  count  = local.use_irsa ? 1 : 0
-  name   = "external-secrets-policy"
-  policy = local.external_secret_policy
-
-  tags = local.tags
-}
-
 ################################################################################
 # VPC
 ################################################################################
 
-# VPC Module - Configuration from config.yaml
-# Supports: create new VPC or use existing VPC
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0"
 
-  # Only create VPC if mode is "create"
-  create_vpc = local.create_vpc
-
-  name = "${local.cluster_name}-vpc"
+  name = local.name
   cidr = local.vpc_cidr
 
-  # Availability Zones from config.yaml
   azs             = local.azs
   private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
   public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
 
-  # NAT Gateway configuration from config.yaml
   enable_nat_gateway = true
-  single_nat_gateway = local.nat_gateway_single  # true = $32/month, false = $96/month (3 AZs)
-  one_nat_gateway_per_az = !local.nat_gateway_single
-
+  single_nat_gateway = true
   enable_dns_hostnames = true
   enable_dns_support   = true
 

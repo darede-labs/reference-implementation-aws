@@ -15,7 +15,7 @@ output "cluster_security_group_id" {
 
 output "region" {
   description = "AWS region"
-  value       = var.region
+  value       = local.region
 }
 
 output "cluster_arn" {
@@ -30,10 +30,20 @@ output "oidc_provider_arn" {
 
 output "auto_mode_enabled" {
   description = "Whether EKS Auto Mode is enabled"
-  value       = var.auto_mode
+  value       = local.auto_mode
 }
 
 output "configure_kubectl" {
   description = "Configure kubectl: make sure you're logged in with the correct AWS profile and run the following command to update your kubeconfig"
-  value       = "aws eks --region ${var.region} update-kubeconfig --name ${module.eks.cluster_name}"
+  value       = "aws eks --region ${local.region} update-kubeconfig --name ${module.eks.cluster_name}"
+}
+
+output "iam_auth_method" {
+  description = "IAM authentication method being used (irsa or pod-identity)"
+  value       = local.iam_auth_method
+}
+
+output "external_secrets_role_arn" {
+  description = "ARN of the IAM role for External Secrets"
+  value       = local.use_irsa ? module.external_secrets_irsa[0].iam_role_arn : "Using Pod Identity"
 }

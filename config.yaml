@@ -2,34 +2,139 @@
 # Source: "https://github.com/cnoe/reference-implementation-aws"
 
 # Details of your repository fork
-repo: 
-  url: "https://github.com/cnoe-punkwalker/reference-implementation-aws" # This is the GITHUB URL of the fork in Github Org that you have created.
-  revision: "HEAD" # Branch or Tag which should be used for Argo CD Apps
-  basepath: "packages" # Directory in which configuration of addons is stored
+repo:
+  url: "https://github.com/darede-labs/reference-implementation-aws"
+  revision: "main"
+  basepath: "packages"
+
+################################################################################
+# EKS Cluster Configuration
+################################################################################
 
 # The name of the EKS cluster you are installing the reference implementation on.
-cluster_name: "cnoe-ref-impl"
-# Set this to "true" if EKS cluster is Auto Mode othewise "false"
-# !!! Note: This is a string value as it is passed on to the Argo CD cluster secret as label
-auto_mode: "true"
-# AWS Region of the EKS cluster and cnoe-reference-implementation-aws config secret
-region: "us-west-2"
+cluster_name: "idp-poc-cluster"
 
-# Base Domain name used for exposing services. It should be a subdomain or main domain of the Route53 hosted zone.
-domain: <REPLACE_ME_example.com>
+# AWS Region of the EKS cluster
+region: "us-east-1"
+
+# Set this to "false" for Standard Mode with managed node groups (more control)
+# Set this to "true" for EKS Auto Mode (fully managed, less config)
+auto_mode: "false"
+
+# IAM authentication method for service accounts
+# Options: "irsa" (IAM Roles for Service Accounts - recommended, more compatible)
+#          "pod-identity" (EKS Pod Identity - newer, requires specific SCP permissions)
+# Recommended: "irsa" for most use cases (avoids SCP issues)
+iam_auth_method: "irsa"
+
+################################################################################
+# Network Configuration
+################################################################################
+
+# VPC Configuration
+vpc:
+  # Set to "create" to create a new VPC, or "existing" to use an existing VPC
+  mode: "create"
+
+  # Only required if mode is "create"
+  cidr: "10.0.0.0/16"
+
+  # Only required if mode is "existing"
+  # vpc_id: "vpc-xxxxx"
+  # private_subnet_ids: ["subnet-xxxxx", "subnet-yyyyy", "subnet-zzzzz"]
+  # public_subnet_ids: ["subnet-aaaaa", "subnet-bbbbb", "subnet-ccccc"]
+
+  # Number of Availability Zones (only for mode "create")
+  # Recommended: 3 for production, 2 for dev/staging
+  availability_zones: 3
+
+  # NAT Gateway strategy (only for mode "create")
+  # Options: "single" (cheaper, $32/month), "one_per_az" (HA, $96/month for 3 AZs)
+  nat_gateway_mode: "single"
+
+################################################################################
+# Node Group Configuration (only when auto_mode is "false")
+################################################################################
+
+node_groups:
+  # Capacity type: "SPOT" (70% cheaper) or "ON_DEMAND" (reliable)
+  # Recommended: SPOT for dev/staging, ON_DEMAND for production
+  capacity_type: "SPOT"
+  # Instance types (list for better Spot availability)
+  # Recommended families:
+  #   - General purpose: t3, t3a, t2, m5, m6i
+  #   - Compute optimized: c5, c6i
+  #   - Memory optimized: r5, r6i
+  # Sizes: medium, large, xlarge, 2xlarge
+  instance_types:
+    - "t3.medium"
+    - "t3a.medium"
+    - "t2.medium"
+
+  # Auto Scaling configuration
+  scaling:
+    min_size: 3      # Minimum nodes (recommended: 3 for HA)
+    max_size: 6      # Maximum nodes (adjust based on workload)
+    desired_size: 4  # Initial nodes (needed for full platform deployment)
+
+  # Disk size per node in GB
+  # Recommended: 50-100 GB for general workloads
+  disk_size: 50
+
+  # Node labels (for pod scheduling)
+  labels:
+    pool: "spot"
+    workload: "general"
+    cost-optimization: "enabled"
+
+################################################################################
+# Backstage Integration Repositories
+################################################################################
+
+# GitHub organization/user where repositories will be created
+github_org: "darede-labs"
+
+# GitHub Personal Access Token for Backstage integration
+# Required scopes: repo, workflow, read:org, read:user
+# Generate at: https://github.com/settings/tokens
+github_token: "YOUR_GITHUB_TOKEN_HERE"
+
+# Repository for infrastructure resources (S3, RDS, EKS, etc.)
+# Backstage will create Pull Requests here when provisioning resources
+infrastructure_repo: "infrastructureidp"
+
+# Repository for Backstage templates
+# Contains Software Templates for creating applications and resources
+templates_repo: "backstage-templates"
+
+################################################################################
+# Domain and DNS Configuration
+################################################################################
+
+# Base Domain name used for exposing services
+# Examples:
+#   - argocd.timedevops.click (subdomain routing)
+#   - timedevops.click/argocd (path routing)
+domain: "timedevops.click"
+
+# Subdomain configuration for each service
+# Set to empty string "" to use root domain with path routing
+subdomains:
+  argocd: "argocd"        # argocd.timedevops.click
+  backstage: "backstage"  # backstage.timedevops.click
+  keycloak: "keycloak"    # keycloak.timedevops.click
+  # To use path routing, set all to "" and enable path_routing below
 
 # Route53 hosted zone ID for configuring external-dns
-route53_hosted_zone_id: <REPLACE_ME_ZXYZZ1234ABCDEF5GHIJKL>
+route53_hosted_zone_id: "Z09212782MXWNY5EYNICO"
 
-# Set this to "true" if you want to enable path routing othewise "false" for domain based routing.
-# When enabled, the exposed addons will be accessible at https://<domain_name>/<addon-name> 
-# When disabled, the exposed addons will be accessible at https://<addon-name>.<domain_name>
-# !!! Note: This is a string value as it is passed on to the Argo CD cluster secret as label
-path_routing: "true"
+# Set this to "true" for path-based routing (domain.com/argocd)
+# Set this to "false" for subdomain-based routing (argocd.domain.com)
+path_routing: "false"
 
-# Tags for AWS resources
-tags:
-  githubRepo: "github.com/cnoe-io/reference-implementation-aws"
-  env: "dev"
-  project: "cnoe"
-  
+################################################################################
+# Tags for AWS Resources
+################################################################################
+
+tcatalog-info.yaml
+  cost-center: "engineering"

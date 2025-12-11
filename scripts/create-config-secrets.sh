@@ -21,6 +21,7 @@ create_update_secret() {
    echo -e "\n${PURPLE}🚀 Creating/updating Secret for $1...${NC}"
    TAGS=$(get_tags_from_config)
    if aws secretsmanager create-secret \
+      ${AWS_PROFILE:+--profile $AWS_PROFILE} \
       --name "$SECRET_NAME_PREFIX/$1" \
       --secret-string file://"$TEMP_SECRET_FILE" \
       --description "Secret created for $1 of CNOE AWS Reference Implementation" \
@@ -30,6 +31,7 @@ create_update_secret() {
     else
       echo -e "${YELLOW}🔄 Secret exists, updating...${NC}"
       if aws secretsmanager update-secret \
+         ${AWS_PROFILE:+--profile $AWS_PROFILE} \
          --secret-id "$SECRET_NAME_PREFIX/$1" \
          --secret-string file://"$TEMP_SECRET_FILE" \
          --region $AWS_REGION >/dev/null 2>&1; then
@@ -43,7 +45,7 @@ create_update_secret() {
 
    # Cleanup
    rm "$TEMP_SECRET_FILE"
-   echo -e "${CYAN}🔐 Secret ARN:${NC} $(aws secretsmanager describe-secret --secret-id "$SECRET_NAME_PREFIX/$1" --region $AWS_REGION --query 'ARN' --output text)"
+   echo -e "${CYAN}🔐 Secret ARN:${NC} $(aws secretsmanager describe-secret ${AWS_PROFILE:+--profile $AWS_PROFILE} --secret-id "$SECRET_NAME_PREFIX/$1" --region $AWS_REGION --query 'ARN' --output text)"
 }
 
 echo -e "\n${YELLOW}📋 Processing files...${NC}"
@@ -58,13 +60,13 @@ for file in "$PRIVATE_DIR"/*.yaml; do
     if [ -f "$file" ]; then
         filename=$(basename "$file" .yaml)
         echo -e "${CYAN}  📄 Adding:${NC} ${filename}"
-        
+
         # Add comma if not first entry
         if [ "$first" = false ]; then
             echo "," >> "$TEMP_SECRET_FILE"
         fi
         first=false
-        
+
         # Add key-value pair with properly escaped content
         echo -n "  \"$filename\": " >> "$TEMP_SECRET_FILE"
         yq -o=json eval '.' "$file" >> "$TEMP_SECRET_FILE"

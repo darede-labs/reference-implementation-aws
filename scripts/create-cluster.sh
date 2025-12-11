@@ -37,6 +37,7 @@ if [ "$DEPLOYMENT_TOOL" = "eksctl" ]; then
 
     # Create the permissions boundary policy (ignore error if it already exists)
     if aws iam create-policy \
+        ${AWS_PROFILE:+--profile $AWS_PROFILE} \
         --policy-name crossplane-permissions-boundary \
         --policy-document file://"$TEMPFILE" > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Created crossplane-permissions-boundary policy${NC}"
@@ -46,6 +47,7 @@ if [ "$DEPLOYMENT_TOOL" = "eksctl" ]; then
 
     # Get the policy ARN
     export CROSSPLANE_BOUNDARY_POLICY_ARN=$(aws iam get-policy \
+        ${AWS_PROFILE:+--profile $AWS_PROFILE} \
         --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/crossplane-permissions-boundary \
         --query 'Policy.Arn' --output text)
 
@@ -54,22 +56,22 @@ if [ "$DEPLOYMENT_TOOL" = "eksctl" ]; then
     # Clean up temp file
     rm -f "$TEMPFILE"
     echo -e "${CYAN}🔧 Using eksctl for cluster creation...${NC}"
-    
+
     # Create the cluster with eksctl
     sed -e "s/\${CLUSTER_NAME}/${CLUSTER_NAME}/g" \
         -e "s/\${AWS_REGION}/${AWS_REGION}/g" \
         -e "s/\${AWS_ACCOUNT_ID}/${AWS_ACCOUNT_ID}/g" \
         -e "s/\${CROSSPLANE_BOUNDARY_POLICY_ARN}/${CROSSPLANE_BOUNDARY_POLICY_ARN//\//\\/}/g" \
         "$EKSCTL_CONFIG_FILE_PATH" | eksctl create cluster -f -
-        
+
 elif [ "$DEPLOYMENT_TOOL" = "terraform" ]; then
     echo -e "${CYAN}🔧 Using terraform for cluster creation...${NC}"
-    
+
     # Set terraform variables
     export TF_VAR_cluster_name="$CLUSTER_NAME"
     export TF_VAR_region="$AWS_REGION"
     export TF_VAR_auto_mode="$AUTO_MODE"
-    
+
     # Initialize and apply terraform
     terraform -chdir="$REPO_ROOT/cluster/terraform" init
     terraform -chdir="$REPO_ROOT/cluster/terraform" apply -auto-approve
@@ -83,6 +85,6 @@ echo -e "${CYAN}🔶 Type:${NC} ${CLUSTER_TYPE}"
 echo -e "${CYAN}🔶 Tool:${NC} ${DEPLOYMENT_TOOL}"
 
 echo -e "\n${BOLD}${BLUE}🔧 Updating kubeconfig...${NC}"
-aws eks update-kubeconfig --region ${AWS_REGION} --name ${CLUSTER_NAME} --alias ${CLUSTER_NAME} 
+aws eks update-kubeconfig ${AWS_PROFILE:+--profile $AWS_PROFILE} --region ${AWS_REGION} --name ${CLUSTER_NAME} --alias ${CLUSTER_NAME}
 
 echo -e "\n${BOLD}${GREEN}✅ Cluster is ready for CNOE reference implementation installation!${NC}"

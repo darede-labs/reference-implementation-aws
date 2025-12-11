@@ -1,9 +1,91 @@
-# AWS Reference Implementation
+# AWS Reference Implementation - Darede Labs Edition
 
-This project contains an Internal Developer Platform (IDP) reference implementation for AWS. This project can bring up an IDP on EKS with all the tools configured and ready to use in production. It will install addons on an EKS cluster as Argo CD apps using GitOps Bridge App of ApplicationSets pattern. Check out the [Getting Started](#getting-started) guide for installing this solution on an EKS cluster.
+This project contains an Internal Developer Platform (IDP) reference implementation for AWS. This project can bring up an IDP on EKS with all the tools configured and ready to use in production. It will install addons on an EKS cluster as Argo CD apps using GitOps Bridge App of ApplicationSets pattern.
 
 > [!NOTE]
 > Applications deployed in this repository are a starting point to get environment into production.
+
+---
+
+## 🚀 QUICK START - Documentação Completa em Português
+
+**NOVO!** Documentação completa para implementação POC com foco em economia de custos:
+
+### 📚 Documentação Disponível
+
+| Documento | Para Quem | Tempo | O que Contém |
+|-----------|-----------|-------|--------------|
+| **[📋 Índice Geral](docs/00-INDICE-DOCUMENTACAO.md)** | Todos | 5 min | Visão geral e navegação |
+| **[📋 Documento Executivo](docs/01-DOCUMENTO-EXECUTIVO.md)** | Gestores, CTOs | 30 min | Business case, ROI (636% ao ano), investimento |
+| **[🛠️ Guia Rápido POC](docs/02-GUIA-RAPIDO-POC.md)** | Técnicos | 4-6h | Passo-a-passo completo, comandos prontos |
+| **[📊 Análise Técnica](docs/03-ANALISE-TECNICA.md)** | Arquitetos, SREs | 1-2h | Arquitetura, segurança, otimizações |
+| **[💰 Spot Instances Guide](cluster/terraform/SPOT-INSTANCES-GUIDE.md)** | DevOps | 30 min | Economia 70% com Spot (POC) |
+
+### 🎯 Fluxo Recomendado
+
+```
+1. Gestores     → Ler Documento Executivo → Aprovar POC
+2. Técnicos     → Seguir Guia Rápido POC → Executar (4-6h)
+3. Arquitetos   → Revisar Análise Técnica → Planejar Produção
+```
+
+### 💰 Custos POC
+
+- **Configuração Padrão**: $505/mês
+- **Configuração Otimizada (Spot)**: $147/mês ✅
+- **POC 2 semanas (8h/dia)**: ~$75 total
+- **Economia**: 71% vs configuração padrão
+
+### ⚙️ Configuração Deste Fork
+
+```yaml
+Organização GitHub: darede-labs
+Repositório: reference-implementation-aws
+Domínio: timedevops.click
+Hosted Zone ID: Z09212782MXWNY5EYNICO
+Região AWS: us-east-1
+Modo: Standard com Spot instances
+IAM Auth: IRSA (compatível com SCPs restritivas)
+```
+
+### 🎉 Melhorias Implementadas (Darede Labs)
+
+#### ✅ 100% Automatizado
+- ✅ Suporte a `AUTO_CONFIRM=yes` - instalação sem prompts interativos
+- ✅ Hub cluster secret gerado automaticamente do `config.yaml`
+- ✅ Auto-sync habilitado em todas Applications
+- ✅ Zero intervenção manual necessária
+
+#### ✅ Compatível com SCPs Restritivas
+- ✅ Suporte dual IRSA e Pod Identity
+- ✅ Workaround para SCPs que bloqueiam Secrets Manager
+- ✅ Configuração via `config.yaml` (não depende de External Secrets)
+- 📖 Ver [`docs/SCP-WORKAROUND.md`](docs/SCP-WORKAROUND.md) para detalhes
+
+#### ✅ Reproduzível e Idempotente
+- ✅ Deploy/destroy/deploy funciona perfeitamente
+- ✅ Todas configurações via código
+- ✅ Sem dependências de estados externos
+
+### 🚀 Começar Agora
+
+```bash
+# 1. Clonar repositório
+git clone https://github.com/darede-labs/reference-implementation-aws.git
+cd reference-implementation-aws
+
+# 2. Ler documentação
+cat docs/00-INDICE-DOCUMENTACAO.md
+
+# 3. Seguir guia
+open docs/02-GUIA-RAPIDO-POC.md
+```
+
+---
+
+## 📖 Documentação Original CNOE
+
+Abaixo está a documentação original do projeto upstream. Para implementação com custos otimizados e em português, use os documentos acima.
 
 ## Architecture Overview
 
