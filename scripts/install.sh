@@ -235,10 +235,15 @@ data:
 EOF
 
 echo "🔐 Configuring ArgoCD with Keycloak SSO..."
+# Create secret for ArgoCD Keycloak client
+kubectl create secret generic argocd-keycloak-secret -n argocd \
+  --from-literal=secret=argocd-secret-2024 \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 # Configure ArgoCD OIDC with Keycloak
 kubectl -n argocd patch cm argocd-cm --type merge -p '{
   "data": {
-    "oidc.config": "name: Keycloak\nissuer: https://keycloak.timedevops.click/auth/realms/cnoe\nclientId: argocd\nclientSecret: argocd-secret-2024\nrequestedScopes: [\"openid\", \"profile\", \"email\", \"groups\"]\nrequestedIDTokenClaims: {\"groups\": {\"essential\": true}}"
+    "oidc.config": "name: Keycloak\nissuer: https://keycloak.timedevops.click/auth/realms/cnoe\nclientID: argocd\nclientSecret: $argocd-keycloak-secret:secret\nrequestedScopes:\n  - openid\n  - profile\n  - email\n  - groups"
   }
 }'
 
