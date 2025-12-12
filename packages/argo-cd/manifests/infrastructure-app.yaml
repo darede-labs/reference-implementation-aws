@@ -8,8 +8,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/darede-labs/infrastructureidp
-    targetRevision: main
+    repoURL: https://github.com/${GITHUB_ORG}/${INFRA_REPO}
+    targetRevision: ${INFRA_REVISION}
     path: .
     directory:
       recurse: true
