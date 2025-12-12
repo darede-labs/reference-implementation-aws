@@ -334,6 +334,9 @@ done
 
 kubectl apply -f "$EXTERNAL_SECRETS_CUSTOM_MANIFESTS_PATH" --kubeconfig $KUBECONFIG_FILE > /dev/null
 
+echo -e "${BOLD}${GREEN}🔄 Installing Infrastructure ArgoCD Application...${NC}"
+kubectl apply -f "$ARGOCD_CUSTOM_MANIFESTS_PATH/infrastructure-app.yaml" --kubeconfig $KUBECONFIG_FILE > /dev/null
+
 echo -e "${BOLD}${GREEN}🔄 Installing Addons AppSet Argo CD application...${NC}"
 helm upgrade --install --wait addons-appset ${REPO_ROOT}/packages/appset-chart \
   --namespace argocd \
