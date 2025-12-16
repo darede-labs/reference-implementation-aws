@@ -120,6 +120,13 @@ resource "aws_route_table_association" "public_${{ subnet.name | replace('-', '_
 {%- endif %}
 {%- endfor %}
 
+{%- set firstPublicSubnet = null %}
+{%- for subnet in values.subnets %}
+{%- if subnet.type == "public" and not firstPublicSubnet %}
+{%- set firstPublicSubnet = subnet.name %}
+{%- endif %}
+{%- endfor %}
+
 {%- if values.enableNatGateway %}
 # NAT Gateway (for private subnets)
 resource "aws_eip" "nat" {
@@ -134,7 +141,8 @@ resource "aws_eip" "nat" {
 
 resource "aws_nat_gateway" "this" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public_${{ values.subnets | selectattr('type', 'equalto', 'public') | first | attr('name') | replace('-', '_') }}.id
+  # Uses the first public subnet for NAT Gateway
+  subnet_id     = aws_subnet.public_${{ values.subnets[0].name | replace('-', '_') }}.id
 
   tags = {
     Name = "${{ values.name }}-nat"
