@@ -26,10 +26,6 @@ spec:
           type: string
           enum: [poc, dev, staging, prod]
           default: poc
-        owner:
-          title: Owner
-          type: string
-          default: platform-team
     - title: Secret Values (Key/Value Pairs)
       required: [secretData]
       properties:
@@ -85,7 +81,9 @@ spec:
           name: ${{ parameters.name }}
           description: ${{ parameters.description }}
           environment: ${{ parameters.environment }}
-          owner: ${{ parameters.owner }}
+          # Auto-populate owner from Keycloak user identity
+          owner: ${{ user.entity.metadata.name | default('unknown') }}
+          ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
           secretData: ${{ parameters.secretData }}
           tags: ${{ parameters.tags }}
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
@@ -97,18 +95,21 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/secret-${{ parameters.name | replace("/", "-") }}
-        title: 'feat(secrets): Create secret ${{ parameters.name }}'
+        branchName: infra/secret-${{ user.entity.metadata.name | default('user') }}-${{ parameters.name | replace("/", "-") }}
+        title: 'feat(secrets): Create secret ${{ parameters.name }} for ${{ user.entity.metadata.name | default("user") }}'
         description: |
           ## 🔐 New Secret Request
           | Property | Value |
           |----------|-------|
           | **Name** | `${{ parameters.name }}` |
           | **Environment** | `${{ parameters.environment }}` |
+          ### Owner Enforcement
+          Only `${{ user.entity.metadata.name | default("unknown") }}` can delete this resource.
           ---
-          *Created via Backstage*
+          *Created via Backstage by ${{ user.entity.metadata.name | default("unknown") }}*
         sourcePath: ./output
-        targetPath: platform/terraform/stacks/secrets/${{ parameters.name | replace("/", "-") }}
+        # User-segregated path: secrets/{username}/{resource_name}
+        targetPath: platform/terraform/stacks/secrets/${{ user.entity.metadata.name | default('shared') }}/${{ parameters.name | replace("/", "-") }}
   output:
     links:
       - title: Pull Request

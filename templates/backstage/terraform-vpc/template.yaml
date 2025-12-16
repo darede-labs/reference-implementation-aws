@@ -36,10 +36,6 @@ spec:
           type: boolean
           default: true
           description: "Usar apenas um NAT Gateway (mais barato) ou um por AZ (alta disponibilidade)"
-        owner:
-          title: Owner
-          type: string
-          default: platform-team
 
     - title: Subnets Configuration
       description: |
@@ -117,7 +113,9 @@ spec:
           enableNatGateway: ${{ parameters.enableNatGateway }}
           singleNatGateway: ${{ parameters.singleNatGateway }}
           subnets: ${{ parameters.subnets }}
-          owner: ${{ parameters.owner }}
+          # Auto-populate owner from Keycloak user identity
+          owner: ${{ user.entity.metadata.name | default('unknown') }}
+          ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
           tags: ${{ parameters.tags }}
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
           infraRepo: ${{ env.INFRA_REPO | default('infrastructureidp') }}
@@ -128,8 +126,8 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/vpc-${{ parameters.name }}
-        title: 'feat(vpc): Create VPC ${{ parameters.name }}'
+        branchName: infra/vpc-${{ user.entity.metadata.name | default('user') }}-${{ parameters.name }}
+        title: 'feat(vpc): Create VPC ${{ parameters.name }} for ${{ user.entity.metadata.name | default("user") }}'
         description: |
           ## 🌐 New VPC Request
           | Property | Value |
@@ -138,10 +136,13 @@ spec:
           | **CIDR** | `${{ parameters.cidr }}` |
           | **Subnets** | `${{ parameters.subnets | length }}` |
           | **NAT Gateway** | `${{ parameters.enableNatGateway }}` |
+          ### Owner Enforcement
+          Only `${{ user.entity.metadata.name | default("unknown") }}` can delete this resource.
           ---
-          *Created via Backstage*
+          *Created via Backstage by ${{ user.entity.metadata.name | default("unknown") }}*
         sourcePath: ./output
-        targetPath: platform/terraform/stacks/vpc/${{ parameters.name }}
+        # User-segregated path: vpc/{username}/{resource_name}
+        targetPath: platform/terraform/stacks/vpc/${{ user.entity.metadata.name | default('shared') }}/${{ parameters.name }}
   output:
     links:
       - title: Pull Request

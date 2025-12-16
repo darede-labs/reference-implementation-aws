@@ -91,10 +91,6 @@ spec:
             #!/bin/bash
             yum update -y
             # Add your commands here
-        owner:
-          title: Owner
-          type: string
-          default: platform-team
 
     - title: Tags
       properties:
@@ -135,7 +131,9 @@ spec:
           keyPairName: ${{ parameters.keyPairName }}
           associatePublicIp: ${{ parameters.associatePublicIp }}
           userdata: ${{ parameters.userdata }}
-          owner: ${{ parameters.owner }}
+          # Auto-populate owner from Keycloak user identity
+          owner: ${{ user.entity.metadata.name | default('unknown') }}
+          ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
           tags: ${{ parameters.tags }}
           # Platform config from environment variables
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
@@ -148,8 +146,8 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/ec2-${{ parameters.name }}
-        title: 'feat(ec2): Create instance ${{ parameters.name }}'
+        branchName: infra/ec2-${{ user.entity.metadata.name | default('user') }}-${{ parameters.name }}
+        title: 'feat(ec2): Create instance ${{ parameters.name }} for ${{ user.entity.metadata.name | default("user") }}'
         description: |
           ## 🖥️ New EC2 Instance Request
 
@@ -162,10 +160,14 @@ spec:
           | **Key Pair** | `${{ parameters.keyPairName }}` |
           | **Environment** | `${{ parameters.environment }}` |
 
+          ### Owner Enforcement
+          Only `${{ user.entity.metadata.name | default("unknown") }}` can delete this resource.
+
           ---
-          *Created via Backstage*
+          *Created via Backstage by ${{ user.entity.metadata.name | default("unknown") }}*
         sourcePath: ./output
-        targetPath: platform/terraform/stacks/ec2/${{ parameters.name }}
+        # User-segregated path: ec2/{username}/{resource_name}
+        targetPath: platform/terraform/stacks/ec2/${{ user.entity.metadata.name | default('shared') }}/${{ parameters.name }}
 
   output:
     links:

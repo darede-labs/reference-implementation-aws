@@ -24,13 +24,9 @@ spec:
         kubernetesVersion:
           title: Kubernetes Version
           type: string
-          enum: ["1.32", "1.31", "1.30", "1.29"]
+          enum: ["1.33", "1.34"]
           default: "1.31"
-          description: "Versão do Kubernetes (1.32 é a mais recente)"
-        owner:
-          title: Owner
-          type: string
-          default: platform-team
+          description: "Versão do Kubernetes (1.34 é a mais recente)"
 
     - title: Node Group Configuration
       required: [nodeInstanceType, capacityType]
@@ -116,7 +112,9 @@ spec:
           nodeDesiredSize: ${{ parameters.nodeDesiredSize }}
           vpcCidr: ${{ parameters.vpcCidr }}
           enablePublicAccess: ${{ parameters.enablePublicAccess }}
-          owner: ${{ parameters.owner }}
+          # Auto-populate owner from Keycloak user identity
+          owner: ${{ user.entity.metadata.name | default('unknown') }}
+          ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
           tags: ${{ parameters.tags }}
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
           infraRepo: ${{ env.INFRA_REPO | default('infrastructureidp') }}
@@ -127,8 +125,8 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/eks-${{ parameters.name }}
-        title: 'feat(eks): Create cluster ${{ parameters.name }}'
+        branchName: infra/eks-${{ user.entity.metadata.name | default('user') }}-${{ parameters.name }}
+        title: 'feat(eks): Create cluster ${{ parameters.name }} for ${{ user.entity.metadata.name | default("user") }}'
         description: |
           ## ☸️ New EKS Cluster Request
           | Property | Value |
@@ -138,10 +136,13 @@ spec:
           | **Capacity** | `${{ parameters.capacityType }}` |
           | **Instance** | `${{ parameters.nodeInstanceType }}` |
           | **Nodes** | `${{ parameters.nodeMinSize }}-${{ parameters.nodeMaxSize }}` |
+          ### Owner Enforcement
+          Only `${{ user.entity.metadata.name | default("unknown") }}` can delete this resource.
           ---
-          *Created via Backstage*
+          *Created via Backstage by ${{ user.entity.metadata.name | default("unknown") }}*
         sourcePath: ./output
-        targetPath: platform/terraform/stacks/eks/${{ parameters.name }}
+        # User-segregated path: eks/{username}/{resource_name}
+        targetPath: platform/terraform/stacks/eks/${{ user.entity.metadata.name | default('shared') }}/${{ parameters.name }}
   output:
     links:
       - title: Pull Request
