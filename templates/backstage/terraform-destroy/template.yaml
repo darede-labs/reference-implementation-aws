@@ -17,9 +17,10 @@ spec:
   owner: platform-team
   type: infrastructure
   parameters:
-    - title: Selecionar Recurso
+    - title: Selecionar Recurso para Destruir
       description: |
-        📂 **Veja os recursos existentes antes de destruir:**
+        ## 📂 Recursos Existentes
+        Clique nos links para ver os recursos disponíveis:
         - [S3 Buckets](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/s3)
         - [EC2 Instances](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/ec2)
         - [Security Groups](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/security-group)
@@ -29,6 +30,7 @@ spec:
       required:
         - resourceType
         - resourceName
+        - confirmDestroy
       properties:
         resourceType:
           title: Tipo de Recurso
@@ -50,22 +52,27 @@ spec:
         resourceName:
           title: Nome do Recurso
           type: string
-          description: Nome exato do recurso a ser destruído (veja os links acima)
+          description: Nome exato do recurso (pasta) a ser destruído
         confirmDestroy:
-          title: "⚠️ Confirmo que desejo DESTRUIR este recurso permanentemente"
+          title: "⚠️ CONFIRMO que desejo DESTRUIR este recurso permanentemente"
           type: boolean
           default: false
+          ui:widget: checkbox
 
   steps:
-    - id: fetch
-      name: Gerar arquivo de destruição
-      action: fetch:template
+    - id: fetch-repo
+      name: Clonar repositório de infraestrutura
+      action: fetch:plain
       input:
-        url: ./skeleton
-        targetPath: ./output
-        values:
-          resourceType: ${{ parameters.resourceType }}
-          resourceName: ${{ parameters.resourceName }}
+        url: https://github.com/${{ env.GITHUB_ORG | default('darede-labs') }}/${{ env.INFRA_REPO | default('infrastructureidp') }}
+        targetPath: ./repo
+
+    - id: delete-resource
+      name: Deletar arquivos do recurso
+      action: fs:delete
+      input:
+        files:
+          - ./repo/platform/terraform/stacks/${{ parameters.resourceType }}/${{ parameters.resourceName }}
 
     - id: publish
       name: Criar Pull Request de Destruição
@@ -75,23 +82,27 @@ spec:
         branchName: destroy/${{ parameters.resourceType }}-${{ parameters.resourceName }}
         title: "🗑️ DESTROY: ${{ parameters.resourceType }}/${{ parameters.resourceName }}"
         description: |
-          ## ⚠️ ATENÇÃO: Destruição de Recurso
+          ## ⚠️ DESTRUIÇÃO DE RECURSO
 
           | Property | Value |
           |----------|-------|
           | **Tipo** | `${{ parameters.resourceType }}` |
           | **Nome** | `${{ parameters.resourceName }}` |
 
-          ### ⚡ Ação Requerida
-          1. Atlantis executará `terraform plan -destroy` automaticamente
-          2. Revise o plano de destruição abaixo
-          3. **CUIDADO**: Esta ação é IRREVERSÍVEL
-          4. Se confirmar, comente `/atlantis apply`
+          ### 🔄 Fluxo Automático
+          1. Este PR **remove** os arquivos Terraform do recurso
+          2. Atlantis detecta a remoção e executa `terraform destroy`
+          3. Após apply bem-sucedido, o PR é mergeado automaticamente
+
+          ### ⚠️ ATENÇÃO
+          - Esta ação é **IRREVERSÍVEL**
+          - O recurso será **permanentemente deletado** da AWS
+          - Buckets S3 com objetos e Secrets podem demorar para serem removidos
 
           ---
           *Solicitação de destruição via Backstage*
-        sourcePath: ./output
-        targetPath: platform/terraform/stacks/${{ parameters.resourceType }}/${{ parameters.resourceName }}
+        sourcePath: ./repo
+        gitCommitMessage: "destroy(${{ parameters.resourceType }}): remove ${{ parameters.resourceName }}"
 
   output:
     links:

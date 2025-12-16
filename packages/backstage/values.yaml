@@ -132,6 +132,21 @@ backstage:
           target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-destroy/template.yaml
           rules:
             - allow: [Template, Location, Component, Resource, API, System]
+        # Auto-discover infrastructure resources created via Backstage templates
+        - type: url
+          target: https://github.com/darede-labs/infrastructureidp/blob/main/catalog-info.yaml
+          rules:
+            - allow: [Location, Component, Resource, API, System]
+      providers:
+        github:
+          infrastructureResources:
+            organization: 'darede-labs'
+            catalogPath: '/platform/terraform/stacks/**/catalog-info.yaml'
+            filters:
+              repository: 'infrastructureidp'
+            schedule:
+              frequency: { minutes: 5 }
+              timeout: { minutes: 3 }
       processors:
         githubOrg:
           providers:
