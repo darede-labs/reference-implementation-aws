@@ -1,0 +1,99 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-destroy-resource
+  title: "🗑️ Destruir Recurso AWS"
+  description: Remove um recurso AWS criado via plataforma (GitOps com Atlantis)
+  tags:
+    - aws
+    - terraform
+    - destroy
+    - cleanup
+spec:
+  owner: platform-team
+  type: infrastructure
+  parameters:
+    - title: Selecionar Recurso
+      required:
+        - resourceType
+        - resourceName
+      properties:
+        resourceType:
+          title: Tipo de Recurso
+          type: string
+          enum:
+            - s3
+            - ec2
+            - security-group
+            - vpc
+            - eks
+            - secrets
+          enumNames:
+            - S3 Bucket
+            - EC2 Instance
+            - Security Group
+            - VPC
+            - EKS Cluster
+            - Secrets Manager
+        resourceName:
+          title: Nome do Recurso
+          type: string
+          description: Nome exato do recurso a ser destruído
+        confirmDestroy:
+          title: "⚠️ Confirmo que desejo DESTRUIR este recurso permanentemente"
+          type: boolean
+          default: false
+
+    - title: Repository
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Infrastructure Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+
+  steps:
+    - id: fetch
+      name: Gerar arquivo de destruição
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+        values:
+          resourceType: ${{ parameters.resourceType }}
+          resourceName: ${{ parameters.resourceName }}
+
+    - id: publish
+      name: Criar Pull Request de Destruição
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: destroy/${{ parameters.resourceType }}-${{ parameters.resourceName }}
+        title: "🗑️ DESTROY: ${{ parameters.resourceType }}/${{ parameters.resourceName }}"
+        description: |
+          ## ⚠️ ATENÇÃO: Destruição de Recurso
+
+          | Property | Value |
+          |----------|-------|
+          | **Tipo** | `${{ parameters.resourceType }}` |
+          | **Nome** | `${{ parameters.resourceName }}` |
+
+          ### ⚡ Ação Requerida
+          1. Atlantis executará `terraform plan -destroy` automaticamente
+          2. Revise o plano de destruição abaixo
+          3. **CUIDADO**: Esta ação é IRREVERSÍVEL
+          4. Se confirmar, comente `/atlantis apply`
+
+          ---
+          *Solicitação de destruição via Backstage*
+        sourcePath: ./output
+        targetPath: platform/terraform/stacks/${{ parameters.resourceType }}/${{ parameters.resourceName }}
+
+  output:
+    links:
+      - title: Pull Request de Destruição
+        url: ${{ steps['publish'].output.remoteUrl }}

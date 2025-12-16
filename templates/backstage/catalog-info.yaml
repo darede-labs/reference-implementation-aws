@@ -11,3 +11,4 @@ spec:
     - ./terraform-vpc/template.yaml
     - ./terraform-eks/template.yaml
     - ./terraform-secrets/template.yaml
+    - ./terraform-destroy/template.yaml
