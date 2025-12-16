@@ -79,11 +79,38 @@ backstage:
     catalog:
       # Refresh automático dos templates e catalog entities
       refreshIntervalSeconds: 100
+      rules:
+        - allow: [Template, Location, Component, Resource, API, System, Group, User]
       locations:
+        # Terraform Templates (via Atlantis GitOps)
         - type: url
-          target: https://github.com/darede-labs/infrastructureidp/blob/main/catalog-info.yaml
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-s3/template.yaml
           rules:
-            - allow: [Template, Location, Component, Resource, API]
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-ec2/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-security-group/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-vpc/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-eks/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-secrets/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-destroy/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
       processors:
         githubOrg:
           providers:
@@ -133,12 +160,6 @@ backstage:
 
     scaffolder:
       # Scaffolder configurations
-    catalog:
-      import:
-        entityFilename: catalog-info.yaml
-        pullRequestBranchName: backstage-integration
-      rules:
-        - allow: [Component, System, API, Resource, Location, Template]
     kubernetes:
       serviceLocatorMethod:
         type: multiTenant
