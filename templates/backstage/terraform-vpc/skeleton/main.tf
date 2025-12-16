@@ -22,7 +22,7 @@ provider "aws" {
 data "aws_availability_zones" "available" { state = "available" }
 
 locals {
-  azs = slice(data.aws_availability_zones.available.names, 0, ${{ values.azCount }})
+  azs = slice(data.aws_availability_zones.available.names, 0, ${{ values.azCount | default(2) }})
 }
 
 module "vpc" {
@@ -33,7 +33,7 @@ module "vpc" {
   azs             = local.azs
   private_subnets = [for k, v in local.azs : cidrsubnet("${{ values.cidr }}", 4, k)]
   public_subnets  = [for k, v in local.azs : cidrsubnet("${{ values.cidr }}", 8, k + 48)]
-  enable_nat_gateway   = ${{ values.enableNatGateway }}
+  enable_nat_gateway   = ${{ values.enableNatGateway | default(true) }}
   single_nat_gateway   = true
   enable_dns_hostnames = true
   public_subnet_tags  = { "kubernetes.io/role/elb" = 1 }

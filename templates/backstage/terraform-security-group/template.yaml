@@ -17,11 +17,16 @@ spec:
       required:
         - name
         - environment
+        - vpcId
       properties:
         name:
           title: Security Group Name
           type: string
           pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+        vpcId:
+          title: VPC ID
+          type: string
+          description: "VPC ID where the security group will be created (e.g., vpc-0123456789abcdef0)"
         description:
           title: Description
           type: string
@@ -77,6 +82,7 @@ spec:
         targetPath: ./output
         values:
           name: ${{ parameters.name }}
+          vpcId: ${{ parameters.vpcId }}
           description: ${{ parameters.description }}
           environment: ${{ parameters.environment }}
           allowSsh: ${{ parameters.allowSsh }}

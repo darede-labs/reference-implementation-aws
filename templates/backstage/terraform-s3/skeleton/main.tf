@@ -37,10 +37,10 @@ module "s3_bucket" {
   bucket = "${{ values.name }}"
 
   versioning = {
-    enabled = ${{ values.enableVersioning }}
+    enabled = ${{ values.enableVersioning | default(true) }}
   }
 
-  force_destroy = ${{ values.forceDestroy }}
+  force_destroy = ${{ values.forceDestroy | default(false) }}
 
   tags = merge(
     {

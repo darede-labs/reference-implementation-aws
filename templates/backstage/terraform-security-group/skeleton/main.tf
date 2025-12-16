@@ -19,14 +19,22 @@ provider "aws" {
   }
 }
 
-data "aws_vpc" "default" { default = true }
+{%- if values.vpcId %}
+data "aws_vpc" "selected" {
+  id = "${{ values.vpcId }}"
+}
+{%- else %}
+data "aws_vpc" "selected" {
+  default = true
+}
+{%- endif %}
 
 module "security_group" {
   source  = "terraform-aws-modules/security-group/aws"
   version = "~> 5.0"
   name        = "${{ values.name }}"
-  description = "${{ values.description }}"
-  vpc_id      = data.aws_vpc.default.id
+  description = "${{ values.description | default('Managed by Terraform via Backstage') }}"
+  vpc_id      = data.aws_vpc.selected.id
 
   ingress_cidr_blocks = ["0.0.0.0/0"]
   ingress_rules       = compact([
