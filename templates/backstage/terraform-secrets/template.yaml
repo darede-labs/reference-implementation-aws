@@ -29,6 +29,25 @@ spec:
           title: Owner
           type: string
           default: platform-team
+    - title: Tags
+      properties:
+        tags:
+          title: Custom Tags
+          type: array
+          description: Add custom tags (key=value)
+          items:
+            type: object
+            required: [key, value]
+            properties:
+              key:
+                title: Key
+                type: string
+              value:
+                title: Value
+                type: string
+          ui:options:
+            addable: true
+            removable: true
   steps:
     - id: fetch
       name: Generate Terraform Configuration
@@ -41,11 +60,12 @@ spec:
           description: ${{ parameters.description }}
           environment: ${{ parameters.environment }}
           owner: ${{ parameters.owner }}
+          tags: ${{ parameters.tags }}
     - id: publish
       name: Create Pull Request
       action: publish:github:pull-request
       input:
-        repoUrl: github.com?owner=darede-labs&repo=infrastructureidp
+        repoUrl: github.com?owner=${{ parameters.githubOrg | default('darede-labs') }}&repo=${{ parameters.infraRepo | default('infrastructureidp') }}
         branchName: infra/secret-${{ parameters.name | replace("/", "-") }}
         title: 'feat(secrets): Create secret ${{ parameters.name }}'
         description: |

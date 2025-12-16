@@ -59,7 +59,7 @@ spec:
       name: Criar Pull Request de Destruição
       action: publish:github:pull-request
       input:
-        repoUrl: github.com?owner=darede-labs&repo=infrastructureidp
+        repoUrl: github.com?owner=${{ parameters.githubOrg | default('darede-labs') }}&repo=${{ parameters.infraRepo | default('infrastructureidp') }}
         branchName: destroy/${{ parameters.resourceType }}-${{ parameters.resourceName }}
         title: "🗑️ DESTROY: ${{ parameters.resourceType }}/${{ parameters.resourceName }}"
         description: |

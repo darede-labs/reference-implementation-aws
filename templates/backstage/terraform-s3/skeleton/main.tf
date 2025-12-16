@@ -42,10 +42,17 @@ module "s3_bucket" {
 
   force_destroy = ${{ values.forceDestroy }}
 
-  tags = {
-    Name        = "${{ values.name }}"
-    Environment = "${{ values.environment }}"
-  }
+  tags = merge(
+    {
+      Name        = "${{ values.name }}"
+      Environment = "${{ values.environment }}"
+    },
+    {
+      {%- for tag in values.tags %}
+      "${{ tag.key }}" = "${{ tag.value }}"
+      {%- endfor %}
+    }
+  )
 }
 
 output "bucket_id" {

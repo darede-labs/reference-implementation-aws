@@ -40,6 +40,26 @@ spec:
           type: string
           default: platform-team
 
+    - title: Tags
+      properties:
+        tags:
+          title: Custom Tags
+          type: array
+          description: Add custom tags (key=value format)
+          items:
+            type: object
+            required: [key, value]
+            properties:
+              key:
+                title: Key
+                type: string
+              value:
+                title: Value
+                type: string
+          ui:options:
+            addable: true
+            removable: true
+
   steps:
     - id: fetch
       name: Generate Terraform Configuration
@@ -53,12 +73,13 @@ spec:
           enableVersioning: ${{ parameters.enableVersioning }}
           forceDestroy: ${{ parameters.forceDestroy }}
           owner: ${{ parameters.owner }}
+          tags: ${{ parameters.tags }}
 
     - id: publish
       name: Create Pull Request
       action: publish:github:pull-request
       input:
-        repoUrl: github.com?owner=darede-labs&repo=infrastructureidp
+        repoUrl: github.com?owner=${{ parameters.githubOrg | default('darede-labs') }}&repo=${{ parameters.infraRepo | default('infrastructureidp') }}
         branchName: infra/s3-${{ parameters.name }}
         title: 'feat(s3): Create bucket ${{ parameters.name }}'
         description: |
