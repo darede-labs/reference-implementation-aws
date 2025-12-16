@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: eks-${{ values.name }}
+  description: "EKS Cluster: ${{ values.name }} (k8s ${{ values.kubernetesVersion }})"
+  tags: [aws, eks, kubernetes, terraform, "${{ values.environment }}"]
+spec:
+  type: eks-cluster
+  lifecycle: ${{ values.environment }}
+  owner: ${{ values.owner }}
+  system: aws-infrastructure

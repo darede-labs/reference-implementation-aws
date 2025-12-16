@@ -1,20 +1,13 @@
 apiVersion: backstage.io/v1alpha1
 kind: Location
 metadata:
-  name: basic-example-templates
-  description: A collection of example templates
+  name: infrastructure-templates
+  description: Terraform infrastructure templates for AWS (via Atlantis GitOps)
 spec:
   targets:
-    - ./basic/template.yaml
-    - ./argo-workflows/template.yaml
-    - ./app-with-bucket/template.yaml
-    - ./ray-serve/template-ray-serve.yaml
----
-apiVersion: backstage.io/v1alpha1
-kind: Location
-metadata:
-  name: basic-organization
-  description: Basic organization data
-spec:
-  targets:
-    - ./organization/guests.yaml
+    - ./terraform-s3/template.yaml
+    - ./terraform-ec2/template.yaml
+    - ./terraform-security-group/template.yaml
+    - ./terraform-vpc/template.yaml
+    - ./terraform-eks/template.yaml
+    - ./terraform-secrets/template.yaml

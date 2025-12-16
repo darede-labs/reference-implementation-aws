@@ -1,0 +1,74 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-secrets-manager
+  title: Secrets Manager Secret
+  description: Create an AWS Secrets Manager secret using Terraform
+  tags: [aws, secrets, terraform, security]
+spec:
+  owner: platform-team
+  type: infrastructure
+  parameters:
+    - title: Secret Configuration
+      required: [name, environment]
+      properties:
+        name:
+          title: Secret Name
+          type: string
+          pattern: '^[a-zA-Z0-9/_+=.@-]+$'
+        description:
+          title: Description
+          type: string
+          default: Managed by Terraform via Backstage
+        environment:
+          title: Environment
+          type: string
+          enum: [poc, dev, staging, prod]
+          default: poc
+        owner:
+          title: Owner
+          type: string
+          default: platform-team
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: Infrastructure Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+  steps:
+    - id: fetch
+      name: Generate Terraform Configuration
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          environment: ${{ parameters.environment }}
+          owner: ${{ parameters.owner }}
+    - id: publish
+      name: Create Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: infra/secret-${{ parameters.name | replace("/", "-") }}
+        title: 'feat(secrets): Create secret ${{ parameters.name }}'
+        description: |
+          ## 🔐 New Secret Request
+          | Property | Value |
+          |----------|-------|
+          | **Name** | `${{ parameters.name }}` |
+          | **Environment** | `${{ parameters.environment }}` |
+          ---
+          *Created via Backstage*
+        sourcePath: ./output
+        targetPath: platform/terraform/stacks/secrets/${{ parameters.name | replace("/", "-") }}
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['publish'].output.remoteUrl }}

@@ -1,0 +1,86 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-vpc
+  title: VPC Completa
+  description: Create a complete VPC with subnets, NAT Gateway using Terraform
+  tags: [aws, vpc, terraform, network]
+spec:
+  owner: platform-team
+  type: infrastructure
+  parameters:
+    - title: VPC Configuration
+      required: [name, environment, cidr]
+      properties:
+        name:
+          title: VPC Name
+          type: string
+          pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+        environment:
+          title: Environment
+          type: string
+          enum: [poc, dev, staging, prod]
+          default: poc
+        cidr:
+          title: VPC CIDR Block
+          type: string
+          default: "10.0.0.0/16"
+        azCount:
+          title: Number of Availability Zones
+          type: integer
+          enum: [1, 2, 3]
+          default: 2
+        enableNatGateway:
+          title: Enable NAT Gateway
+          type: boolean
+          default: true
+        owner:
+          title: Owner
+          type: string
+          default: platform-team
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: Infrastructure Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+  steps:
+    - id: fetch
+      name: Generate Terraform Configuration
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+        values:
+          name: ${{ parameters.name }}
+          environment: ${{ parameters.environment }}
+          cidr: ${{ parameters.cidr }}
+          azCount: ${{ parameters.azCount }}
+          enableNatGateway: ${{ parameters.enableNatGateway }}
+          owner: ${{ parameters.owner }}
+    - id: publish
+      name: Create Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: infra/vpc-${{ parameters.name }}
+        title: 'feat(vpc): Create VPC ${{ parameters.name }}'
+        description: |
+          ## 🌐 New VPC Request
+          | Property | Value |
+          |----------|-------|
+          | **Name** | `${{ parameters.name }}` |
+          | **CIDR** | `${{ parameters.cidr }}` |
+          | **AZs** | `${{ parameters.azCount }}` |
+          ---
+          *Created via Backstage*
+        sourcePath: ./output
+        targetPath: platform/terraform/stacks/vpc/${{ parameters.name }}
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['publish'].output.remoteUrl }}

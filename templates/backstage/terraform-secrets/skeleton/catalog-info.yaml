@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: secret-${{ values.name | replace("/", "-") }}
+  description: "Secret: ${{ values.name }}"
+  tags: [aws, secrets, terraform, "${{ values.environment }}"]
+spec:
+  type: secret
+  lifecycle: ${{ values.environment }}
+  owner: ${{ values.owner }}
+  system: aws-infrastructure

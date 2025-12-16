@@ -1,0 +1,87 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-eks-cluster
+  title: EKS Cluster
+  description: Create EKS cluster with managed node groups using Terraform
+  tags: [aws, eks, kubernetes, terraform]
+spec:
+  owner: platform-team
+  type: infrastructure
+  parameters:
+    - title: Cluster Configuration
+      required: [name, environment]
+      properties:
+        name:
+          title: Cluster Name
+          type: string
+          pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+        environment:
+          title: Environment
+          type: string
+          enum: [poc, dev, staging, prod]
+          default: poc
+        kubernetesVersion:
+          title: Kubernetes Version
+          type: string
+          enum: ["1.31", "1.30", "1.29"]
+          default: "1.30"
+        nodeInstanceType:
+          title: Node Instance Type
+          type: string
+          default: t3.medium
+          enum: [t3.medium, t3.large, m5.large, m5.xlarge]
+        nodeDesiredSize:
+          title: Desired Node Count
+          type: integer
+          default: 2
+        owner:
+          title: Owner
+          type: string
+          default: platform-team
+    - title: Repository
+      required: [repoUrl]
+      properties:
+        repoUrl:
+          title: Infrastructure Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+  steps:
+    - id: fetch
+      name: Generate Terraform Configuration
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+        values:
+          name: ${{ parameters.name }}
+          environment: ${{ parameters.environment }}
+          kubernetesVersion: ${{ parameters.kubernetesVersion }}
+          nodeInstanceType: ${{ parameters.nodeInstanceType }}
+          nodeDesiredSize: ${{ parameters.nodeDesiredSize }}
+          owner: ${{ parameters.owner }}
+    - id: publish
+      name: Create Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: infra/eks-${{ parameters.name }}
+        title: 'feat(eks): Create cluster ${{ parameters.name }}'
+        description: |
+          ## ☸️ New EKS Cluster Request
+          | Property | Value |
+          |----------|-------|
+          | **Name** | `${{ parameters.name }}` |
+          | **K8s Version** | `${{ parameters.kubernetesVersion }}` |
+          | **Node Type** | `${{ parameters.nodeInstanceType }}` |
+          ---
+          *Created via Backstage*
+        sourcePath: ./output
+        targetPath: platform/terraform/stacks/eks/${{ parameters.name }}
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['publish'].output.remoteUrl }}
