@@ -41,8 +41,8 @@ spec:
         rootVolumeSize:
           title: Root Volume Size (GB)
           type: integer
-          default: 20
-          minimum: 8
+          default: 30
+          minimum: 30
           maximum: 500
 
     - title: Network Configuration

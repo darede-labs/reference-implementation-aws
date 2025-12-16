@@ -89,7 +89,7 @@ EOF
   {%- endif %}
 
   root_block_device = [{
-    volume_size = ${{ values.rootVolumeSize | default(20) }}
+    volume_size = ${{ values.rootVolumeSize | default(30) }}
     volume_type = "gp3"
     encrypted   = true
   }]
