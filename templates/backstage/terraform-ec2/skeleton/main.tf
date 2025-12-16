@@ -47,15 +47,9 @@ data "aws_ami" "selected" {
   }
 }
 
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "selected" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
+# Get subnet info to extract VPC ID
+data "aws_subnet" "selected" {
+  id = "${{ values.subnetId }}"
 }
 
 {%- if values.securityGroupIds | length == 0 %}
@@ -65,7 +59,7 @@ module "security_group" {
 
   name        = "${{ values.name }}-sg"
   description = "Security group for EC2 instance ${{ values.name }}"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = data.aws_subnet.selected.vpc_id
 
   ingress_cidr_blocks = ["10.0.0.0/8"]
   ingress_rules       = ["ssh-tcp"]
@@ -82,7 +76,7 @@ module "ec2_instance" {
   instance_type = "${{ values.instanceType }}"
   monitoring    = true
 
-  subnet_id                   = {% if values.subnetId %}"${{ values.subnetId }}"{% else %}data.aws_subnets.selected.ids[0]{% endif %}
+  subnet_id                   = data.aws_subnet.selected.id
   vpc_security_group_ids      = {% if values.securityGroupIds | length > 0 %}${{ values.securityGroupIds | dump }}{% else %}[module.security_group.security_group_id]{% endif %}
   associate_public_ip_address = ${{ values.associatePublicIp }}
   {%- if values.keyPairName %}
