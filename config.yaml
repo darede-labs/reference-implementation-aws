@@ -12,7 +12,7 @@ repo:
 ################################################################################
 
 # The name of the EKS cluster you are installing the reference implementation on.
-cluster_name: "idp-poc-cluster"
+cluster_name: "idp-poc-darede-cluster"
 
 # AWS Region of the EKS cluster
 region: "us-east-1"
