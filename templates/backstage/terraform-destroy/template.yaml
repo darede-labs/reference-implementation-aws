@@ -9,11 +9,23 @@ metadata:
     - terraform
     - destroy
     - cleanup
+  links:
+    - url: https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks
+      title: 📂 Ver Recursos Existentes
+      icon: github
 spec:
   owner: platform-team
   type: infrastructure
   parameters:
     - title: Selecionar Recurso
+      description: |
+        📂 **Veja os recursos existentes antes de destruir:**
+        - [S3 Buckets](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/s3)
+        - [EC2 Instances](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/ec2)
+        - [Security Groups](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/security-group)
+        - [VPCs](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/vpc)
+        - [EKS Clusters](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/eks)
+        - [Secrets](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/secrets)
       required:
         - resourceType
         - resourceName
@@ -38,7 +50,7 @@ spec:
         resourceName:
           title: Nome do Recurso
           type: string
-          description: Nome exato do recurso a ser destruído
+          description: Nome exato do recurso a ser destruído (veja os links acima)
         confirmDestroy:
           title: "⚠️ Confirmo que desejo DESTRUIR este recurso permanentemente"
           type: boolean
