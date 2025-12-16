@@ -1,0 +1,18 @@
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: s3-${{ values.name }}
+  description: "S3 Bucket: ${{ values.name }}"
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    github.com/project-slug: darede-labs/infrastructureidp
+  tags:
+    - aws
+    - s3
+    - terraform
+    - ${{ values.environment }}
+spec:
+  type: s3-bucket
+  lifecycle: ${{ values.environment }}
+  owner: ${{ values.owner }}
+  system: aws-infrastructure

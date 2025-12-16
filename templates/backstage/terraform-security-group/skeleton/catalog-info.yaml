@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: sg-${{ values.name }}
+  description: "Security Group: ${{ values.name }}"
+  tags: [aws, security-group, terraform, "${{ values.environment }}"]
+spec:
+  type: security-group
+  lifecycle: ${{ values.environment }}
+  owner: ${{ values.owner }}
+  system: aws-infrastructure

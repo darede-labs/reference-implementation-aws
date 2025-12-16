@@ -1,0 +1,104 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-security-group
+  title: Security Group
+  description: Create an AWS Security Group using Terraform and Atlantis (GitOps)
+  tags:
+    - aws
+    - security-group
+    - terraform
+    - network
+spec:
+  owner: platform-team
+  type: infrastructure
+  parameters:
+    - title: Security Group Configuration
+      required:
+        - name
+        - environment
+      properties:
+        name:
+          title: Security Group Name
+          type: string
+          pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+        description:
+          title: Description
+          type: string
+          default: Managed by Terraform via Backstage
+        environment:
+          title: Environment
+          type: string
+          enum: [poc, dev, staging, prod]
+          default: poc
+        allowSsh:
+          title: Allow SSH (port 22)
+          type: boolean
+          default: false
+        allowHttp:
+          title: Allow HTTP (port 80)
+          type: boolean
+          default: false
+        allowHttps:
+          title: Allow HTTPS (port 443)
+          type: boolean
+          default: false
+        owner:
+          title: Owner
+          type: string
+          default: platform-team
+
+    - title: Repository
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Infrastructure Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+
+  steps:
+    - id: fetch
+      name: Generate Terraform Configuration
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          environment: ${{ parameters.environment }}
+          allowSsh: ${{ parameters.allowSsh }}
+          allowHttp: ${{ parameters.allowHttp }}
+          allowHttps: ${{ parameters.allowHttps }}
+          owner: ${{ parameters.owner }}
+
+    - id: publish
+      name: Create Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: infra/sg-${{ parameters.name }}
+        title: 'feat(sg): Create security group ${{ parameters.name }}'
+        description: |
+          ## 🛡️ New Security Group Request
+
+          | Property | Value |
+          |----------|-------|
+          | **Name** | `${{ parameters.name }}` |
+          | **SSH** | `${{ parameters.allowSsh }}` |
+          | **HTTP** | `${{ parameters.allowHttp }}` |
+          | **HTTPS** | `${{ parameters.allowHttps }}` |
+
+          ---
+          *Created via Backstage*
+        sourcePath: ./output
+        targetPath: platform/terraform/stacks/security-group/${{ parameters.name }}
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['publish'].output.remoteUrl }}

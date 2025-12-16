@@ -1,0 +1,101 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-ec2-instance
+  title: EC2 Instance
+  description: Create an EC2 instance using Terraform and Atlantis (GitOps)
+  tags:
+    - aws
+    - ec2
+    - terraform
+    - compute
+spec:
+  owner: platform-team
+  type: infrastructure
+  parameters:
+    - title: Instance Configuration
+      required:
+        - name
+        - instanceType
+        - environment
+      properties:
+        name:
+          title: Instance Name
+          type: string
+          pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+        instanceType:
+          title: Instance Type
+          type: string
+          default: t3.micro
+          enum: [t3.micro, t3.small, t3.medium, t3.large, m5.large]
+        environment:
+          title: Environment
+          type: string
+          enum: [poc, dev, staging, prod]
+          default: poc
+        amiType:
+          title: AMI Type
+          type: string
+          default: amazon-linux-2023
+          enum: [amazon-linux-2023, amazon-linux-2, ubuntu-22.04]
+        rootVolumeSize:
+          title: Root Volume Size (GB)
+          type: integer
+          default: 20
+        owner:
+          title: Owner
+          type: string
+          default: platform-team
+
+    - title: Repository
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Infrastructure Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+
+  steps:
+    - id: fetch
+      name: Generate Terraform Configuration
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+        values:
+          name: ${{ parameters.name }}
+          instanceType: ${{ parameters.instanceType }}
+          environment: ${{ parameters.environment }}
+          amiType: ${{ parameters.amiType }}
+          rootVolumeSize: ${{ parameters.rootVolumeSize }}
+          owner: ${{ parameters.owner }}
+
+    - id: publish
+      name: Create Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: infra/ec2-${{ parameters.name }}
+        title: 'feat(ec2): Create instance ${{ parameters.name }}'
+        description: |
+          ## 🖥️ New EC2 Instance Request
+
+          | Property | Value |
+          |----------|-------|
+          | **Name** | `${{ parameters.name }}` |
+          | **Type** | `${{ parameters.instanceType }}` |
+          | **Environment** | `${{ parameters.environment }}` |
+
+          ---
+          *Created via Backstage*
+        sourcePath: ./output
+        targetPath: platform/terraform/stacks/ec2/${{ parameters.name }}
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['publish'].output.remoteUrl }}

@@ -1,0 +1,98 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-s3-bucket
+  title: S3 Bucket
+  description: Create an S3 bucket using Terraform and Atlantis (GitOps)
+  tags:
+    - aws
+    - s3
+    - terraform
+    - storage
+spec:
+  owner: platform-team
+  type: infrastructure
+  parameters:
+    - title: Bucket Configuration
+      required:
+        - name
+        - environment
+      properties:
+        name:
+          title: Bucket Name
+          type: string
+          pattern: '^[a-z0-9][a-z0-9.-]*[a-z0-9]$'
+        environment:
+          title: Environment
+          type: string
+          enum: [poc, dev, staging, prod]
+          default: poc
+        enableVersioning:
+          title: Enable Versioning
+          type: boolean
+          default: true
+        forceDestroy:
+          title: Force Destroy (allow deletion with objects)
+          type: boolean
+          default: false
+        owner:
+          title: Owner
+          type: string
+          default: platform-team
+
+    - title: Repository
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Infrastructure Repository
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+
+  steps:
+    - id: fetch
+      name: Generate Terraform Configuration
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+        values:
+          name: ${{ parameters.name }}
+          environment: ${{ parameters.environment }}
+          enableVersioning: ${{ parameters.enableVersioning }}
+          forceDestroy: ${{ parameters.forceDestroy }}
+          owner: ${{ parameters.owner }}
+
+    - id: publish
+      name: Create Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: infra/s3-${{ parameters.name }}
+        title: 'feat(s3): Create bucket ${{ parameters.name }}'
+        description: |
+          ## 🪣 New S3 Bucket Request
+
+          | Property | Value |
+          |----------|-------|
+          | **Name** | `${{ parameters.name }}` |
+          | **Environment** | `${{ parameters.environment }}` |
+          | **Versioning** | `${{ parameters.enableVersioning }}` |
+
+          ### GitOps Flow
+          1. Atlantis runs `terraform plan` automatically
+          2. Review the plan below
+          3. Approve PR and comment `/atlantis apply`
+
+          ---
+          *Created via Backstage*
+        sourcePath: ./output
+        targetPath: platform/terraform/stacks/s3/${{ parameters.name }}
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['publish'].output.remoteUrl }}
