@@ -108,6 +108,17 @@ infrastructure_repo: "infrastructureidp"
 templates_repo: "backstage-templates"
 
 ################################################################################
+# Terraform Backend Configuration
+################################################################################
+
+# S3 bucket for Terraform state (created by cluster/terraform)
+# Format: <cluster_name>-terraform-state-<account_id>
+terraform_backend:
+  bucket: "idp-poc-terraform-state-948881762705"
+  region: "us-east-1"
+  dynamodb_table: "idp-poc-terraform-locks"
+
+################################################################################
 # Domain and DNS Configuration
 ################################################################################
 

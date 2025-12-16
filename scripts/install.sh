@@ -164,6 +164,9 @@ BACKSTAGE_SUBDOMAIN=$(yq eval '.subdomains.backstage' ${CONFIG_FILE})
 KEYCLOAK_SUBDOMAIN=$(yq eval '.subdomains.keycloak' ${CONFIG_FILE})
 GITHUB_ORG=$(yq eval '.github_org' ${CONFIG_FILE})
 INFRA_REPO=$(yq eval '.infrastructure_repo' ${CONFIG_FILE})
+TF_BACKEND_BUCKET=$(yq eval '.terraform_backend.bucket' ${CONFIG_FILE})
+TF_BACKEND_REGION=$(yq eval '.terraform_backend.region // "us-east-1"' ${CONFIG_FILE})
+TF_LOCKS_TABLE=$(yq eval '.terraform_backend.dynamodb_table' ${CONFIG_FILE})
 
 kubectl create configmap domain-config \
   --namespace keycloak \
@@ -197,6 +200,11 @@ kubectl create secret generic backstage-env-vars \
   --from-literal=ARGOCD_ADMIN_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) \
   --from-literal=BACKSTAGE_CLIENT_SECRET=backstage-secret-2024 \
   --from-literal=K8S_SA_TOKEN="$K8S_TOKEN" \
+  --from-literal=GITHUB_ORG="$GITHUB_ORG" \
+  --from-literal=INFRA_REPO="$INFRA_REPO" \
+  --from-literal=TERRAFORM_BACKEND_BUCKET="$TF_BACKEND_BUCKET" \
+  --from-literal=TERRAFORM_BACKEND_REGION="$TF_BACKEND_REGION" \
+  --from-literal=TERRAFORM_LOCKS_TABLE="$TF_LOCKS_TABLE" \
   --dry-run=client -o yaml | kubectl apply -f - --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
 
 # ArgoCD repository credential for private infrastructure repo

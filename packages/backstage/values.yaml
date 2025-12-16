@@ -31,17 +31,32 @@ backstage:
       value: https://argocd.timedevops.click
     - name: ARGO_WORKFLOWS_URL
       value: https://argo-workflows.timedevops.click
-    # Platform Configuration - loaded from config.yaml during install
+    # Platform Configuration - loaded from backstage-env-vars secret (populated by install.sh from config.yaml)
     - name: GITHUB_ORG
-      value: darede-labs
+      valueFrom:
+        secretKeyRef:
+          name: backstage-env-vars
+          key: GITHUB_ORG
     - name: INFRA_REPO
-      value: infrastructureidp
+      valueFrom:
+        secretKeyRef:
+          name: backstage-env-vars
+          key: INFRA_REPO
     - name: TERRAFORM_BACKEND_BUCKET
-      value: idp-poc-terraform-state-948881762705
+      valueFrom:
+        secretKeyRef:
+          name: backstage-env-vars
+          key: TERRAFORM_BACKEND_BUCKET
     - name: TERRAFORM_BACKEND_REGION
-      value: us-east-1
+      valueFrom:
+        secretKeyRef:
+          name: backstage-env-vars
+          key: TERRAFORM_BACKEND_REGION
     - name: TERRAFORM_LOCKS_TABLE
-      value: idp-poc-terraform-locks
+      valueFrom:
+        secretKeyRef:
+          name: backstage-env-vars
+          key: TERRAFORM_LOCKS_TABLE
   # extraVolumeMounts:
   #   - name: backstage-config
   #     mountPath: "/app/config"
