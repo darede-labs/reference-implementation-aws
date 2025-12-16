@@ -37,18 +37,7 @@ resource "aws_iam_policy" "atlantis" {
         Sid    = "S3Management"
         Effect = "Allow"
         Action = [
-          "s3:CreateBucket",
-          "s3:DeleteBucket",
-          "s3:GetBucket*",
-          "s3:PutBucket*",
-          "s3:GetEncryptionConfiguration",
-          "s3:PutEncryptionConfiguration",
-          "s3:GetLifecycleConfiguration",
-          "s3:PutLifecycleConfiguration",
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListBucket"
+          "s3:*"
         ]
         Resource = "*"
       },
