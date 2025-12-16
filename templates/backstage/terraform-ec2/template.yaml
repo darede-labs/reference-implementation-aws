@@ -80,6 +80,17 @@ spec:
           type: boolean
           default: false
           description: "Only for public subnets"
+        userdata:
+          title: User Data Script
+          type: string
+          description: "Bootstrap script to run on instance launch (bash)"
+          ui:widget: textarea
+          ui:options:
+            rows: 10
+          ui:placeholder: |
+            #!/bin/bash
+            yum update -y
+            # Add your commands here
         owner:
           title: Owner
           type: string
@@ -123,6 +134,7 @@ spec:
           securityGroupIds: ${{ parameters.securityGroupIds }}
           keyPairName: ${{ parameters.keyPairName }}
           associatePublicIp: ${{ parameters.associatePublicIp }}
+          userdata: ${{ parameters.userdata }}
           owner: ${{ parameters.owner }}
           tags: ${{ parameters.tags }}
           # Platform config from environment variables

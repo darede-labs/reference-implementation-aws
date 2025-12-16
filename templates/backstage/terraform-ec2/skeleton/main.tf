@@ -88,6 +88,11 @@ module "ec2_instance" {
   {%- if values.keyPairName %}
   key_name                    = "${{ values.keyPairName }}"
   {%- endif %}
+  {%- if values.userdata %}
+  user_data                   = <<-EOF
+${{ values.userdata }}
+EOF
+  {%- endif %}
 
   root_block_device = [{
     volume_size = ${{ values.rootVolumeSize }}
