@@ -80,6 +80,7 @@ add_helm_repo_with_retry "external-secrets" "https://charts.external-secrets.io"
 add_helm_repo_with_retry "backstage" "https://backstage.github.io/charts"
 add_helm_repo_with_retry "codecentric" "https://codecentric.github.io/helm-charts"
 add_helm_repo_with_retry "ingress-nginx" "https://kubernetes.github.io/ingress-nginx"
+add_helm_repo_with_retry "runatlantis" "https://runatlantis.github.io/helm-charts"
 
 echo -e "${YELLOW}⏳ Updating helm repos...${NC}"
 helm repo update > /dev/null
@@ -125,6 +126,37 @@ rm -f "$EXTERNAL_SECRETS_DYNAMIC_VALUES_FILE"
 echo -e "${YELLOW}⏳ Waiting for External Secrets to be healthy...${NC}"
 kubectl wait --for=condition=available deployment/external-secrets -n external-secrets --timeout=300s --kubeconfig $KUBECONFIG_FILE > /dev/null
 
+echo -e "${BOLD}${GREEN}🔄 Installing Atlantis (GitOps for Terraform)...${NC}"
+
+# Read Atlantis configuration from config.yaml
+ATLANTIS_SUBDOMAIN=$(yq eval '.atlantis.subdomain // "atlantis"' ${CONFIG_FILE})
+ATLANTIS_WEBHOOK_SECRET=$(yq eval '.atlantis.webhook_secret // "atlantis-webhook-secret"' ${CONFIG_FILE})
+ATLANTIS_AUTOMERGE=$(yq eval '.atlantis.automerge // true' ${CONFIG_FILE})
+
+# Build Atlantis extraArgs based on config
+ATLANTIS_EXTRA_ARGS=""
+if [ "$ATLANTIS_AUTOMERGE" == "true" ]; then
+  ATLANTIS_EXTRA_ARGS="--set extraArgs[0]=--automerge --set extraArgs[1]=--autoplan-modules"
+fi
+
+helm upgrade --install --wait atlantis runatlantis/atlantis \
+  --namespace atlantis \
+  --create-namespace \
+  --set github.user="${GITHUB_ORG}" \
+  --set github.token="${GITHUB_TOKEN}" \
+  --set github.secret="${ATLANTIS_WEBHOOK_SECRET}" \
+  --set orgAllowlist="github.com/${GITHUB_ORG}/*" \
+  --set ingress.enabled=true \
+  --set ingress.host="${ATLANTIS_SUBDOMAIN}.${DOMAIN_NAME}" \
+  --set ingress.ingressClassName=nginx \
+  --set ingress.path=/ \
+  --set serviceAccount.create=true \
+  --set serviceAccount.name=atlantis \
+  ${ATLANTIS_EXTRA_ARGS} \
+  --kubeconfig $KUBECONFIG_FILE > /dev/null
+
+echo -e "${YELLOW}⏳ Waiting for Atlantis to be healthy...${NC}"
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=atlantis -n atlantis --timeout=300s --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
 
 echo -e "${BOLD}${GREEN}🔄 Applying custom manifests...${NC}"
 

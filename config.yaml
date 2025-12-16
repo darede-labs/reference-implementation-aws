@@ -108,6 +108,18 @@ infrastructure_repo: "infrastructureidp"
 templates_repo: "backstage-templates"
 
 ################################################################################
+# Atlantis Configuration (GitOps for Terraform)
+################################################################################
+
+atlantis:
+  # Atlantis webhook secret for GitHub integration
+  webhook_secret: "atlantis-webhook-secret-2024"
+  # Enable auto-merge after successful apply
+  automerge: true
+  # Subdomain for Atlantis UI
+  subdomain: "atlantis"
+
+################################################################################
 # Terraform Backend Configuration
 ################################################################################
 
