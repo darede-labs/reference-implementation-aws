@@ -27,7 +27,7 @@ spec:
           title: Instance Type
           type: string
           default: t3.micro
-          enum: [t3.micro, t3.small, t3.medium, t3.large, m5.large]
+          enum: [t3.micro, t3.small, t3.medium, t3.large, m5.large, m5.xlarge]
         environment:
           title: Environment
           type: string
@@ -42,22 +42,48 @@ spec:
           title: Root Volume Size (GB)
           type: integer
           default: 20
+          minimum: 8
+          maximum: 500
+
+    - title: Network Configuration
+      required:
+        - subnetType
+      properties:
+        subnetType:
+          title: Subnet Type
+          type: string
+          default: private
+          enum: [private, public]
+          enumNames: ["Private Subnet (recommended)", "Public Subnet (internet-facing)"]
+        subnetId:
+          title: Subnet ID (optional - leave empty for default VPC)
+          type: string
+          description: "Ex: subnet-0123456789abcdef0"
+        securityGroupIds:
+          title: Security Group IDs
+          type: array
+          items:
+            type: string
+          description: "Ex: sg-0123456789abcdef0 (leave empty to create new)"
+          ui:options:
+            addable: true
+            removable: true
+
+    - title: Access Configuration
+      properties:
+        keyPairName:
+          title: SSH Key Pair Name
+          type: string
+          description: "Existing EC2 Key Pair name for SSH access"
+        associatePublicIp:
+          title: Associate Public IP
+          type: boolean
+          default: false
+          description: "Only for public subnets"
         owner:
           title: Owner
           type: string
           default: platform-team
-
-    - title: Repository
-      required:
-        - repoUrl
-      properties:
-        repoUrl:
-          title: Infrastructure Repository
-          type: string
-          ui:field: RepoUrlPicker
-          ui:options:
-            requestUserCredentials:
-              secretsKey: USER_OAUTH_TOKEN
 
   steps:
     - id: fetch
@@ -72,13 +98,18 @@ spec:
           environment: ${{ parameters.environment }}
           amiType: ${{ parameters.amiType }}
           rootVolumeSize: ${{ parameters.rootVolumeSize }}
+          subnetType: ${{ parameters.subnetType }}
+          subnetId: ${{ parameters.subnetId }}
+          securityGroupIds: ${{ parameters.securityGroupIds }}
+          keyPairName: ${{ parameters.keyPairName }}
+          associatePublicIp: ${{ parameters.associatePublicIp }}
           owner: ${{ parameters.owner }}
 
     - id: publish
       name: Create Pull Request
       action: publish:github:pull-request
       input:
-        repoUrl: ${{ parameters.repoUrl }}
+        repoUrl: github.com?owner=darede-labs&repo=infrastructureidp
         branchName: infra/ec2-${{ parameters.name }}
         title: 'feat(ec2): Create instance ${{ parameters.name }}'
         description: |
@@ -88,6 +119,9 @@ spec:
           |----------|-------|
           | **Name** | `${{ parameters.name }}` |
           | **Type** | `${{ parameters.instanceType }}` |
+          | **AMI** | `${{ parameters.amiType }}` |
+          | **Subnet** | `${{ parameters.subnetType }}` |
+          | **Key Pair** | `${{ parameters.keyPairName }}` |
           | **Environment** | `${{ parameters.environment }}` |
 
           ---

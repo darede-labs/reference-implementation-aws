@@ -40,18 +40,6 @@ spec:
           type: string
           default: platform-team
 
-    - title: Repository
-      required:
-        - repoUrl
-      properties:
-        repoUrl:
-          title: Infrastructure Repository
-          type: string
-          ui:field: RepoUrlPicker
-          ui:options:
-            requestUserCredentials:
-              secretsKey: USER_OAUTH_TOKEN
-
   steps:
     - id: fetch
       name: Generate Terraform Configuration
@@ -70,7 +58,7 @@ spec:
       name: Create Pull Request
       action: publish:github:pull-request
       input:
-        repoUrl: ${{ parameters.repoUrl }}
+        repoUrl: github.com?owner=darede-labs&repo=infrastructureidp
         branchName: infra/s3-${{ parameters.name }}
         title: 'feat(s3): Create bucket ${{ parameters.name }}'
         description: |

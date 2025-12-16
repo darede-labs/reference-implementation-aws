@@ -48,18 +48,6 @@ spec:
           type: string
           default: platform-team
 
-    - title: Repository
-      required:
-        - repoUrl
-      properties:
-        repoUrl:
-          title: Infrastructure Repository
-          type: string
-          ui:field: RepoUrlPicker
-          ui:options:
-            requestUserCredentials:
-              secretsKey: USER_OAUTH_TOKEN
-
   steps:
     - id: fetch
       name: Generate Terraform Configuration
@@ -80,7 +68,7 @@ spec:
       name: Create Pull Request
       action: publish:github:pull-request
       input:
-        repoUrl: ${{ parameters.repoUrl }}
+        repoUrl: github.com?owner=darede-labs&repo=infrastructureidp
         branchName: infra/sg-${{ parameters.name }}
         title: 'feat(sg): Create security group ${{ parameters.name }}'
         description: |

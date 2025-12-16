@@ -44,18 +44,6 @@ spec:
           type: boolean
           default: false
 
-    - title: Repository
-      required:
-        - repoUrl
-      properties:
-        repoUrl:
-          title: Infrastructure Repository
-          type: string
-          ui:field: RepoUrlPicker
-          ui:options:
-            requestUserCredentials:
-              secretsKey: USER_OAUTH_TOKEN
-
   steps:
     - id: fetch
       name: Gerar arquivo de destruição
@@ -71,7 +59,7 @@ spec:
       name: Criar Pull Request de Destruição
       action: publish:github:pull-request
       input:
-        repoUrl: ${{ parameters.repoUrl }}
+        repoUrl: github.com?owner=darede-labs&repo=infrastructureidp
         branchName: destroy/${{ parameters.resourceType }}-${{ parameters.resourceName }}
         title: "🗑️ DESTROY: ${{ parameters.resourceType }}/${{ parameters.resourceName }}"
         description: |
