@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: terraform-security-group
   title: Security Group
-  description: Create an AWS Security Group using Terraform and Atlantis (GitOps)
+  description: Create an AWS Security Group with custom inbound/outbound rules using Terraform
   tags:
     - aws
     - security-group
@@ -26,7 +26,7 @@ spec:
         vpcId:
           title: VPC ID
           type: string
-          description: "VPC ID where the security group will be created (e.g., vpc-0123456789abcdef0)"
+          description: "VPC ID onde o security group será criado (ex: vpc-0123456789abcdef0)"
         description:
           title: Description
           type: string
@@ -36,29 +36,100 @@ spec:
           type: string
           enum: [poc, dev, staging, prod]
           default: poc
-        allowSsh:
-          title: Allow SSH (port 22)
-          type: boolean
-          default: false
-        allowHttp:
-          title: Allow HTTP (port 80)
-          type: boolean
-          default: false
-        allowHttps:
-          title: Allow HTTPS (port 443)
-          type: boolean
-          default: false
         owner:
           title: Owner
           type: string
           default: platform-team
+
+    - title: Inbound Rules (Ingress)
+      description: |
+        Defina as regras de entrada. Exemplos de portas:
+        - **22**: SSH
+        - **80**: HTTP
+        - **443**: HTTPS
+        - **3306**: MySQL
+        - **5432**: PostgreSQL
+        - **6379**: Redis
+        - **27017**: MongoDB
+        - **8080-8090**: Range de portas
+      properties:
+        ingressRules:
+          title: Regras de Entrada (Inbound)
+          type: array
+          description: "Adicione regras para tráfego de entrada"
+          items:
+            type: object
+            required: [fromPort, toPort, protocol, cidrBlocks, description]
+            properties:
+              fromPort:
+                title: Porta Inicial
+                type: integer
+                description: "Porta inicial (ex: 22, 80, 443, 8080)"
+              toPort:
+                title: Porta Final
+                type: integer
+                description: "Porta final (igual à inicial para porta única, ou maior para range)"
+              protocol:
+                title: Protocolo
+                type: string
+                enum: [tcp, udp, icmp, "-1"]
+                enumNames: [TCP, UDP, ICMP, "All Traffic"]
+                default: tcp
+              cidrBlocks:
+                title: CIDR Blocks
+                type: string
+                description: "IPs permitidos (ex: 0.0.0.0/0 para todos, 10.0.0.0/8 para rede interna)"
+                default: "0.0.0.0/0"
+              description:
+                title: Descrição da Regra
+                type: string
+                description: "Descreva o propósito desta regra"
+          ui:options:
+            addable: true
+            removable: true
+            orderable: true
+
+    - title: Outbound Rules (Egress)
+      description: |
+        Defina as regras de saída. Por padrão, todo tráfego de saída é permitido.
+        Adicione regras apenas se precisar restringir.
+      properties:
+        egressRules:
+          title: Regras de Saída (Outbound)
+          type: array
+          description: "Deixe vazio para permitir todo tráfego de saída, ou adicione regras específicas"
+          items:
+            type: object
+            required: [fromPort, toPort, protocol, cidrBlocks, description]
+            properties:
+              fromPort:
+                title: Porta Inicial
+                type: integer
+              toPort:
+                title: Porta Final
+                type: integer
+              protocol:
+                title: Protocolo
+                type: string
+                enum: [tcp, udp, icmp, "-1"]
+                enumNames: [TCP, UDP, ICMP, "All Traffic"]
+                default: tcp
+              cidrBlocks:
+                title: CIDR Blocks
+                type: string
+                default: "0.0.0.0/0"
+              description:
+                title: Descrição
+                type: string
+          ui:options:
+            addable: true
+            removable: true
 
     - title: Tags
       properties:
         tags:
           title: Custom Tags
           type: array
-          description: Add custom tags (key=value)
           items:
             type: object
             required: [key, value]
@@ -85,10 +156,9 @@ spec:
           vpcId: ${{ parameters.vpcId }}
           description: ${{ parameters.description }}
           environment: ${{ parameters.environment }}
-          allowSsh: ${{ parameters.allowSsh }}
-          allowHttp: ${{ parameters.allowHttp }}
-          allowHttps: ${{ parameters.allowHttps }}
           owner: ${{ parameters.owner }}
+          ingressRules: ${{ parameters.ingressRules }}
+          egressRules: ${{ parameters.egressRules }}
           tags: ${{ parameters.tags }}
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
           infraRepo: ${{ env.INFRA_REPO | default('infrastructureidp') }}
@@ -108,9 +178,9 @@ spec:
           | Property | Value |
           |----------|-------|
           | **Name** | `${{ parameters.name }}` |
-          | **SSH** | `${{ parameters.allowSsh }}` |
-          | **HTTP** | `${{ parameters.allowHttp }}` |
-          | **HTTPS** | `${{ parameters.allowHttps }}` |
+          | **VPC** | `${{ parameters.vpcId }}` |
+          | **Inbound Rules** | `${{ parameters.ingressRules | length }}` |
+          | **Outbound Rules** | `${{ parameters.egressRules | length }}` |
 
           ---
           *Created via Backstage*

@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: terraform-vpc
   title: VPC Completa
-  description: Create a complete VPC with subnets, NAT Gateway using Terraform
+  description: Create a VPC with configurable subnets (public/private) using Terraform
   tags: [aws, vpc, terraform, network]
 spec:
   owner: platform-team
@@ -25,25 +25,71 @@ spec:
           title: VPC CIDR Block
           type: string
           default: "10.0.0.0/16"
-        azCount:
-          title: Number of Availability Zones
-          type: integer
-          enum: [1, 2, 3]
-          default: 2
+          description: "CIDR block da VPC (ex: 10.0.0.0/16, 172.16.0.0/16)"
         enableNatGateway:
           title: Enable NAT Gateway
           type: boolean
           default: true
+          description: "Habilita NAT Gateway para subnets privadas acessarem a internet"
+        singleNatGateway:
+          title: Single NAT Gateway
+          type: boolean
+          default: true
+          description: "Usar apenas um NAT Gateway (mais barato) ou um por AZ (alta disponibilidade)"
         owner:
           title: Owner
           type: string
           default: platform-team
+
+    - title: Subnets Configuration
+      description: |
+        Configure as subnets da VPC. Os CIDRs serão calculados automaticamente.
+        Exemplo para VPC 10.0.0.0/16:
+        - Subnet /24 = 256 IPs
+        - Subnet /20 = 4096 IPs
+      required: [subnets]
+      properties:
+        subnets:
+          title: Subnets
+          type: array
+          minItems: 1
+          description: "Adicione as subnets que deseja criar"
+          items:
+            type: object
+            required: [name, type, cidrSuffix]
+            properties:
+              name:
+                title: Nome da Subnet
+                type: string
+                description: "Nome identificador (ex: public-1, private-app, private-db)"
+              type:
+                title: Tipo
+                type: string
+                enum: [public, private]
+                enumNames: ["Pública (com acesso direto à internet)", "Privada (acesso via NAT)"]
+                default: private
+              cidrSuffix:
+                title: CIDR Suffix
+                type: integer
+                description: "Terceiro octeto do CIDR (ex: 1 para 10.0.1.0/24, 10 para 10.0.10.0/24)"
+                minimum: 0
+                maximum: 255
+              availabilityZone:
+                title: Availability Zone
+                type: string
+                enum: ["a", "b", "c"]
+                enumNames: ["us-east-1a", "us-east-1b", "us-east-1c"]
+                default: "a"
+          ui:options:
+            addable: true
+            removable: true
+            orderable: true
+
     - title: Tags
       properties:
         tags:
           title: Custom Tags
           type: array
-          description: Add custom tags (key=value)
           items:
             type: object
             required: [key, value]
@@ -68,8 +114,9 @@ spec:
           name: ${{ parameters.name }}
           environment: ${{ parameters.environment }}
           cidr: ${{ parameters.cidr }}
-          azCount: ${{ parameters.azCount }}
           enableNatGateway: ${{ parameters.enableNatGateway }}
+          singleNatGateway: ${{ parameters.singleNatGateway }}
+          subnets: ${{ parameters.subnets }}
           owner: ${{ parameters.owner }}
           tags: ${{ parameters.tags }}
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
@@ -89,7 +136,8 @@ spec:
           |----------|-------|
           | **Name** | `${{ parameters.name }}` |
           | **CIDR** | `${{ parameters.cidr }}` |
-          | **AZs** | `${{ parameters.azCount }}` |
+          | **Subnets** | `${{ parameters.subnets | length }}` |
+          | **NAT Gateway** | `${{ parameters.enableNatGateway }}` |
           ---
           *Created via Backstage*
         sourcePath: ./output

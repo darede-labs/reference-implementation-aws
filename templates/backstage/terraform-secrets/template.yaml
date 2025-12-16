@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: terraform-secrets-manager
   title: Secrets Manager Secret
-  description: Create an AWS Secrets Manager secret using Terraform
+  description: Create an AWS Secrets Manager secret with key/value pairs using Terraform
   tags: [aws, secrets, terraform, security]
 spec:
   owner: platform-team
@@ -16,6 +16,7 @@ spec:
           title: Secret Name
           type: string
           pattern: '^[a-zA-Z0-9/_+=.@-]+$'
+          description: "Nome único para o secret (ex: my-app/database, api-keys/stripe)"
         description:
           title: Description
           type: string
@@ -29,6 +30,31 @@ spec:
           title: Owner
           type: string
           default: platform-team
+    - title: Secret Values (Key/Value Pairs)
+      required: [secretData]
+      properties:
+        secretData:
+          title: Secret Data
+          type: array
+          description: "Adicione os pares chave/valor que serão armazenados no secret"
+          minItems: 1
+          items:
+            type: object
+            required: [key, value]
+            properties:
+              key:
+                title: Key
+                type: string
+                description: "Nome da chave (ex: username, password, api_key)"
+              value:
+                title: Value
+                type: string
+                description: "Valor do secret (ex: admin, s3cr3t, sk_live_xxx)"
+                ui:widget: password
+          ui:options:
+            addable: true
+            removable: true
+            orderable: true
     - title: Tags
       properties:
         tags:
@@ -60,6 +86,7 @@ spec:
           description: ${{ parameters.description }}
           environment: ${{ parameters.environment }}
           owner: ${{ parameters.owner }}
+          secretData: ${{ parameters.secretData }}
           tags: ${{ parameters.tags }}
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
           infraRepo: ${{ env.INFRA_REPO | default('infrastructureidp') }}
