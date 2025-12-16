@@ -73,11 +73,14 @@ spec:
           nodeDesiredSize: ${{ parameters.nodeDesiredSize }}
           owner: ${{ parameters.owner }}
           tags: ${{ parameters.tags }}
+          tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('idp-poc-terraform-state') }}
+          tfBackendRegion: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+          tfLocksTable: ${{ env.TERRAFORM_LOCKS_TABLE | default('idp-poc-terraform-locks') }}
     - id: publish
       name: Create Pull Request
       action: publish:github:pull-request
       input:
-        repoUrl: github.com?owner=${{ parameters.githubOrg | default('darede-labs') }}&repo=${{ parameters.infraRepo | default('infrastructureidp') }}
+        repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
         branchName: infra/eks-${{ parameters.name }}
         title: 'feat(eks): Create cluster ${{ parameters.name }}'
         description: |

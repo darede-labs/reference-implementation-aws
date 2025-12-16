@@ -31,6 +31,17 @@ backstage:
       value: https://argocd.timedevops.click
     - name: ARGO_WORKFLOWS_URL
       value: https://argo-workflows.timedevops.click
+    # Platform Configuration - loaded from config.yaml during install
+    - name: GITHUB_ORG
+      value: darede-labs
+    - name: INFRA_REPO
+      value: infrastructureidp
+    - name: TERRAFORM_BACKEND_BUCKET
+      value: idp-poc-terraform-state-948881762705
+    - name: TERRAFORM_BACKEND_REGION
+      value: us-east-1
+    - name: TERRAFORM_LOCKS_TABLE
+      value: idp-poc-terraform-locks
   # extraVolumeMounts:
   #   - name: backstage-config
   #     mountPath: "/app/config"
@@ -159,7 +170,11 @@ backstage:
                 - resolver: emailMatchingUserEntityProfileEmail
 
     scaffolder:
-      # Scaffolder configurations
+      # Default values for scaffolder - accessible via ${GITHUB_ORG} etc in templates
+      defaultAuthor:
+        name: Backstage Scaffolder
+        email: scaffolder@backstage.io
+      defaultCommitMessage: "feat: created via Backstage scaffolder"
     kubernetes:
       serviceLocatorMethod:
         type: multiTenant

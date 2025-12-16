@@ -1,10 +1,10 @@
 terraform {
   required_version = ">= 1.5.0"
   backend "s3" {
-    bucket         = "idp-poc-terraform-state-948881762705"
+    bucket         = "${{ values.tfBackendBucket }}"
     key            = "platform/terraform/stacks/vpc/${{ values.name }}/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "idp-poc-terraform-locks"
+    region         = "${{ values.tfBackendRegion }}"
+    dynamodb_table = "${{ values.tfLocksTable }}"
     encrypt        = true
   }
   required_providers {

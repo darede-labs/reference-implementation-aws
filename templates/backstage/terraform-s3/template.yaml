@@ -74,12 +74,18 @@ spec:
           forceDestroy: ${{ parameters.forceDestroy }}
           owner: ${{ parameters.owner }}
           tags: ${{ parameters.tags }}
+          # Platform config from environment variables
+          tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('idp-poc-terraform-state') }}
+          tfBackendRegion: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+          tfLocksTable: ${{ env.TERRAFORM_LOCKS_TABLE | default('idp-poc-terraform-locks') }}
+          githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
+          infraRepo: ${{ env.INFRA_REPO | default('infrastructureidp') }}
 
     - id: publish
       name: Create Pull Request
       action: publish:github:pull-request
       input:
-        repoUrl: github.com?owner=${{ parameters.githubOrg | default('darede-labs') }}&repo=${{ parameters.infraRepo | default('infrastructureidp') }}
+        repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
         branchName: infra/s3-${{ parameters.name }}
         title: 'feat(s3): Create bucket ${{ parameters.name }}'
         description: |
