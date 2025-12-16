@@ -147,5 +147,9 @@ path_routing: "false"
 # Tags for AWS Resources
 ################################################################################
 
-tcatalog-info.yaml
+tags:
+  githubRepo: "github.com/darede-labs/reference-implementation-aws"
+  env: "poc"
+  project: "idp"
+  owner: "platform-team"
   cost-center: "engineering"

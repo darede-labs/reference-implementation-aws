@@ -3,6 +3,16 @@ kind: Resource
 metadata:
   name: vpc-${{ values.name }}
   description: "VPC: ${{ values.name }} (${{ values.cidr }})"
+  annotations:
+    github.com/project-slug: ${{ values.githubOrg }}/${{ values.infraRepo }}
+    backstage.io/source-location: url:https://github.com/${{ values.githubOrg }}/${{ values.infraRepo }}/tree/main/platform/terraform/stacks/vpc/${{ values.name }}
+  links:
+    - url: https://github.com/${{ values.githubOrg }}/${{ values.infraRepo }}/pulls?q=is%3Apr+vpc-${{ values.name }}
+      title: "🔄 Pull Requests"
+      icon: github
+    - url: https://console.aws.amazon.com/vpc/home#vpcs:search=${{ values.name }}
+      title: "☁️ AWS Console"
+      icon: cloud
   tags: [aws, vpc, terraform, "${{ values.environment }}"]
 spec:
   type: vpc

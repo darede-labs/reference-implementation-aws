@@ -3,6 +3,16 @@ kind: Resource
 metadata:
   name: secret-${{ values.name | replace("/", "-") }}
   description: "Secret: ${{ values.name }}"
+  annotations:
+    github.com/project-slug: ${{ values.githubOrg }}/${{ values.infraRepo }}
+    backstage.io/source-location: url:https://github.com/${{ values.githubOrg }}/${{ values.infraRepo }}/tree/main/platform/terraform/stacks/secrets/${{ values.name | replace("/", "-") }}
+  links:
+    - url: https://github.com/${{ values.githubOrg }}/${{ values.infraRepo }}/pulls?q=is%3Apr+secret-${{ values.name | replace("/", "-") }}
+      title: "🔄 Pull Requests"
+      icon: github
+    - url: https://console.aws.amazon.com/secretsmanager/secret?name=${{ values.name }}
+      title: "☁️ AWS Console"
+      icon: cloud
   tags: [aws, secrets, terraform, "${{ values.environment }}"]
 spec:
   type: secret

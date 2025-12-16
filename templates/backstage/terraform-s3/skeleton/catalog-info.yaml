@@ -5,7 +5,20 @@ metadata:
   description: "S3 Bucket: ${{ values.name }}"
   annotations:
     backstage.io/techdocs-ref: dir:.
-    github.com/project-slug: darede-labs/infrastructureidp
+    # GitHub integration - shows PRs, issues, workflows
+    github.com/project-slug: ${{ values.githubOrg }}/${{ values.infraRepo }}
+    # Source location for viewing code
+    backstage.io/source-location: url:https://github.com/${{ values.githubOrg }}/${{ values.infraRepo }}/tree/main/platform/terraform/stacks/s3/${{ values.name }}
+    # Terraform state info
+    terraform.io/backend: s3
+    terraform.io/workspace: default
+  links:
+    - url: https://github.com/${{ values.githubOrg }}/${{ values.infraRepo }}/pulls?q=is%3Apr+s3-${{ values.name }}
+      title: "🔄 Pull Requests"
+      icon: github
+    - url: https://console.aws.amazon.com/s3/buckets/${{ values.name }}
+      title: "☁️ AWS Console"
+      icon: cloud
   tags:
     - aws
     - s3
