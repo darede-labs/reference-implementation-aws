@@ -2,38 +2,36 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: terraform-destroy-resource
-  title: "🗑️ Destruir Recurso AWS"
-  description: Remove um recurso AWS criado via plataforma (GitOps com Atlantis)
+  title: "🗑️ Safe Destroy - AWS Resource"
+  description: Safely remove an AWS resource you own (GitOps with Atlantis + Owner Enforcement)
   tags:
     - aws
     - terraform
     - destroy
     - cleanup
+    - safe-deletion
   links:
     - url: https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks
-      title: 📂 Ver Recursos Existentes
+      title: 📂 View Existing Resources
       icon: github
 spec:
   owner: platform-team
   type: infrastructure
   parameters:
-    - title: Selecionar Recurso para Destruir
+    - title: Select Resource to Destroy
       description: |
-        ## 📂 Recursos Existentes
-        Clique nos links para ver os recursos disponíveis:
-        - [S3 Buckets](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/s3)
-        - [EC2 Instances](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/ec2)
-        - [Security Groups](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/security-group)
-        - [VPCs](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/vpc)
-        - [EKS Clusters](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/eks)
-        - [Secrets](https://github.com/darede-labs/infrastructureidp/tree/main/platform/terraform/stacks/secrets)
+        ## 🔒 Owner Enforcement Active
+        You can only delete resources that YOU created. The system will verify ownership before allowing destruction.
+
+        ## 📂 Your Resources
+        Resources are organized by owner: `{resource_type}/{your_username}/{resource_name}`
       required:
         - resourceType
         - resourceName
         - confirmDestroy
       properties:
         resourceType:
-          title: Tipo de Recurso
+          title: Resource Type
           type: string
           enum:
             - s3
@@ -50,18 +48,18 @@ spec:
             - EKS Cluster
             - Secrets Manager
         resourceName:
-          title: Nome do Recurso
+          title: Resource Name
           type: string
-          description: Nome exato do recurso (pasta) a ser destruído
+          description: Exact name of the resource (folder) to destroy
         confirmDestroy:
-          title: "⚠️ CONFIRMO que desejo DESTRUIR este recurso permanentemente"
+          title: "⚠️ I CONFIRM I want to PERMANENTLY DESTROY this resource"
           type: boolean
           default: false
           ui:widget: checkbox
 
   steps:
     - id: fetch-skeleton
-      name: Gerar configuração de destruição
+      name: Generate destroy configuration
       action: fetch:template
       input:
         url: ./skeleton
@@ -69,39 +67,49 @@ spec:
         values:
           resourceType: ${{ parameters.resourceType }}
           resourceName: ${{ parameters.resourceName }}
+          # Auto-populate owner from Keycloak user identity for verification
+          requestingUser: ${{ user.entity.metadata.name | default('unknown') }}
           tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
           tfBackendRegion: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
 
     - id: publish
-      name: Criar Pull Request de Destruição
+      name: Create Destroy Pull Request (Owner-Enforced)
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: destroy/${{ parameters.resourceType }}-${{ parameters.resourceName }}
-        title: "🗑️ DESTROY: ${{ parameters.resourceType }}/${{ parameters.resourceName }}"
+        branchName: destroy/${{ user.entity.metadata.name | default('user') }}-${{ parameters.resourceType }}-${{ parameters.resourceName }}
+        title: "🗑️ DESTROY: ${{ parameters.resourceType }}/${{ user.entity.metadata.name | default('user') }}/${{ parameters.resourceName }}"
         description: |
-          ## ⚠️ DESTRUIÇÃO DE RECURSO
+          ## ⚠️ RESOURCE DESTRUCTION REQUEST
 
           | Property | Value |
           |----------|-------|
-          | **Tipo** | `${{ parameters.resourceType }}` |
-          | **Nome** | `${{ parameters.resourceName }}` |
+          | **Type** | `${{ parameters.resourceType }}` |
+          | **Name** | `${{ parameters.resourceName }}` |
+          | **Requesting User** | `${{ user.entity.metadata.name | default('unknown') }}` |
 
-          ### 🔄 Fluxo Automático
-          1. Este PR **substitui** o main.tf por uma versão vazia (sem recursos)
-          2. Atlantis detecta a mudança e planeja a destruição dos recursos
-          3. Após apply bem-sucedido (destroy), o PR é mergeado automaticamente
+          ### � Owner Enforcement
+          This PR targets the path: `${{ parameters.resourceType }}/${{ user.entity.metadata.name | default('user') }}/${{ parameters.resourceName }}`
 
-          ### ⚠️ ATENÇÃO
-          - Esta ação é **IRREVERSÍVEL**
-          - O recurso será **permanentemente deletado** da AWS
-          - Buckets S3 com objetos e Secrets podem demorar para serem removidos
+          **Only resources owned by `${{ user.entity.metadata.name | default('unknown') }}` can be destroyed.**
+
+          Atlantis will verify the `Owner` tag in Terraform state matches the requesting user before allowing destroy.
+
+          ### 🔄 Automated Flow
+          1. This PR replaces main.tf with an empty version (no resources)
+          2. Atlantis detects the change and plans the destruction
+          3. After successful apply (destroy), PR is auto-merged
+
+          ### ⚠️ WARNING
+          - This action is **IRREVERSIBLE**
+          - Resource will be **permanently deleted** from AWS
 
           ---
-          *Solicitação de destruição via Backstage*
+          *Destruction request via Backstage by ${{ user.entity.metadata.name | default('unknown') }}*
         sourcePath: ./output
-        targetPath: platform/terraform/stacks/${{ parameters.resourceType }}/${{ parameters.resourceName }}
-        gitCommitMessage: "destroy(${{ parameters.resourceType }}): remove resources from ${{ parameters.resourceName }}"
+        # Owner-enforced path: {resource_type}/{username}/{resource_name}
+        targetPath: platform/terraform/stacks/${{ parameters.resourceType }}/${{ user.entity.metadata.name | default('shared') }}/${{ parameters.resourceName }}
+        gitCommitMessage: "destroy(${{ parameters.resourceType }}): remove ${{ parameters.resourceName }} [owner: ${{ user.entity.metadata.name | default('unknown') }}]"
 
   output:
     links:

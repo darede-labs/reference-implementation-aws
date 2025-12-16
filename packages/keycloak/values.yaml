@@ -13,6 +13,8 @@ image:
 
 global:
   defaultStorageClass: gp3
+  security:
+    allowInsecureImages: true
 
 # Auth credentials — chart cria Secret "keycloak" e variáveis corretas
 auth:

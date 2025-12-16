@@ -35,10 +35,6 @@ spec:
           title: Force Destroy (allow deletion with objects)
           type: boolean
           default: false
-        owner:
-          title: Owner
-          type: string
-          default: platform-team
 
     - title: Tags
       properties:
@@ -72,7 +68,9 @@ spec:
           environment: ${{ parameters.environment }}
           enableVersioning: ${{ parameters.enableVersioning }}
           forceDestroy: ${{ parameters.forceDestroy }}
-          owner: ${{ parameters.owner }}
+          # Auto-populate owner from Keycloak user identity
+          owner: ${{ user.entity.metadata.name | default(user.entity.spec.profile.displayName) | default('unknown') }}
+          ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
           tags: ${{ parameters.tags }}
           # Platform config from environment variables
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
@@ -85,14 +83,15 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/s3-${{ parameters.name }}
-        title: 'feat(s3): Create bucket ${{ parameters.name }}'
+        branchName: infra/s3-${{ user.entity.metadata.name | default('user') }}-${{ parameters.name }}
+        title: 'feat(s3): Create bucket ${{ parameters.name }} for ${{ user.entity.metadata.name | default("user") }}'
         description: |
           ## 🪣 New S3 Bucket Request
 
           | Property | Value |
           |----------|-------|
           | **Name** | `${{ parameters.name }}` |
+          | **Owner** | `${{ user.entity.metadata.name | default("unknown") }}` |
           | **Environment** | `${{ parameters.environment }}` |
           | **Versioning** | `${{ parameters.enableVersioning }}` |
 
@@ -101,10 +100,14 @@ spec:
           2. Review the plan below
           3. Approve PR and comment `/atlantis apply`
 
+          ### Owner Enforcement
+          Only `${{ user.entity.metadata.name | default("unknown") }}` can delete this resource.
+
           ---
-          *Created via Backstage*
+          *Created via Backstage by ${{ user.entity.metadata.name | default("unknown") }}*
         sourcePath: ./output
-        targetPath: platform/terraform/stacks/s3/${{ parameters.name }}
+        # User-segregated path: s3/{username}/{resource_name}
+        targetPath: platform/terraform/stacks/s3/${{ user.entity.metadata.name | default('shared') }}/${{ parameters.name }}
 
   output:
     links:

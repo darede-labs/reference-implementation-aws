@@ -21,10 +21,12 @@ ARGOCD_CUSTOM_MANIFESTS_PATH=${REPO_ROOT}/packages/argo-cd/manifests
 EXTERNAL_SECRETS_CUSTOM_MANIFESTS_PATH=${REPO_ROOT}/packages/external-secrets/manifests
 
 # Build Argo CD dynamic values
-# Read secrets from config.yaml
+# Read secrets and config from config.yaml
 ARGOCD_OIDC_SECRET=$(yq eval '.secrets.argocd.oidc_client_secret' ${CONFIG_FILE})
 KEYCLOAK_SUBDOMAIN=$(yq eval '.subdomains.keycloak' ${CONFIG_FILE})
 ARGOCD_SUBDOMAIN=$(yq eval '.subdomains.argocd' ${CONFIG_FILE})
+GITHUB_TOKEN=$(yq eval '.github_token' ${CONFIG_FILE})
+GITHUB_ORG=$(yq eval '.github_org' ${CONFIG_FILE})
 
 ARGOCD_DYNAMIC_VALUES_FILE=$(mktemp)
 ISSUER_URL=$([[ "${PATH_ROUTING}" == "false" ]] && echo "${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}" || echo "${DOMAIN_NAME}/keycloak")
@@ -315,11 +317,24 @@ kubectl create secret generic argocd-keycloak-secret -n argocd \
 
 # Configure ArgoCD OIDC with Keycloak (using dynamic domain)
 KEYCLOAK_ISSUER_URL="https://${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}/auth/realms/cnoe"
-kubectl -n argocd patch cm argocd-cm --type merge -p "{
-  \"data\": {
-    \"oidc.config\": \"name: Keycloak\\nissuer: ${KEYCLOAK_ISSUER_URL}\\nclientID: argocd\\nclientSecret: \\\$argocd-keycloak-secret:secret\\nrequestedScopes:\\n  - openid\\n  - profile\\n  - email\\n  - groups\"
-  }
-}"
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  oidc.config: |
+    name: Keycloak
+    issuer: ${KEYCLOAK_ISSUER_URL}
+    clientID: argocd
+    clientSecret: \$argocd-keycloak-secret:secret
+    requestedScopes:
+      - openid
+      - profile
+      - email
+      - groups
+EOF
 
 # Configure ArgoCD RBAC
 kubectl -n argocd patch cm argocd-rbac-cm --type merge -p '{
