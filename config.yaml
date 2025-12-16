@@ -120,6 +120,30 @@ atlantis:
   subdomain: "atlantis"
 
 ################################################################################
+# Secrets Configuration (change these for production!)
+################################################################################
+
+secrets:
+  # Keycloak admin credentials
+  keycloak:
+    admin_user: "admin"
+    admin_password: "admin"
+    management_password: "manager123"
+
+  # ArgoCD OIDC client secret (shared with Keycloak)
+  argocd:
+    oidc_client_secret: "argocd-secret-2024"
+
+  # Backstage OIDC client secret (shared with Keycloak)
+  backstage:
+    oidc_client_secret: "backstage-secret-2024"
+    # PostgreSQL credentials
+    postgres_host: "backstage-postgresql"
+    postgres_port: "5432"
+    postgres_user: "backstage"
+    postgres_password: "backstage123"
+
+################################################################################
 # Terraform Backend Configuration
 ################################################################################
 
