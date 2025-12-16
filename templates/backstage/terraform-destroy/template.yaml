@@ -60,19 +60,17 @@ spec:
           ui:widget: checkbox
 
   steps:
-    - id: fetch-repo
-      name: Clonar repositório de infraestrutura
-      action: fetch:plain
+    - id: fetch-skeleton
+      name: Gerar configuração de destruição
+      action: fetch:template
       input:
-        url: https://github.com/${{ env.GITHUB_ORG | default('darede-labs') }}/${{ env.INFRA_REPO | default('infrastructureidp') }}
-        targetPath: ./repo
-
-    - id: delete-resource
-      name: Deletar arquivos do recurso
-      action: fs:delete
-      input:
-        files:
-          - ./repo/platform/terraform/stacks/${{ parameters.resourceType }}/${{ parameters.resourceName }}
+        url: ./skeleton
+        targetPath: ./output
+        values:
+          resourceType: ${{ parameters.resourceType }}
+          resourceName: ${{ parameters.resourceName }}
+          tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          tfBackendRegion: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
 
     - id: publish
       name: Criar Pull Request de Destruição
@@ -90,9 +88,9 @@ spec:
           | **Nome** | `${{ parameters.resourceName }}` |
 
           ### 🔄 Fluxo Automático
-          1. Este PR **remove** os arquivos Terraform do recurso
-          2. Atlantis detecta a remoção e executa `terraform destroy`
-          3. Após apply bem-sucedido, o PR é mergeado automaticamente
+          1. Este PR **substitui** o main.tf por uma versão vazia (sem recursos)
+          2. Atlantis detecta a mudança e planeja a destruição dos recursos
+          3. Após apply bem-sucedido (destroy), o PR é mergeado automaticamente
 
           ### ⚠️ ATENÇÃO
           - Esta ação é **IRREVERSÍVEL**
@@ -101,8 +99,9 @@ spec:
 
           ---
           *Solicitação de destruição via Backstage*
-        sourcePath: ./repo
-        gitCommitMessage: "destroy(${{ parameters.resourceType }}): remove ${{ parameters.resourceName }}"
+        sourcePath: ./output
+        targetPath: platform/terraform/stacks/${{ parameters.resourceType }}/${{ parameters.resourceName }}
+        gitCommitMessage: "destroy(${{ parameters.resourceType }}): remove resources from ${{ parameters.resourceName }}"
 
   output:
     links:
