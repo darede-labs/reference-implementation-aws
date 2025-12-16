@@ -139,6 +139,39 @@ if [ "$ATLANTIS_AUTOMERGE" == "true" ]; then
   ATLANTIS_EXTRA_ARGS="--set extraArgs[0]=--automerge --set extraArgs[1]=--autoplan-modules"
 fi
 
+# Optional: auto-apply after plan via server-side repoConfig + post_workflow_hook.
+# To enable, export ATLANTIS_AUTO_APPLY_TOKEN before running this script.
+ATLANTIS_REPO_CONFIG_FILE=$(mktemp)
+cat > "$ATLANTIS_REPO_CONFIG_FILE" <<'EOF'
+---
+repos:
+- id: /.*/
+  apply_requirements: []
+  import_requirements: []
+  allowed_overrides: [workflow, delete_source_branch_on_merge]
+  allow_custom_workflows: true
+  post_workflow_hooks:
+    - run: |
+        if [ "$COMMAND_NAME" = "plan" ] && [ "$PULL_NUM" != "" ]; then
+          curl -s -X POST \
+            -H "Authorization: token $AUTO_APPLY_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$BASE_REPO_OWNER/$BASE_REPO_NAME/issues/$PULL_NUM/comments" \
+            -d '{"body":"atlantis apply"}' || true
+        fi
+EOF
+
+ATLANTIS_AUTO_APPLY_ARGS=""
+if [ -n "${ATLANTIS_AUTO_APPLY_TOKEN:-}" ]; then
+  echo -e "${CYAN}🔐 Configuring Atlantis auto-apply token secret...${NC}"
+  kubectl create secret generic atlantis-auto-apply-token \
+    --namespace atlantis \
+    --from-literal=token="${ATLANTIS_AUTO_APPLY_TOKEN}" \
+    --dry-run=client -o yaml | kubectl apply -f - --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
+
+  ATLANTIS_AUTO_APPLY_ARGS="--set environmentSecrets[0].name=AUTO_APPLY_TOKEN --set environmentSecrets[0].secretKeyRef.name=atlantis-auto-apply-token --set environmentSecrets[0].secretKeyRef.key=token"
+fi
+
 helm upgrade --install --wait atlantis runatlantis/atlantis \
   --namespace atlantis \
   --create-namespace \
@@ -152,8 +185,12 @@ helm upgrade --install --wait atlantis runatlantis/atlantis \
   --set ingress.path=/ \
   --set serviceAccount.create=true \
   --set serviceAccount.name=atlantis \
+  --set-file repoConfig="$ATLANTIS_REPO_CONFIG_FILE" \
   ${ATLANTIS_EXTRA_ARGS} \
+  ${ATLANTIS_AUTO_APPLY_ARGS} \
   --kubeconfig $KUBECONFIG_FILE > /dev/null
+
+rm -f "$ATLANTIS_REPO_CONFIG_FILE"
 
 echo -e "${YELLOW}⏳ Waiting for Atlantis to be healthy...${NC}"
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=atlantis -n atlantis --timeout=300s --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
