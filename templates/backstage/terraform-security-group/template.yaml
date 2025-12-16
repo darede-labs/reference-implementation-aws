@@ -86,9 +86,8 @@ spec:
           tags: ${{ parameters.tags }}
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
           infraRepo: ${{ env.INFRA_REPO | default('infrastructureidp') }}
-          tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('idp-poc-terraform-state') }}
+          tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
           tfBackendRegion: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
-          tfLocksTable: ${{ env.TERRAFORM_LOCKS_TABLE | default('idp-poc-terraform-locks') }}
 
     - id: publish
       name: Create Pull Request

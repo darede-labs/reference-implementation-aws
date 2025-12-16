@@ -52,11 +52,6 @@ backstage:
         secretKeyRef:
           name: backstage-env-vars
           key: TERRAFORM_BACKEND_REGION
-    - name: TERRAFORM_LOCKS_TABLE
-      valueFrom:
-        secretKeyRef:
-          name: backstage-env-vars
-          key: TERRAFORM_LOCKS_TABLE
   # extraVolumeMounts:
   #   - name: backstage-config
   #     mountPath: "/app/config"

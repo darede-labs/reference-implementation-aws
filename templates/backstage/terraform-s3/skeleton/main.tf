@@ -2,11 +2,11 @@ terraform {
   required_version = ">= 1.5.0"
 
   backend "s3" {
-    bucket         = "${{ values.tfBackendBucket }}"
-    key            = "platform/terraform/stacks/s3/${{ values.name }}/terraform.tfstate"
-    region         = "${{ values.tfBackendRegion }}"
-    dynamodb_table = "${{ values.tfLocksTable }}"
-    encrypt        = true
+    bucket       = "${{ values.tfBackendBucket }}"
+    key          = "platform/terraform/stacks/s3/${{ values.name }}/terraform.tfstate"
+    region       = "${{ values.tfBackendRegion }}"
+    use_lockfile = true
+    encrypt      = true
   }
 
   required_providers {
