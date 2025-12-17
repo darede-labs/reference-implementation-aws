@@ -349,19 +349,20 @@ echo "👥 Creating Keycloak groups and users..."
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=keycloak -n keycloak --timeout=300s
 
 # Create groups in Keycloak (using dynamic domain and secrets from config)
+# Bitnami Keycloak uses /opt/bitnami/keycloak and no /auth in URL path
 ARGOCD_CALLBACK_URL="https://${ARGOCD_SUBDOMAIN}.${DOMAIN_NAME}/auth/callback"
 kubectl exec -n keycloak keycloak-0 -- bash -c "
-/opt/jboss/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080/auth --realm master --user ${KEYCLOAK_ADMIN_USER} --password ${KEYCLOAK_ADMIN_PASSWORD}
+/opt/bitnami/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user ${KEYCLOAK_ADMIN_USER} --password ${KEYCLOAK_ADMIN_PASSWORD}
 # Create ArgoCD client if not exists
-/opt/jboss/keycloak/bin/kcadm.sh create clients -r cnoe -s clientId=argocd -s \"redirectUris=[\\\"${ARGOCD_CALLBACK_URL}\\\"]\" -s publicClient=false -s protocol=openid-connect -s enabled=true -s clientAuthenticatorType=client-secret -s \"defaultClientScopes=[\\\"openid\\\",\\\"profile\\\",\\\"email\\\",\\\"groups\\\"]\" -s secret=${ARGOCD_OIDC_SECRET} 2>/dev/null || true
+/opt/bitnami/keycloak/bin/kcadm.sh create clients -r cnoe -s clientId=argocd -s \"redirectUris=[\\\"${ARGOCD_CALLBACK_URL}\\\"]\" -s publicClient=false -s protocol=openid-connect -s enabled=true -s clientAuthenticatorType=client-secret -s \"defaultClientScopes=[\\\"openid\\\",\\\"profile\\\",\\\"email\\\",\\\"groups\\\"]\" -s secret=${ARGOCD_OIDC_SECRET} 2>/dev/null || true
 # Update client if exists
-CLIENT_ID=\$(/opt/jboss/keycloak/bin/kcadm.sh get clients -r cnoe -q clientId=argocd | grep \"\\\"id\\\"\" | head -1 | sed \"s/.*\\\"id\\\" *: *\\\"\\([^\\\"]*\\)\\\".*$/\\1/\")
+CLIENT_ID=\$(/opt/bitnami/keycloak/bin/kcadm.sh get clients -r cnoe -q clientId=argocd | grep \"\\\"id\\\"\" | head -1 | sed \"s/.*\\\"id\\\" *: *\\\"\\([^\\\"]*\\)\\\".*$/\\1/\")
 if [ ! -z \"\$CLIENT_ID\" ]; then
-  /opt/jboss/keycloak/bin/kcadm.sh update clients/\$CLIENT_ID -r cnoe -s secret=${ARGOCD_OIDC_SECRET} -s \"defaultClientScopes=[\\\"openid\\\",\\\"profile\\\",\\\"email\\\",\\\"groups\\\"]\"
+  /opt/bitnami/keycloak/bin/kcadm.sh update clients/\$CLIENT_ID -r cnoe -s secret=${ARGOCD_OIDC_SECRET} -s \"defaultClientScopes=[\\\"openid\\\",\\\"profile\\\",\\\"email\\\",\\\"groups\\\"]\"
 fi
 # Create groups
-/opt/jboss/keycloak/bin/kcadm.sh create groups -r cnoe -s name=superusers 2>/dev/null || true
-/opt/jboss/keycloak/bin/kcadm.sh create groups -r cnoe -s name=developers 2>/dev/null || true
+/opt/bitnami/keycloak/bin/kcadm.sh create groups -r cnoe -s name=superusers 2>/dev/null || true
+/opt/bitnami/keycloak/bin/kcadm.sh create groups -r cnoe -s name=developers 2>/dev/null || true
 "
 
 echo "🔄 Restarting ArgoCD server to apply SSO configuration..."
