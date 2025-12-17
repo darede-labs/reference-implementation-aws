@@ -16,10 +16,11 @@ argocd:
         path: '/{{ if eq .metadata.labels.path_routing "true" }}argocd{{ end }}'
     configs:
       cm:
-        # HTTPS issuer - Keycloak returns HTTPS when nginx sends X-Forwarded-Proto header
+        # HTTP issuer - internal cluster communication uses HTTP
+        # Browser accesses Keycloak via HTTP (NLB port 80), token has HTTP issuer
         oidc.config: |
           name: Keycloak
-          issuer: https://{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}/keycloak{{ end }}/realms/cnoe
+          issuer: http://{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}/keycloak{{ end }}/realms/cnoe
           clientID: argocd
           enablePKCEAuthentication: true
           requestedScopes:
@@ -138,16 +139,17 @@ keycloak:
   chartRepository: "https://charts.bitnami.com/bitnami"
   valuesObject:
     httpRelativePath: '/{{ if eq .metadata.labels.path_routing "true" }}keycloak/{{ end }}'
-    # Hostname config for proper OIDC issuer when TLS terminates at NLB
+    # Hostname config - HTTP issuer for internal cluster communication
+    # KC_HOSTNAME_URL forces HTTP issuer regardless of X-Forwarded headers
     extraEnvVars:
       - name: KC_HOSTNAME
         value: '{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
+      - name: KC_HOSTNAME_URL
+        value: 'http://{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
+      - name: KC_HOSTNAME_ADMIN_URL
+        value: 'https://{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
       - name: KC_HOSTNAME_STRICT
         value: 'false'
-      - name: KC_HOSTNAME_STRICT_BACKCHANNEL
-        value: 'false'
-      - name: KC_PROXY
-        value: 'edge'
     ingress:
       hostname: '{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
       annotations: {}
