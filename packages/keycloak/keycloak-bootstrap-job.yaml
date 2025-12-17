@@ -22,6 +22,22 @@ spec:
             secretKeyRef:
               name: keycloak
               key: admin-password
+        - name: BACKSTAGE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-clients
+              key: BACKSTAGE_CLIENT_SECRET
+        - name: ARGOCD_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-clients
+              key: ARGOCD_CLIENT_SECRET
+        - name: KEYCLOAK_REALM
+          valueFrom:
+            configMapKeyRef:
+              name: domain-config
+              key: KEYCLOAK_REALM
+              optional: true
         command:
         - /bin/sh
         - -c
@@ -45,13 +61,14 @@ spec:
           echo "   ArgoCD: $ARGOCD_URL"
           echo "   Keycloak: $KEYCLOAK_URL"
 
-          # Client secrets
-          BACKSTAGE_SECRET="backstage-secret-2024"
-          ARGOCD_SECRET="argocd-secret-2024"
+          # Client secrets from environment (populated from keycloak-clients secret)
+          BACKSTAGE_SECRET="${BACKSTAGE_CLIENT_SECRET:-backstage-secret-2024}"
+          ARGOCD_SECRET="${ARGOCD_CLIENT_SECRET:-argocd-secret-2024}"
+          REALM="${KEYCLOAK_REALM:-cnoe}"
 
           # Function to get admin token
           get_token() {
-            curl -s -X POST "${KC_URL}/realms/cnoe/protocol/openid-connect/token" \
+            curl -s -X POST "${KC_URL}/realms/${REALM}/protocol/openid-connect/token" \
               -d "client_id=admin-cli" \
               -d "username=admin" \
               -d "password=${KEYCLOAK_ADMIN_PASSWORD}" \
@@ -75,7 +92,7 @@ spec:
 
           # Check if groups scope exists
           GROUPS_SCOPE=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/client-scopes" | grep -o '"name":"groups"' || echo "")
+            "${KC_URL}/admin/realms/${REALM}/client-scopes" | grep -o '"name":"groups"' || echo "")
 
           if [ -z "$GROUPS_SCOPE" ]; then
             echo "➕ Criando client scope groups..."
@@ -89,7 +106,7 @@ spec:
                   "display.on.consent.screen": "true"
                 }
               }' \
-              "${KC_URL}/admin/realms/cnoe/client-scopes"
+              "${KC_URL}/admin/realms/${REALM}/client-scopes"
             echo "✅ Scope groups criado"
           else
             echo "✅ Scope groups já existe"
@@ -97,7 +114,7 @@ spec:
 
           # Get groups scope ID
           GROUPS_SCOPE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/client-scopes" | \
+            "${KC_URL}/admin/realms/${REALM}/client-scopes" | \
             sed 's/},{/}\n{/g' | grep '"name":"groups"' | \
             sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
 
@@ -121,7 +138,7 @@ spec:
                   "claim.name": "groups"
                 }
               }' \
-              "${KC_URL}/admin/realms/cnoe/client-scopes/${GROUPS_SCOPE_ID}/protocol-mappers/models" 2>/dev/null || echo "   Mapper pode já existir"
+              "${KC_URL}/admin/realms/${REALM}/client-scopes/${GROUPS_SCOPE_ID}/protocol-mappers/models" 2>/dev/null || echo "   Mapper pode já existir"
           fi
 
           # ============================================
@@ -131,7 +148,7 @@ spec:
 
           # Get backstage client ID
           BACKSTAGE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/clients?clientId=backstage" | \
+            "${KC_URL}/admin/realms/${REALM}/clients?clientId=backstage" | \
             sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
 
           if [ -z "$BACKSTAGE_ID" ] || [ "$BACKSTAGE_ID" = "[]" ]; then
@@ -150,10 +167,10 @@ spec:
                 \"webOrigins\": [\"${BACKSTAGE_URL}\", \"http://localhost:7007\"],
                 \"rootUrl\": \"${BACKSTAGE_URL}\"
               }" \
-              "${KC_URL}/admin/realms/cnoe/clients"
+              "${KC_URL}/admin/realms/${REALM}/clients"
 
             BACKSTAGE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-              "${KC_URL}/admin/realms/cnoe/clients?clientId=backstage" | \
+              "${KC_URL}/admin/realms/${REALM}/clients?clientId=backstage" | \
               sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
           fi
           echo "   Backstage client ID: $BACKSTAGE_ID"
@@ -162,7 +179,7 @@ spec:
           if [ -n "$BACKSTAGE_ID" ] && [ -n "$GROUPS_SCOPE_ID" ]; then
             echo "🔗 Associando groups ao backstage..."
             curl -s -X PUT -H "Authorization: Bearer $TOKEN" \
-              "${KC_URL}/admin/realms/cnoe/clients/${BACKSTAGE_ID}/optional-client-scopes/${GROUPS_SCOPE_ID}" || true
+              "${KC_URL}/admin/realms/${REALM}/clients/${BACKSTAGE_ID}/optional-client-scopes/${GROUPS_SCOPE_ID}" || true
           fi
 
           # ============================================
@@ -171,7 +188,7 @@ spec:
           echo "🔧 Configurando client argocd..."
 
           ARGOCD_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/clients?clientId=argocd" | \
+            "${KC_URL}/admin/realms/${REALM}/clients?clientId=argocd" | \
             sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
 
           if [ -z "$ARGOCD_ID" ] || [ "$ARGOCD_ID" = "[]" ]; then
@@ -189,10 +206,10 @@ spec:
                 \"webOrigins\": [\"${ARGOCD_URL}\"],
                 \"rootUrl\": \"${ARGOCD_URL}\"
               }" \
-              "${KC_URL}/admin/realms/cnoe/clients"
+              "${KC_URL}/admin/realms/${REALM}/clients"
 
             ARGOCD_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-              "${KC_URL}/admin/realms/cnoe/clients?clientId=argocd" | \
+              "${KC_URL}/admin/realms/${REALM}/clients?clientId=argocd" | \
               sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
           fi
           echo "   ArgoCD client ID: $ARGOCD_ID"
@@ -201,7 +218,7 @@ spec:
           if [ -n "$ARGOCD_ID" ] && [ -n "$GROUPS_SCOPE_ID" ]; then
             echo "🔗 Associando groups ao argocd..."
             curl -s -X PUT -H "Authorization: Bearer $TOKEN" \
-              "${KC_URL}/admin/realms/cnoe/clients/${ARGOCD_ID}/optional-client-scopes/${GROUPS_SCOPE_ID}" || true
+              "${KC_URL}/admin/realms/${REALM}/clients/${ARGOCD_ID}/optional-client-scopes/${GROUPS_SCOPE_ID}" || true
           fi
 
           # ============================================
@@ -211,7 +228,7 @@ spec:
 
           # Create userA
           USERA_EXISTS=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/users?username=usera" | grep -o '"username":"usera"' || echo "")
+            "${KC_URL}/admin/realms/${REALM}/users?username=usera" | grep -o '"username":"usera"' || echo "")
 
           if [ -z "$USERA_EXISTS" ]; then
             echo "➕ Criando userA..."
@@ -226,7 +243,7 @@ spec:
                 "emailVerified": true,
                 "credentials": [{"type": "password", "value": "userA123", "temporary": false}]
               }' \
-              "${KC_URL}/admin/realms/cnoe/users"
+              "${KC_URL}/admin/realms/${REALM}/users"
             echo "✅ userA criado (senha: userA123)"
           else
             echo "✅ userA já existe"
@@ -234,7 +251,7 @@ spec:
 
           # Create userB
           USERB_EXISTS=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/users?username=userb" | grep -o '"username":"userb"' || echo "")
+            "${KC_URL}/admin/realms/${REALM}/users?username=userb" | grep -o '"username":"userb"' || echo "")
 
           if [ -z "$USERB_EXISTS" ]; then
             echo "➕ Criando userB..."
@@ -249,7 +266,7 @@ spec:
                 "emailVerified": true,
                 "credentials": [{"type": "password", "value": "userB123", "temporary": false}]
               }' \
-              "${KC_URL}/admin/realms/cnoe/users"
+              "${KC_URL}/admin/realms/${REALM}/users"
             echo "✅ userB criado (senha: userB123)"
           else
             echo "✅ userB já existe"
@@ -262,53 +279,53 @@ spec:
 
           # Create developers group
           DEVS_GROUP=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/groups" | grep -o '"name":"developers"' || echo "")
+            "${KC_URL}/admin/realms/${REALM}/groups" | grep -o '"name":"developers"' || echo "")
 
           if [ -z "$DEVS_GROUP" ]; then
             echo "➕ Criando grupo developers..."
             curl -s -X POST -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
               -d '{"name": "developers"}' \
-              "${KC_URL}/admin/realms/cnoe/groups"
+              "${KC_URL}/admin/realms/${REALM}/groups"
           fi
 
           # Create admins group
           ADMINS_GROUP=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/groups" | grep -o '"name":"admins"' || echo "")
+            "${KC_URL}/admin/realms/${REALM}/groups" | grep -o '"name":"admins"' || echo "")
 
           if [ -z "$ADMINS_GROUP" ]; then
             echo "➕ Criando grupo admins..."
             curl -s -X POST -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
               -d '{"name": "admins"}' \
-              "${KC_URL}/admin/realms/cnoe/groups"
+              "${KC_URL}/admin/realms/${REALM}/groups"
           fi
 
           # Add users to groups
           echo "🔗 Adicionando usuários aos grupos..."
 
           USERA_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/users?username=usera" | \
+            "${KC_URL}/admin/realms/${REALM}/users?username=usera" | \
             sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
 
           USERB_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/users?username=userb" | \
+            "${KC_URL}/admin/realms/${REALM}/users?username=userb" | \
             sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
 
           DEVS_GROUP_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "${KC_URL}/admin/realms/cnoe/groups" | \
+            "${KC_URL}/admin/realms/${REALM}/groups" | \
             sed 's/},{/}\n{/g' | grep '"name":"developers"' | \
             sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
 
           if [ -n "$USERA_ID" ] && [ -n "$DEVS_GROUP_ID" ]; then
             curl -s -X PUT -H "Authorization: Bearer $TOKEN" \
-              "${KC_URL}/admin/realms/cnoe/users/${USERA_ID}/groups/${DEVS_GROUP_ID}" || true
+              "${KC_URL}/admin/realms/${REALM}/users/${USERA_ID}/groups/${DEVS_GROUP_ID}" || true
             echo "   userA -> developers"
           fi
 
           if [ -n "$USERB_ID" ] && [ -n "$DEVS_GROUP_ID" ]; then
             curl -s -X PUT -H "Authorization: Bearer $TOKEN" \
-              "${KC_URL}/admin/realms/cnoe/users/${USERB_ID}/groups/${DEVS_GROUP_ID}" || true
+              "${KC_URL}/admin/realms/${REALM}/users/${USERB_ID}/groups/${DEVS_GROUP_ID}" || true
             echo "   userB -> developers"
           fi
 
