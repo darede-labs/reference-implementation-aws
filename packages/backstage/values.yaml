@@ -26,7 +26,7 @@ backstage:
     - name: BACKSTAGE_FRONTEND_URL
       value: https://backstage.timedevops.click
     - name: KEYCLOAK_NAME_METADATA
-      value: https://keycloak.timedevops.click/auth/realms/cnoe/.well-known/openid-configuration
+      value: https://keycloak.timedevops.click/realms/cnoe/.well-known/openid-configuration
     - name: ARGO_CD_URL
       value: https://argocd.timedevops.click
     - name: ARGO_WORKFLOWS_URL
