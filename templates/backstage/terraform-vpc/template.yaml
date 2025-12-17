@@ -114,7 +114,7 @@ spec:
           singleNatGateway: ${{ parameters.singleNatGateway }}
           subnets: ${{ parameters.subnets }}
           # Auto-populate owner from Keycloak user identity
-          owner: ${{ user.entity.metadata.name | default('unknown') }}
+          owner: ${{ (user.ref | parseEntityRef).name | default('unknown') }}
           ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
           tags: ${{ parameters.tags }}
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
@@ -126,8 +126,8 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/vpc-${{ user.entity.metadata.name | default('user') }}-${{ parameters.name }}
-        title: 'feat(vpc): Create VPC ${{ parameters.name }} for ${{ user.entity.metadata.name | default("user") }}'
+        branchName: infra/vpc-${{ (user.ref | parseEntityRef).name | default('user') }}-${{ parameters.name }}
+        title: 'feat(vpc): Create VPC ${{ parameters.name }} for ${{ (user.ref | parseEntityRef).name | default("user") }}'
         description: |
           ## 🌐 New VPC Request
           | Property | Value |
@@ -137,12 +137,12 @@ spec:
           | **Subnets** | `${{ parameters.subnets | length }}` |
           | **NAT Gateway** | `${{ parameters.enableNatGateway }}` |
           ### Owner Enforcement
-          Only `${{ user.entity.metadata.name | default("unknown") }}` can delete this resource.
+          Only `${{ (user.ref | parseEntityRef).name | default("unknown") }}` can delete this resource.
           ---
-          *Created via Backstage by ${{ user.entity.metadata.name | default("unknown") }}*
+          *Created via Backstage by ${{ (user.ref | parseEntityRef).name | default("unknown") }}*
         sourcePath: ./output
         # User-segregated path: vpc/{username}/{resource_name}
-        targetPath: platform/terraform/stacks/vpc/${{ user.entity.metadata.name | default('shared') }}/${{ parameters.name }}
+        targetPath: platform/terraform/stacks/vpc/${{ (user.ref | parseEntityRef).name | default('shared') }}/${{ parameters.name }}
   output:
     links:
       - title: Pull Request

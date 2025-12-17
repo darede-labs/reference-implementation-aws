@@ -68,8 +68,8 @@ spec:
           environment: ${{ parameters.environment }}
           enableVersioning: ${{ parameters.enableVersioning }}
           forceDestroy: ${{ parameters.forceDestroy }}
-          # Auto-populate owner from Keycloak user identity
-          owner: ${{ user.entity.metadata.name | default(user.entity.spec.profile.displayName) | default('unknown') }}
+          # Auto-populate owner from Keycloak user identity (use user.ref which contains 'user:default/username')
+          owner: ${{ (user.ref | parseEntityRef).name | default('unknown') }}
           ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
           tags: ${{ parameters.tags }}
           # Platform config from environment variables
@@ -83,15 +83,15 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/s3-${{ user.entity.metadata.name | default('user') }}-${{ parameters.name }}
-        title: 'feat(s3): Create bucket ${{ parameters.name }} for ${{ user.entity.metadata.name | default("user") }}'
+        branchName: infra/s3-${{ (user.ref | parseEntityRef).name | default('user') }}-${{ parameters.name }}
+        title: 'feat(s3): Create bucket ${{ parameters.name }} for ${{ (user.ref | parseEntityRef).name | default("user") }}'
         description: |
           ## 🪣 New S3 Bucket Request
 
           | Property | Value |
           |----------|-------|
           | **Name** | `${{ parameters.name }}` |
-          | **Owner** | `${{ user.entity.metadata.name | default("unknown") }}` |
+          | **Owner** | `${{ (user.ref | parseEntityRef).name | default("unknown") }}` |
           | **Environment** | `${{ parameters.environment }}` |
           | **Versioning** | `${{ parameters.enableVersioning }}` |
 
@@ -101,13 +101,13 @@ spec:
           3. Approve PR and comment `/atlantis apply`
 
           ### Owner Enforcement
-          Only `${{ user.entity.metadata.name | default("unknown") }}` can delete this resource.
+          Only `${{ (user.ref | parseEntityRef).name | default("unknown") }}` can delete this resource.
 
           ---
-          *Created via Backstage by ${{ user.entity.metadata.name | default("unknown") }}*
+          *Created via Backstage by ${{ (user.ref | parseEntityRef).name | default("unknown") }}*
         sourcePath: ./output
         # User-segregated path: s3/{username}/{resource_name}
-        targetPath: platform/terraform/stacks/s3/${{ user.entity.metadata.name | default('shared') }}/${{ parameters.name }}
+        targetPath: platform/terraform/stacks/s3/${{ (user.ref | parseEntityRef).name | default('shared') }}/${{ parameters.name }}
 
   output:
     links:
