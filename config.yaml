@@ -180,6 +180,30 @@ route53_hosted_zone_id: "Z09212782MXWNY5EYNICO"
 path_routing: "false"
 
 ################################################################################
+# TLS/SSL Configuration
+################################################################################
+
+# ACM Certificate ARN for TLS termination at NLB
+# This certificate must cover *.domain (wildcard) or all subdomains
+# Example: arn:aws:acm:us-east-1:123456789:certificate/xxx-xxx-xxx
+acm_certificate_arn: "arn:aws:acm:us-east-1:948881762705:certificate/051f6515-0d0b-459c-a056-0663f7c88f5e"
+
+# TLS termination point: "nlb" (ACM at NLB) or "nginx" (cert-manager at nginx)
+# Recommended: "nlb" for ACM-managed certificates
+tls_termination: "nlb"
+
+################################################################################
+# Keycloak Configuration
+################################################################################
+
+keycloak:
+  # Realm name for OIDC
+  realm: "cnoe"
+  # Client IDs
+  backstage_client_id: "backstage"
+  argocd_client_id: "argocd"
+
+################################################################################
 # Tags for AWS Resources
 ################################################################################
 

@@ -12,8 +12,7 @@ argocd:
       domain: '{{ if eq .metadata.labels.path_routing "true" }}{{ .metadata.annotations.domain }}{{ else }}argocd.{{ .metadata.annotations.domain }}{{ end }}'
     server:
       ingress:
-        annotations:
-          cert-manager.io/cluster-issuer: '{{ if eq .metadata.labels.path_routing "false" }}letsencrypt-prod{{ end }}'
+        annotations: {}
         path: '/{{ if eq .metadata.labels.path_routing "true" }}argocd{{ end }}'
     configs:
       cm:
@@ -142,12 +141,8 @@ keycloak:
     httpRelativePath: '/{{ if eq .metadata.labels.path_routing "true" }}keycloak/{{ end }}'
     ingress:
       hostname: '{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
-      annotations:
-        cert-manager.io/cluster-issuer: '{{ if eq .metadata.labels.path_routing "false" }}letsencrypt-prod{{ end }}'
-      extraTls:
-      - hosts:
-        - '{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
-        secretName: keycloak-server-tls
+      annotations: {}
+      tls: false
   additionalResources:
   - manifestPath: "manifests"
     type: "manifests"
@@ -167,8 +162,7 @@ backstage:
   valuesObject:
     ingress:
       host: '{{ if eq .metadata.labels.path_routing "false" }}backstage.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
-      annotations:
-        cert-manager.io/cluster-issuer: '{{ if eq .metadata.labels.path_routing "false" }}letsencrypt-prod{{ end }}'
+      annotations: {}
     backstage:
       appConfig:
         catalog:

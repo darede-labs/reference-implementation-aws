@@ -1,17 +1,16 @@
 # Ref: https://github.com/backstage/charts/tree/main/charts/backstage
+# Note: TLS terminates at NLB with ACM - no cert-manager needed
 ingress:
   enabled: true
   className: "nginx"
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
     external-dns.alpha.kubernetes.io/hostname: backstage.timedevops.click
     argocd.argoproj.io/sync-wave: "30"
   host: backstage.timedevops.click
   extraHosts: []
   path: "/"
   tls:
-    enabled: true
-    secretName: "backstage-server-tls"
+    enabled: false
 backstage:
   replicas: 1
   image:
