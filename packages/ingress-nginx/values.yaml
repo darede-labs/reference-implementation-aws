@@ -1,10 +1,8 @@
 controller:
   config:
-    hsts: 'false'
-    # When TLS terminates at NLB, nginx receives HTTP - trust forwarded headers
     use-forwarded-headers: 'true'
     compute-full-forwarded-for: 'true'
-    use-proxy-protocol: 'false'
+    proxy-real-ip-cidr: '0.0.0.0/0'
   service:
     type: LoadBalancer
     annotations:
