@@ -171,11 +171,11 @@ kubectl exec deployment/keycloak -n keycloak --kubeconfig $KUBECONFIG_FILE -- ba
 KCADM="/opt/keycloak/bin/kcadm.sh"
 $KCADM config credentials --server http://localhost:8080 --realm master --user '"${KEYCLOAK_ADMIN_USER}"' --password '"${KEYCLOAK_ADMIN_PASSWORD}"'
 $KCADM create realms -s realm='"${KEYCLOAK_REALM}"' -s enabled=true 2>/dev/null || echo "Realm exists"
-$KCADM create clients -r '"${KEYCLOAK_REALM}"' -s clientId=argocd -s "redirectUris=[\"https://'"${ARGOCD_HOST}"'/*\"]" -s publicClient=false -s enabled=true -s secret='"${ARGOCD_OIDC_SECRET}"' 2>/dev/null || echo "ArgoCD client exists"
-$KCADM create clients -r '"${KEYCLOAK_REALM}"' -s clientId=backstage -s "redirectUris=[\"https://'"${BACKSTAGE_HOST}"'/*\"]" -s publicClient=false -s enabled=true -s secret='"${BACKSTAGE_OIDC_SECRET}"' 2>/dev/null || echo "Backstage client exists"
+$KCADM create clients -r '"${KEYCLOAK_REALM}"' -s clientId=argocd -s "redirectUris=[\"https://'"${ARGOCD_HOST}"'/*\"]" -s publicClient=false -s enabled=true -s standardFlowEnabled=true -s directAccessGrantsEnabled=true -s serviceAccountsEnabled=true -s secret='"${ARGOCD_OIDC_SECRET}"' 2>/dev/null || echo "ArgoCD client exists"
+$KCADM create clients -r '"${KEYCLOAK_REALM}"' -s clientId=backstage -s "redirectUris=[\"https://'"${BACKSTAGE_HOST}"'/*\"]" -s publicClient=false -s enabled=true -s standardFlowEnabled=true -s directAccessGrantsEnabled=true -s secret='"${BACKSTAGE_OIDC_SECRET}"' 2>/dev/null || echo "Backstage client exists"
 $KCADM create groups -r '"${KEYCLOAK_REALM}"' -s name=superusers 2>/dev/null || true
-$KCADM create users -r '"${KEYCLOAK_REALM}"' -s username=user1 -s email=user1@example.com -s enabled=true 2>/dev/null || true
-$KCADM set-password -r '"${KEYCLOAK_REALM}"' --username user1 --new-password user123 2>/dev/null || true
+$KCADM create users -r '"${KEYCLOAK_REALM}"' -s username=user1 -s email=user1@example.com -s firstName=Test -s lastName=User -s enabled=true -s emailVerified=true 2>/dev/null || true
+$KCADM set-password -r '"${KEYCLOAK_REALM}"' --username user1 --new-password user123 --temporary=false 2>/dev/null || true
 echo "✓ Keycloak configured"
 '
 
@@ -216,7 +216,6 @@ configs:
         - openid
         - profile
         - email
-        - groups
 EOF
 
 helm upgrade --install argocd argo/argo-cd \
