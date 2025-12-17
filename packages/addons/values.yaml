@@ -16,10 +16,10 @@ argocd:
         path: '/{{ if eq .metadata.labels.path_routing "true" }}argocd{{ end }}'
     configs:
       cm:
-        # Use HTTP issuer for internal OIDC discovery (Keycloak returns HTTP when accessed internally)
+        # HTTPS issuer - Keycloak returns HTTPS when nginx sends X-Forwarded-Proto header
         oidc.config: |
           name: Keycloak
-          issuer: http://{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}/keycloak{{ end }}/realms/cnoe
+          issuer: https://{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}/keycloak{{ end }}/realms/cnoe
           clientID: argocd
           enablePKCEAuthentication: true
           requestedScopes:
@@ -115,17 +115,14 @@ external-secrets:
         operator: In
         values: ['control-plane-bootstrap', 'control-plane']
 
+# cert-manager disabled - using ACM for TLS termination at NLB
 cert-manager:
-  enabled: true
+  enabled: false
   chartName: cert-manager
   namespace: cert-manager
   releaseName: cert-manager
   defaultVersion: "1.17.2"
   chartRepository: "https://charts.jetstack.io"
-  valuesObject:
-    global:
-      domainName: '{{ if eq .metadata.labels.path_routing "true" }}{{ .metadata.annotations.domain }}{{ end }}'
-      pathRouting: '{{ if eq .metadata.labels.path_routing "true" }}true{{ else }}false{{ end }}'
   selector:
     matchExpressions:
       - key: environment
@@ -214,16 +211,12 @@ argo-workflows:
         redirectUrl: '{{ if eq .metadata.labels.path_routing "true" }}https://{{ .metadata.annotations.domain }}/argo-workflows{{ else }}https://argo-workflows.{{ .metadata.annotations.domain }}{{ end }}/oauth2/callback'
       ingress:
         annotations:
-          cert-manager.io/cluster-issuer: '{{ if eq .metadata.labels.path_routing "false" }}letsencrypt-prod{{ end }}'
           nginx.ingress.kubernetes.io/rewrite-target: '{{ if eq .metadata.labels.path_routing "true" }}/$2{{ end }}'
         hosts:
         - '{{ if eq .metadata.labels.path_routing "true" }}{{ .metadata.annotations.domain }}{{ else }}argo-workflows.{{ .metadata.annotations.domain }}{{ end }}'
         paths:
         -  '/{{ if eq .metadata.labels.path_routing "true" }}argo-workflows(/|$)(.*){{ end }}'
-        tls:
-        - hosts:
-          - '{{ if eq .metadata.labels.path_routing "true" }}{{ .metadata.annotations.domain }}{{ else }}argo-workflows.{{ .metadata.annotations.domain }}{{ end }}'
-          secretName: argo-workflows-server-tls
+        tls: false
   additionalResources:
   - manifestPath: "manifests"
     type: "manifests"
