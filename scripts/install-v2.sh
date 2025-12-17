@@ -184,7 +184,10 @@ echo "✓ Keycloak configured"
 ################################################################################
 echo -e "${BOLD}${GREEN}🔄 [4/6] Installing ArgoCD...${NC}"
 
-# Create ArgoCD values file with OIDC config
+# Get Keycloak service IP for hostAlias
+KEYCLOAK_SVC_IP=$(kubectl get svc keycloak -n keycloak -o jsonpath='{.spec.clusterIP}' --kubeconfig $KUBECONFIG_FILE)
+
+# Create ArgoCD values file with OIDC config and hostAlias
 ARGOCD_VALUES_FILE=$(mktemp)
 cat > "$ARGOCD_VALUES_FILE" <<EOF
 global:
@@ -195,6 +198,11 @@ server:
     ingressClassName: nginx
     hostname: ${ARGOCD_HOST}
     tls: false
+  # hostAlias to resolve Keycloak hostname internally
+  hostAliases:
+    - ip: "${KEYCLOAK_SVC_IP}"
+      hostnames:
+        - "${KEYCLOAK_HOST}"
 configs:
   params:
     server.insecure: true
@@ -257,19 +265,32 @@ helm upgrade --install backstage backstage \
 # 6. Atlantis
 ################################################################################
 echo -e "${BOLD}${GREEN}🔄 [6/6] Installing Atlantis...${NC}"
-helm upgrade --install atlantis atlantis \
-  --repo https://runatlantis.github.io/helm-charts \
+
+# Create Atlantis values file
+ATLANTIS_VALUES_FILE=$(mktemp)
+cat > "$ATLANTIS_VALUES_FILE" <<EOF
+github:
+  user: ${GITHUB_ORG}
+  token: ${GITHUB_TOKEN}
+  secret: ${ATLANTIS_WEBHOOK_SECRET}
+orgAllowlist: "github.com/${GITHUB_ORG}/*"
+ingress:
+  enabled: true
+  host: ${ATLANTIS_HOST}
+  ingressClassName: nginx
+  path: /
+  pathType: Prefix
+volumeClaim:
+  storageClassName: gp2
+EOF
+
+helm upgrade --install atlantis runatlantis/atlantis \
   --namespace atlantis \
-  --set github.user=${GITHUB_ORG} \
-  --set github.token=${GITHUB_TOKEN} \
-  --set github.secret=${ATLANTIS_WEBHOOK_SECRET} \
-  --set orgAllowlist="github.com/${GITHUB_ORG}/*" \
-  --set ingress.enabled=true \
-  --set ingress.host=${ATLANTIS_HOST} \
-  --set ingress.ingressClassName=nginx \
-  --set ingress.annotations."external-dns\.alpha\.kubernetes\.io/hostname"=${ATLANTIS_HOST} \
+  --values "$ATLANTIS_VALUES_FILE" \
   --kubeconfig $KUBECONFIG_FILE \
   --wait --timeout 300s > /dev/null
+
+rm -f "$ATLANTIS_VALUES_FILE"
 
 ################################################################################
 # Summary
