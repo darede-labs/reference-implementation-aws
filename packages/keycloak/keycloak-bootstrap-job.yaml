@@ -12,17 +12,23 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: configure
-        image: quay.io/keycloak/keycloak:17.0.1-legacy
+        image: curlimages/curl:latest
         envFrom:
         - configMapRef:
             name: domain-config
+        env:
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: keycloak
+              key: admin-password
         command:
-        - /bin/bash
+        - /bin/sh
         - -c
         - |
           set -e
           echo "🔐 Aguardando Keycloak estar pronto..."
-          until curl -sf http://keycloak-http:80/auth/ > /dev/null; do
+          until curl -sf http://keycloak.keycloak.svc.cluster.local:80/realms/master > /dev/null 2>&1; do
             echo "⏳ Keycloak não está pronto ainda..."
             sleep 5
           done
@@ -32,327 +38,286 @@ spec:
           BACKSTAGE_URL="https://${BACKSTAGE_SUBDOMAIN}.${DOMAIN}"
           ARGOCD_URL="https://${ARGOCD_SUBDOMAIN}.${DOMAIN}"
           KEYCLOAK_URL="https://${KEYCLOAK_SUBDOMAIN}.${DOMAIN}"
+          KC_URL="http://keycloak.keycloak.svc.cluster.local:80"
 
           echo "📋 Configuração de domínios:"
           echo "   Backstage: $BACKSTAGE_URL"
           echo "   ArgoCD: $ARGOCD_URL"
           echo "   Keycloak: $KEYCLOAK_URL"
 
-          # Client secret fixo para evitar dessincronização
-          FIXED_CLIENT_SECRET="backstage-secret-2024"
-          KC_BIN=/opt/jboss/keycloak/bin/kcadm.sh
+          # Client secrets
+          BACKSTAGE_SECRET="backstage-secret-2024"
+          ARGOCD_SECRET="argocd-secret-2024"
 
-          echo "🔑 Fazendo login no Keycloak..."
-          $KC_BIN config credentials --server http://keycloak-http:80/auth --realm master --user admin --password admin
+          # Function to get admin token
+          get_token() {
+            curl -s -X POST "${KC_URL}/realms/cnoe/protocol/openid-connect/token" \
+              -d "client_id=admin-cli" \
+              -d "username=admin" \
+              -d "password=${KEYCLOAK_ADMIN_PASSWORD}" \
+              -d "grant_type=password" | sed 's/.*"access_token":"\([^"]*\)".*/\1/'
+          }
 
-          echo "🏗️  Criando realm 'cnoe' se não existir..."
-          REALM_EXISTS=$($KC_BIN get realms/cnoe 2>&1 | grep -c "realm" || echo "0")
-          if [ "$REALM_EXISTS" = "0" ]; then
-            echo "➕ Criando realm cnoe..."
-            $KC_BIN create realms -s realm=cnoe -s enabled=true 2>&1 || echo "⚠️ Realm pode já existir"
-          else
-            echo "✅ Realm cnoe já existe"
+          echo "🔑 Obtendo token de admin..."
+          TOKEN=$(get_token)
+
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "❌ Falha ao obter token - pode ser que o realm cnoe não existe ainda"
+            echo "ℹ️  Este job requer que o realm cnoe já exista (criado via user-sso-config-job)"
+            exit 0
           fi
+          echo "✅ Token obtido"
 
-          echo "🔍 Verificando se client backstage já existe no realm cnoe..."
-          ID=$($KC_BIN get clients -r cnoe -q clientId=backstage | grep '"id"' | head -1 | sed 's/.*"id" *: *"\(.*\)".*/\1/' || echo "")
+          # ============================================
+          # CREATE GROUPS SCOPE WITH MAPPER
+          # ============================================
+          echo "📦 Criando scope 'groups' com mapper..."
 
-          if [ -z "$ID" ]; then
-            echo "➕ Criando client backstage..."
-            $KC_BIN create clients -r cnoe \
-              -s clientId=backstage \
-              -s enabled=true \
-              -s protocol=openid-connect \
-              -s publicClient=false \
-              -s standardFlowEnabled=true \
-              -s directAccessGrantsEnabled=true \
-              -s "redirectUris=[\"${BACKSTAGE_URL}/*\",\"http://localhost:7007/*\"]" \
-              -s "webOrigins=[\"${BACKSTAGE_URL}\",\"http://localhost:7007\"]" \
-              -s "rootUrl=${BACKSTAGE_URL}"
+          # Check if groups scope exists
+          GROUPS_SCOPE=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/client-scopes" | grep -o '"name":"groups"' || echo "")
 
-            ID=$($KC_BIN get clients -r cnoe -q clientId=backstage | grep '"id"' | head -1 | sed 's/.*"id" *: *"\(.*\)".*/\1/')
-            echo " Client criado com ID: $ID"
-          else
-            echo " Client já existe com ID: $ID"
-          fi
-
-          echo " Obtendo token de acesso para configurações adicionais..."
-          # Obter token de acesso
-          TOKEN=$(curl -s -X POST http://keycloak-http:80/auth/realms/master/protocol/openid-connect/token \
-            -d "client_id=admin-cli" \
-            -d "username=admin" \
-            -d "password=admin" \
-            -d "grant_type=password" | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
-
-          echo "🔧 Criando/garantindo client scopes OpenID Connect no realm cnoe..."
-
-          # Criar scope 'openid'
-          echo "  Criando scope openid..."
-          curl -s -X POST -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"name": "openid", "protocol": "openid-connect", "description": "OpenID Connect built-in scope"}' \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes" > /dev/null 2>&1 || echo "    Scope openid já existe"
-
-          # Criar scope 'profile'
-          echo "  Criando scope profile..."
-          curl -s -X POST -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"name": "profile", "protocol": "openid-connect", "description": "OpenID Connect built-in scope: profile"}' \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes" > /dev/null 2>&1 || echo "    Scope profile já existe"
-
-          # Criar scope 'groups'
-          echo "  Criando scope groups..."
-          $KC_BIN create client-scopes -r cnoe \
-            -s name=groups \
-            -s protocol=openid-connect \
-            -s "description=Empty groups scope for Backstage frontend compatibility" 2>&1 || echo "    Scope groups já existe"
-
-          # Obter IDs dos scopes
-          OPENID_SCOPE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes" | \
-            sed 's/},{/}\n{/g' | grep -A1 '"name" *: *"openid"' | grep '"id"' | head -1 | grep -o '[a-f0-9-]\{36\}')
-
-          PROFILE_SCOPE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes" | \
-            sed 's/},{/}\n{/g' | grep -A1 '"name" *: *"profile"' | grep '"id"' | head -1 | grep -o '[a-f0-9-]\{36\}')
-
-          GROUPS_SCOPE_ID=$($KC_BIN get client-scopes -r cnoe -q name=groups | grep '"id"' | head -1 | sed 's/.*"id" *: *"\(.*\)".*/\1/')
-
-          # Associar scopes ao client backstage
-          if [ -n "$OPENID_SCOPE_ID" ]; then
-            echo "  Associando openid ao backstage..."
-            curl -s --max-time 10 -X PUT -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/clients/$ID/default-client-scopes/$OPENID_SCOPE_ID" > /dev/null 2>&1 || true
-          fi
-
-          if [ -n "$PROFILE_SCOPE_ID" ]; then
-            echo "  Associando profile ao backstage..."
-            curl -s --max-time 10 -X PUT -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/clients/$ID/default-client-scopes/$PROFILE_SCOPE_ID" > /dev/null 2>&1 || true
-          fi
-
-          if [ -n "$GROUPS_SCOPE_ID" ]; then
-            echo "  Associando groups (OPTIONAL) ao backstage..."
-            curl -s --max-time 10 -X PUT -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/clients/$ID/optional-client-scopes/$GROUPS_SCOPE_ID" > /dev/null 2>&1 || true
-          fi
-
-          echo "✅ Scopes OpenID Connect configurados"
-
-          echo " Garantindo client scope 'email' no realm cnoe..."
-          EMAIL_SCOPE_EXISTS=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes" | grep '"name" *: *"email"' || echo "")
-
-          if [ -z "$EMAIL_SCOPE_EXISTS" ]; then
-            echo " Criando client scope 'email'..."
-            echo "➕ Criando client scope 'email'..."
+          if [ -z "$GROUPS_SCOPE" ]; then
+            echo "➕ Criando client scope groups..."
             curl -s -X POST -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
               -d '{
-                "name": "email",
-                "description": "OpenID Connect built-in scope: email",
+                "name": "groups",
                 "protocol": "openid-connect",
                 "attributes": {
                   "include.in.token.scope": "true",
-                  "display.on.consent.screen": "true",
-                  "consent.screen.text": "${emailScopeConsentText}"
+                  "display.on.consent.screen": "true"
                 }
               }' \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes"
-
-            sleep 2
-
-            EMAIL_SCOPE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes" | \
-              sed 's/},{/}\n{/g' | grep -A1 '"name" *: *"email"' | grep '"id"' | head -1 | grep -o '[a-f0-9-]\{36\}')
-
-            if [ -n "$EMAIL_SCOPE_ID" ]; then
-              echo "📝 Adicionando protocol mappers ao scope email..."
-              curl -s -X POST -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "name": "email",
-                  "protocol": "openid-connect",
-                  "protocolMapper": "oidc-usermodel-property-mapper",
-                  "config": {
-                    "userinfo.token.claim": "true",
-                    "user.attribute": "email",
-                    "id.token.claim": "true",
-                    "access.token.claim": "true",
-                    "claim.name": "email",
-                    "jsonType.label": "String"
-                  }
-                }' \
-                "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes/$EMAIL_SCOPE_ID/protocol-mappers/models"
-
-              curl -s -X POST -H "Authorization: Bearer $TOKEN" \
-                -H "Content-Type: application/json" \
-                -d '{
-                  "name": "email verified",
-                  "protocol": "openid-connect",
-                  "protocolMapper": "oidc-usermodel-property-mapper",
-                  "config": {
-                    "userinfo.token.claim": "true",
-                    "user.attribute": "emailVerified",
-                    "id.token.claim": "true",
-                    "access.token.claim": "true",
-                    "claim.name": "email_verified",
-                    "jsonType.label": "boolean"
-                  }
-                }' \
-                "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes/$EMAIL_SCOPE_ID/protocol-mappers/models"
-
-              echo "🔗 Associando scope email ao client backstage..."
-              curl -s -X PUT -H "Authorization: Bearer $TOKEN" \
-                "http://keycloak-http:80/auth/admin/realms/cnoe/clients/$ID/default-client-scopes/$EMAIL_SCOPE_ID"
-              echo "✅ Client scope 'email' associado ao client backstage"
-            fi
+              "${KC_URL}/admin/realms/cnoe/client-scopes"
+            echo "✅ Scope groups criado"
           else
-            echo "✅ Client scope 'email' já existe"
-            EMAIL_SCOPE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes" | \
-              sed 's/},{/}\n{/g' | grep -A1 '"name" *: *"email"' | grep '"id"' | head -1 | grep -o '[a-f0-9-]\{36\}')
-
-            if [ -n "$EMAIL_SCOPE_ID" ]; then
-              echo "🔗 Garantindo que email está nos default scopes..."
-              curl -s --max-time 10 -X PUT -H "Authorization: Bearer $TOKEN" \
-                "http://keycloak-http:80/auth/admin/realms/cnoe/clients/$ID/default-client-scopes/$EMAIL_SCOPE_ID" > /dev/null 2>&1 || true
-              echo "✅ Scope email configurado"
-            fi
+            echo "✅ Scope groups já existe"
           fi
 
-          echo "👤 Criando usuário admin no realm cnoe..."
-          USER_EXISTS=$($KC_BIN get users -r cnoe -q username=admin | grep '"username"' || echo "")
-          if [ -z "$USER_EXISTS" ]; then
-            echo "➕ Criando usuário admin..."
-            $KC_BIN create users -r cnoe \
-              -s username=admin \
-              -s enabled=true \
-              -s email=admin@example.com \
-              -s firstName=Admin \
-              -s lastName=User 2>&1 || echo "⚠️ Usuário pode já existir"
+          # Get groups scope ID
+          GROUPS_SCOPE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/client-scopes" | \
+            sed 's/},{/}\n{/g' | grep '"name":"groups"' | \
+            sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
 
-            echo "🔐 Definindo senha para o usuário admin..."
-            $KC_BIN set-password -r cnoe --username admin --new-password admin 2>&1 || echo "⚠️ Erro ao definir senha"
-            echo "✅ Usuário admin criado com senha: admin"
-          else
-            echo "✅ Usuário admin já existe"
-          fi
+          echo "   Groups scope ID: $GROUPS_SCOPE_ID"
 
-          echo "🔐 Configurando client secret fixo..."
-          # Usar kcadm para definir secret fixo (método correto)
-          $KC_BIN update clients/$ID -r cnoe -s "secret=$FIXED_CLIENT_SECRET"
-
-          echo "🔍 Verificando se client argocd já existe no realm cnoe..."
-          ARGOCD_ID=$($KC_BIN get clients -r cnoe -q clientId=argocd | grep '"id"' | head -1 | sed 's/.*"id" *: *"\(.*\)".*/\1/' || echo "")
-
-          if [ -z "$ARGOCD_ID" ]; then
-            echo "➕ Criando client argocd..."
-            $KC_BIN create clients -r cnoe \
-              -s clientId=argocd \
-              -s enabled=true \
-              -s protocol=openid-connect \
-              -s publicClient=false \
-              -s standardFlowEnabled=true \
-              -s directAccessGrantsEnabled=false \
-              -s "redirectUris=[\"${ARGOCD_URL}/auth/callback\",\"${ARGOCD_URL}/*\"]" \
-              -s "webOrigins=[\"${ARGOCD_URL}\"]" \
-              -s "rootUrl=${ARGOCD_URL}"
-
-            ARGOCD_ID=$($KC_BIN get clients -r cnoe -q clientId=argocd | grep '"id"' | head -1 | sed 's/.*"id" *: *"\(.*\)".*/\1/')
-            echo "✅ Client argocd criado com ID: $ARGOCD_ID"
-          else
-            echo "✅ Client argocd já existe com ID: $ARGOCD_ID"
-          fi
-
-          echo "🔐 Configurando client secret fixo para argocd..."
-          ARGOCD_CLIENT_SECRET="argocd-secret-2024"
-          $KC_BIN update clients/$ARGOCD_ID -r cnoe -s "secret=$ARGOCD_CLIENT_SECRET"
-
-          echo "🔗 Associando TODOS os scopes ao client argocd..."
-
-          # Re-obter IDs dos scopes para garantir que estão corretos
-          echo "  Obtendo IDs dos scopes..."
-          OPENID_SCOPE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes" | \
-            sed 's/},{/}\n{/g' | grep -A1 '"name" *: *"openid"' | grep '"id"' | head -1 | grep -o '[a-f0-9-]\{36\}')
-
-          PROFILE_SCOPE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/client-scopes" | \
-            sed 's/},{/}\n{/g' | grep -A1 '"name" *: *"profile"' | grep '"id"' | head -1 | grep -o '[a-f0-9-]\{36\}')
-
-          # Associar openid
-          if [ -n "$OPENID_SCOPE_ID" ]; then
-            echo "  Associando openid (ID: ${OPENID_SCOPE_ID:0:8}...)..."
-            curl -s --max-time 10 -X PUT -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/clients/$ARGOCD_ID/default-client-scopes/$OPENID_SCOPE_ID" > /dev/null 2>&1 || true
-          else
-            echo "  ⚠️ OPENID_SCOPE_ID está vazio!"
-          fi
-
-          # Associar profile
-          if [ -n "$PROFILE_SCOPE_ID" ]; then
-            echo "  Associando profile (ID: ${PROFILE_SCOPE_ID:0:8}...)..."
-            curl -s --max-time 10 -X PUT -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/clients/$ARGOCD_ID/default-client-scopes/$PROFILE_SCOPE_ID" > /dev/null 2>&1 || true
-          else
-            echo "  ⚠️ PROFILE_SCOPE_ID está vazio!"
-          fi
-
-          # Associar email
-          if [ -n "$EMAIL_SCOPE_ID" ]; then
-            echo "  Associando email (ID: ${EMAIL_SCOPE_ID:0:8}...)..."
-            curl -s --max-time 10 -X PUT -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/clients/$ARGOCD_ID/default-client-scopes/$EMAIL_SCOPE_ID" > /dev/null 2>&1 || true
-          else
-            echo "  ⚠️ EMAIL_SCOPE_ID está vazio!"
-          fi
-
-          # Associar groups como optional
+          # Add groups mapper to scope
           if [ -n "$GROUPS_SCOPE_ID" ]; then
-            echo "  Associando groups como optional (ID: ${GROUPS_SCOPE_ID:0:8}...)..."
-            curl -s --max-time 10 -X PUT -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/clients/$ARGOCD_ID/optional-client-scopes/$GROUPS_SCOPE_ID" > /dev/null 2>&1 || true
-          else
-            echo "  ⚠️ GROUPS_SCOPE_ID está vazio!"
-          fi
-          echo "✅ Todos os scopes (openid, profile, email, groups) associados ao client argocd"
-
-          echo "�� Criando grupo 'superuser' no realm cnoe..."
-          GROUP_EXISTS=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/groups" | grep '"name" *: *"superuser"' || echo "")
-
-          if [ -z "$GROUP_EXISTS" ]; then
-            echo "➕ Criando grupo superuser..."
+            echo "📝 Adicionando mapper de grupos..."
             curl -s -X POST -H "Authorization: Bearer $TOKEN" \
               -H "Content-Type: application/json" \
-              -d '{"name": "superuser"}' \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/groups"
-            echo "✅ Grupo superuser criado"
-          else
-            echo "✅ Grupo superuser já existe"
+              -d '{
+                "name": "groups",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-group-membership-mapper",
+                "config": {
+                  "full.path": "false",
+                  "introspection.token.claim": "true",
+                  "userinfo.token.claim": "true",
+                  "id.token.claim": "true",
+                  "access.token.claim": "true",
+                  "claim.name": "groups"
+                }
+              }' \
+              "${KC_URL}/admin/realms/cnoe/client-scopes/${GROUPS_SCOPE_ID}/protocol-mappers/models" 2>/dev/null || echo "   Mapper pode já existir"
           fi
 
-          echo "🔗 Adicionando usuário admin ao grupo superuser..."
-          ADMIN_USER_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/users?username=admin" | grep -o '"id" *: *"[^"]*' | head -1 | cut -d'"' -f4)
+          # ============================================
+          # CONFIGURE BACKSTAGE CLIENT
+          # ============================================
+          echo "🔧 Configurando client backstage..."
 
-          SUPERUSER_GROUP_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-            "http://keycloak-http:80/auth/admin/realms/cnoe/groups" | \
-            sed 's/},{/}\n{/g' | grep -A1 '"name" *: *"superuser"' | grep '"id"' | head -1 | grep -o '[a-f0-9-]\{36\}')
+          # Get backstage client ID
+          BACKSTAGE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/clients?clientId=backstage" | \
+            sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
 
-          if [ -n "$ADMIN_USER_ID" ] && [ -n "$SUPERUSER_GROUP_ID" ]; then
+          if [ -z "$BACKSTAGE_ID" ] || [ "$BACKSTAGE_ID" = "[]" ]; then
+            echo "➕ Criando client backstage..."
+            curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"clientId\": \"backstage\",
+                \"enabled\": true,
+                \"protocol\": \"openid-connect\",
+                \"publicClient\": false,
+                \"standardFlowEnabled\": true,
+                \"directAccessGrantsEnabled\": true,
+                \"secret\": \"${BACKSTAGE_SECRET}\",
+                \"redirectUris\": [\"${BACKSTAGE_URL}/*\", \"http://localhost:7007/*\"],
+                \"webOrigins\": [\"${BACKSTAGE_URL}\", \"http://localhost:7007\"],
+                \"rootUrl\": \"${BACKSTAGE_URL}\"
+              }" \
+              "${KC_URL}/admin/realms/cnoe/clients"
+
+            BACKSTAGE_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
+              "${KC_URL}/admin/realms/cnoe/clients?clientId=backstage" | \
+              sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
+          fi
+          echo "   Backstage client ID: $BACKSTAGE_ID"
+
+          # Add groups as optional scope to backstage
+          if [ -n "$BACKSTAGE_ID" ] && [ -n "$GROUPS_SCOPE_ID" ]; then
+            echo "🔗 Associando groups ao backstage..."
             curl -s -X PUT -H "Authorization: Bearer $TOKEN" \
-              "http://keycloak-http:80/auth/admin/realms/cnoe/users/$ADMIN_USER_ID/groups/$SUPERUSER_GROUP_ID" > /dev/null 2>&1
-            echo "✅ Usuário admin adicionado ao grupo superuser"
+              "${KC_URL}/admin/realms/cnoe/clients/${BACKSTAGE_ID}/optional-client-scopes/${GROUPS_SCOPE_ID}" || true
           fi
 
-          echo "✅ Keycloak configurado com sucesso!"
-          echo "   - Realm: cnoe"
-          echo "   - Client ID backstage: backstage"
-          echo "   - Client Secret backstage: $FIXED_CLIENT_SECRET (fixo)"
-          echo "   - Client ID argocd: argocd"
-          echo "   - Client Secret argocd: $ARGOCD_CLIENT_SECRET (fixo)"
-          echo "   - Usuário: admin / admin (grupo: superuser)"
-          echo "   - Redirect URIs backstage: ${BACKSTAGE_URL}/*"
-          echo "   - Redirect URIs argocd: ${ARGOCD_URL}/auth/callback"
+          # ============================================
+          # CONFIGURE ARGOCD CLIENT
+          # ============================================
+          echo "🔧 Configurando client argocd..."
+
+          ARGOCD_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/clients?clientId=argocd" | \
+            sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
+
+          if [ -z "$ARGOCD_ID" ] || [ "$ARGOCD_ID" = "[]" ]; then
+            echo "➕ Criando client argocd..."
+            curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"clientId\": \"argocd\",
+                \"enabled\": true,
+                \"protocol\": \"openid-connect\",
+                \"publicClient\": true,
+                \"standardFlowEnabled\": true,
+                \"directAccessGrantsEnabled\": false,
+                \"redirectUris\": [\"${ARGOCD_URL}/auth/callback\", \"${ARGOCD_URL}/*\"],
+                \"webOrigins\": [\"${ARGOCD_URL}\"],
+                \"rootUrl\": \"${ARGOCD_URL}\"
+              }" \
+              "${KC_URL}/admin/realms/cnoe/clients"
+
+            ARGOCD_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
+              "${KC_URL}/admin/realms/cnoe/clients?clientId=argocd" | \
+              sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
+          fi
+          echo "   ArgoCD client ID: $ARGOCD_ID"
+
+          # Add groups as optional scope to argocd
+          if [ -n "$ARGOCD_ID" ] && [ -n "$GROUPS_SCOPE_ID" ]; then
+            echo "🔗 Associando groups ao argocd..."
+            curl -s -X PUT -H "Authorization: Bearer $TOKEN" \
+              "${KC_URL}/admin/realms/cnoe/clients/${ARGOCD_ID}/optional-client-scopes/${GROUPS_SCOPE_ID}" || true
+          fi
+
+          # ============================================
+          # CREATE TEST USERS
+          # ============================================
+          echo "👥 Criando usuários de teste..."
+
+          # Create userA
+          USERA_EXISTS=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/users?username=usera" | grep -o '"username":"usera"' || echo "")
+
+          if [ -z "$USERA_EXISTS" ]; then
+            echo "➕ Criando userA..."
+            curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "username": "usera",
+                "enabled": true,
+                "email": "usera@example.com",
+                "firstName": "User",
+                "lastName": "A",
+                "emailVerified": true,
+                "credentials": [{"type": "password", "value": "userA123", "temporary": false}]
+              }' \
+              "${KC_URL}/admin/realms/cnoe/users"
+            echo "✅ userA criado (senha: userA123)"
+          else
+            echo "✅ userA já existe"
+          fi
+
+          # Create userB
+          USERB_EXISTS=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/users?username=userb" | grep -o '"username":"userb"' || echo "")
+
+          if [ -z "$USERB_EXISTS" ]; then
+            echo "➕ Criando userB..."
+            curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "username": "userb",
+                "enabled": true,
+                "email": "userb@example.com",
+                "firstName": "User",
+                "lastName": "B",
+                "emailVerified": true,
+                "credentials": [{"type": "password", "value": "userB123", "temporary": false}]
+              }' \
+              "${KC_URL}/admin/realms/cnoe/users"
+            echo "✅ userB criado (senha: userB123)"
+          else
+            echo "✅ userB já existe"
+          fi
+
+          # ============================================
+          # CREATE GROUPS
+          # ============================================
+          echo "👥 Criando grupos..."
+
+          # Create developers group
+          DEVS_GROUP=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/groups" | grep -o '"name":"developers"' || echo "")
+
+          if [ -z "$DEVS_GROUP" ]; then
+            echo "➕ Criando grupo developers..."
+            curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"name": "developers"}' \
+              "${KC_URL}/admin/realms/cnoe/groups"
+          fi
+
+          # Create admins group
+          ADMINS_GROUP=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/groups" | grep -o '"name":"admins"' || echo "")
+
+          if [ -z "$ADMINS_GROUP" ]; then
+            echo "➕ Criando grupo admins..."
+            curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"name": "admins"}' \
+              "${KC_URL}/admin/realms/cnoe/groups"
+          fi
+
+          # Add users to groups
+          echo "🔗 Adicionando usuários aos grupos..."
+
+          USERA_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/users?username=usera" | \
+            sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
+
+          USERB_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/users?username=userb" | \
+            sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
+
+          DEVS_GROUP_ID=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "${KC_URL}/admin/realms/cnoe/groups" | \
+            sed 's/},{/}\n{/g' | grep '"name":"developers"' | \
+            sed 's/.*"id":"\([^"]*\)".*/\1/' | head -1)
+
+          if [ -n "$USERA_ID" ] && [ -n "$DEVS_GROUP_ID" ]; then
+            curl -s -X PUT -H "Authorization: Bearer $TOKEN" \
+              "${KC_URL}/admin/realms/cnoe/users/${USERA_ID}/groups/${DEVS_GROUP_ID}" || true
+            echo "   userA -> developers"
+          fi
+
+          if [ -n "$USERB_ID" ] && [ -n "$DEVS_GROUP_ID" ]; then
+            curl -s -X PUT -H "Authorization: Bearer $TOKEN" \
+              "${KC_URL}/admin/realms/cnoe/users/${USERB_ID}/groups/${DEVS_GROUP_ID}" || true
+            echo "   userB -> developers"
+          fi
+
+          echo ""
+          echo "✅ Keycloak bootstrap completo!"
+          echo "   - Scope groups criado com mapper"
+          echo "   - Client backstage configurado"
+          echo "   - Client argocd configurado"
+          echo "   - Usuários: usera/userA123, userb/userB123"
+          echo "   - Grupos: developers, admins"
+          echo ""
+          echo "Client Secret: $BACKSTAGE_SECRET"
