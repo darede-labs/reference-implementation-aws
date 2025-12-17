@@ -12,7 +12,7 @@ argocd:
       domain: '{{ if eq .metadata.labels.path_routing "true" }}{{ .metadata.annotations.domain }}{{ else }}argocd.{{ .metadata.annotations.domain }}{{ end }}'
     server:
       ingress:
-        annotations: 
+        annotations:
           cert-manager.io/cluster-issuer: '{{ if eq .metadata.labels.path_routing "false" }}letsencrypt-prod{{ end }}'
         path: '/{{ if eq .metadata.labels.path_routing "true" }}argocd{{ end }}'
     configs:
@@ -130,7 +130,7 @@ cert-manager:
       - key: environment
         operator: In
         values: ['control-plane']
-        
+
 keycloak:
   enabled: true
   chartName: keycloak
@@ -142,7 +142,7 @@ keycloak:
     httpRelativePath: '/{{ if eq .metadata.labels.path_routing "true" }}keycloak/{{ end }}'
     ingress:
       hostname: '{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
-      annotations: 
+      annotations:
         cert-manager.io/cluster-issuer: '{{ if eq .metadata.labels.path_routing "false" }}letsencrypt-prod{{ end }}'
       extraTls:
       - hosts:
@@ -167,7 +167,7 @@ backstage:
   valuesObject:
     ingress:
       host: '{{ if eq .metadata.labels.path_routing "false" }}backstage.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
-      annotations: 
+      annotations:
         cert-manager.io/cluster-issuer: '{{ if eq .metadata.labels.path_routing "false" }}letsencrypt-prod{{ end }}'
     backstage:
       appConfig:
@@ -179,7 +179,7 @@ backstage:
       - name: BACKSTAGE_FRONTEND_URL
         value: 'https://{{ if eq .metadata.labels.path_routing "false" }}backstage.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}{{ end }}'
       - name: KEYCLOAK_NAME_METADATA
-        value: 'https://{{ if eq .metadata.labels.path_routing "false" }}keycloak.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}/keycloak{{ end }}/realms/cnoe/.well-known/openid-configuration'
+        value: 'http://keycloak.keycloak.svc.cluster.local:80/realms/cnoe/.well-known/openid-configuration'
       - name: ARGO_WORKFLOWS_URL
         value: 'https://{{ if eq .metadata.labels.path_routing "false" }}argo-workflows.{{ .metadata.annotations.domain }}{{ else }}{{ .metadata.annotations.domain }}/argo-workflows{{ end }}'
       - name: ARGO_CD_URL
@@ -207,12 +207,12 @@ argo-workflows:
         issuer: '{{ if eq .metadata.labels.path_routing "true" }}https://{{ .metadata.annotations.domain }}/keycloak{{ else }}https://keycloak.{{ .metadata.annotations.domain }}{{ end }}/realms/cnoe'
         redirectUrl: '{{ if eq .metadata.labels.path_routing "true" }}https://{{ .metadata.annotations.domain }}/argo-workflows{{ else }}https://argo-workflows.{{ .metadata.annotations.domain }}{{ end }}/oauth2/callback'
       ingress:
-        annotations: 
+        annotations:
           cert-manager.io/cluster-issuer: '{{ if eq .metadata.labels.path_routing "false" }}letsencrypt-prod{{ end }}'
           nginx.ingress.kubernetes.io/rewrite-target: '{{ if eq .metadata.labels.path_routing "true" }}/$2{{ end }}'
         hosts:
         - '{{ if eq .metadata.labels.path_routing "true" }}{{ .metadata.annotations.domain }}{{ else }}argo-workflows.{{ .metadata.annotations.domain }}{{ end }}'
-        paths: 
+        paths:
         -  '/{{ if eq .metadata.labels.path_routing "true" }}argo-workflows(/|$)(.*){{ end }}'
         tls:
         - hosts:
