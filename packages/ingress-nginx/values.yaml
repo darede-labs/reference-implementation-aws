@@ -1,21 +1,15 @@
 controller:
   config:
     hsts: 'false'
-    # Use PROXY protocol for proper client IP when ACM terminates TLS at NLB
-    use-forwarded-headers: 'true'
   service:
     type: LoadBalancer
     annotations:
-      argocd.argoproj.io/sync-wave: '-1' # Adding to ensure service is created before actual deployment
+      argocd.argoproj.io/sync-wave: '-1'
       service.beta.kubernetes.io/aws-load-balancer-internal: 'false'
       service.beta.kubernetes.io/aws-load-balancer-name: cnoe
       service.beta.kubernetes.io/aws-load-balancer-type: external
       service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
       service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
-      # ACM Certificate for TLS termination at NLB (replaces Let's Encrypt)
-      service.beta.kubernetes.io/aws-load-balancer-ssl-cert: 'arn:aws:acm:us-east-1:948881762705:certificate/051f6515-0d0b-459c-a056-0663f7c88f5e'
-      service.beta.kubernetes.io/aws-load-balancer-ssl-ports: '443'
-      service.beta.kubernetes.io/aws-load-balancer-backend-protocol: 'tcp'
     loadBalancerClass: service.k8s.aws/nlb
     targetPorts:
       https: 'https'
