@@ -1,12 +1,12 @@
 # Ref: https://github.com/backstage/charts/tree/main/charts/backstage
-# Note: TLS terminates at NLB with ACM - no cert-manager needed
+# NOTE: This file is a TEMPLATE. Domain-specific values are injected by install.sh
+# from config.yaml at install time. Do NOT hardcode domain values here.
 ingress:
   enabled: true
   className: "nginx"
   annotations:
-    external-dns.alpha.kubernetes.io/hostname: backstage.timedevops.click
     argocd.argoproj.io/sync-wave: "30"
-  host: backstage.timedevops.click
+  # host: set by install.sh from config.yaml
   extraHosts: []
   path: "/"
   tls:
@@ -22,15 +22,7 @@ backstage:
   extraEnvVarsSecrets:
     - backstage-env-vars
   extraEnvVars:
-    - name: BACKSTAGE_FRONTEND_URL
-      value: https://backstage.timedevops.click
-    - name: KEYCLOAK_NAME_METADATA
-      value: http://keycloak.keycloak.svc.cluster.local:80/realms/cnoe/.well-known/openid-configuration
-    - name: ARGO_CD_URL
-      value: https://argocd.timedevops.click
-    - name: ARGO_WORKFLOWS_URL
-      value: https://argo-workflows.timedevops.click
-    # Platform Configuration - loaded from backstage-env-vars secret (populated by install.sh from config.yaml)
+    # All env vars are loaded from backstage-env-vars secret (populated by install.sh from config.yaml)
     - name: GITHUB_ORG
       valueFrom:
         secretKeyRef:

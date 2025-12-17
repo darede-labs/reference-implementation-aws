@@ -7,6 +7,40 @@ source ${REPO_ROOT}/scripts/utils.sh
 
 echo -e "\n${BOLD}${BLUE}🚀 Starting installation process...${NC}"
 
+# Read config values
+ACM_CERTIFICATE_ARN=$(yq eval '.acm_certificate_arn' ${CONFIG_FILE})
+KEYCLOAK_REALM=$(yq eval '.keycloak.realm // "cnoe"' ${CONFIG_FILE})
+
+# Create all namespaces upfront to avoid race conditions
+echo -e "${CYAN}📦 Creating namespaces...${NC}"
+for ns in argocd keycloak backstage argo ingress-nginx external-secrets atlantis crossplane-system external-dns; do
+  kubectl create namespace $ns --dry-run=client -o yaml | kubectl apply -f - --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
+done
+
+# Install AWS Load Balancer Controller (required for NLB with ACM)
+echo -e "${BOLD}${GREEN}🔄 Installing AWS Load Balancer Controller...${NC}"
+helm upgrade --install aws-load-balancer-controller aws-load-balancer-controller \
+  --repo https://aws.github.io/eks-charts \
+  --namespace kube-system \
+  --set clusterName=${CLUSTER_NAME} \
+  --set serviceAccount.create=true \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --kubeconfig $KUBECONFIG_FILE \
+  --wait --timeout 120s > /dev/null
+
+# Install ingress-nginx with ACM certificate from config.yaml
+echo -e "${BOLD}${GREEN}🔄 Installing ingress-nginx with ACM TLS termination...${NC}"
+helm upgrade --install ingress-nginx ingress-nginx \
+  --repo https://kubernetes.github.io/ingress-nginx \
+  --namespace ingress-nginx \
+  --values ${REPO_ROOT}/packages/ingress-nginx/values.yaml \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/aws-load-balancer-ssl-cert"="${ACM_CERTIFICATE_ARN}" \
+  --kubeconfig $KUBECONFIG_FILE \
+  --wait --timeout 300s > /dev/null
+
+echo -e "${YELLOW}⏳ Waiting for NLB to be provisioned...${NC}"
+sleep 30
+
 # Static helm values files
 ARGOCD_STATIC_VALUES_FILE=${REPO_ROOT}/packages/argo-cd/values.yaml
 EXTERNAL_SECRETS_STATIC_VALUES_FILE=${REPO_ROOT}/packages/external-secrets/values.yaml
@@ -317,7 +351,7 @@ kubectl create secret generic argocd-keycloak-secret -n argocd \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # Configure ArgoCD OIDC with Keycloak (using dynamic domain)
-KEYCLOAK_ISSUER_URL="https://${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}/auth/realms/cnoe"
+KEYCLOAK_ISSUER_URL="https://${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}/realms/${KEYCLOAK_REALM}"
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: ConfigMap
@@ -345,26 +379,58 @@ kubectl -n argocd patch cm argocd-rbac-cm --type merge -p '{
   }
 }'
 
-echo "👥 Creating Keycloak groups and users..."
+echo "👥 Configuring Keycloak realm, clients, and users..."
 # Wait for Keycloak to be ready
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=keycloak -n keycloak --timeout=300s
 
-# Create groups in Keycloak (using dynamic domain and secrets from config)
-# Bitnami Keycloak uses /opt/bitnami/keycloak and no /auth in URL path
-ARGOCD_CALLBACK_URL="https://${ARGOCD_SUBDOMAIN}.${DOMAIN_NAME}/auth/callback"
-kubectl exec -n keycloak keycloak-0 -- bash -c "
-/opt/bitnami/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080 --realm master --user ${KEYCLOAK_ADMIN_USER} --password ${KEYCLOAK_ADMIN_PASSWORD}
-# Create ArgoCD client if not exists
-/opt/bitnami/keycloak/bin/kcadm.sh create clients -r cnoe -s clientId=argocd -s \"redirectUris=[\\\"${ARGOCD_CALLBACK_URL}\\\"]\" -s publicClient=false -s protocol=openid-connect -s enabled=true -s clientAuthenticatorType=client-secret -s \"defaultClientScopes=[\\\"openid\\\",\\\"profile\\\",\\\"email\\\",\\\"groups\\\"]\" -s secret=${ARGOCD_OIDC_SECRET} 2>/dev/null || true
-# Update client if exists
-CLIENT_ID=\$(/opt/bitnami/keycloak/bin/kcadm.sh get clients -r cnoe -q clientId=argocd | grep \"\\\"id\\\"\" | head -1 | sed \"s/.*\\\"id\\\" *: *\\\"\\([^\\\"]*\\)\\\".*$/\\1/\")
-if [ ! -z \"\$CLIENT_ID\" ]; then
-  /opt/bitnami/keycloak/bin/kcadm.sh update clients/\$CLIENT_ID -r cnoe -s secret=${ARGOCD_OIDC_SECRET} -s \"defaultClientScopes=[\\\"openid\\\",\\\"profile\\\",\\\"email\\\",\\\"groups\\\"]\"
-fi
+# Read client secrets from config
+ARGOCD_CLIENT_SECRET=$(yq eval '.secrets.argocd.oidc_client_secret' ${CONFIG_FILE})
+BACKSTAGE_CLIENT_SECRET=$(yq eval '.secrets.backstage.oidc_client_secret' ${CONFIG_FILE})
+
+# Callback URLs
+ARGOCD_CALLBACK_URL="https://${ARGOCD_SUBDOMAIN}.${DOMAIN_NAME}/*"
+BACKSTAGE_CALLBACK_URL="https://${BACKSTAGE_SUBDOMAIN}.${DOMAIN_NAME}/*"
+
+# Configure Keycloak: create realm, clients, groups, and test user
+kubectl exec -n keycloak keycloak-0 -- bash -c '
+KCADM="/opt/bitnami/keycloak/bin/kcadm.sh"
+
+# Login to Keycloak
+$KCADM config credentials --server http://localhost:8080 --realm master --user '"${KEYCLOAK_ADMIN_USER}"' --password '"${KEYCLOAK_ADMIN_PASSWORD}"'
+
+# Create realm if not exists
+$KCADM create realms -s realm='"${KEYCLOAK_REALM}"' -s enabled=true 2>/dev/null || echo "Realm already exists"
+
+# Create ArgoCD client
+$KCADM create clients -r '"${KEYCLOAK_REALM}"' \
+  -s clientId=argocd \
+  -s "redirectUris=[\"'"${ARGOCD_CALLBACK_URL}"'\"]" \
+  -s publicClient=false \
+  -s protocol=openid-connect \
+  -s enabled=true \
+  -s clientAuthenticatorType=client-secret \
+  -s secret='"${ARGOCD_CLIENT_SECRET}"' 2>/dev/null || echo "ArgoCD client already exists"
+
+# Create Backstage client
+$KCADM create clients -r '"${KEYCLOAK_REALM}"' \
+  -s clientId=backstage \
+  -s "redirectUris=[\"'"${BACKSTAGE_CALLBACK_URL}"'\"]" \
+  -s publicClient=false \
+  -s protocol=openid-connect \
+  -s enabled=true \
+  -s clientAuthenticatorType=client-secret \
+  -s secret='"${BACKSTAGE_CLIENT_SECRET}"' 2>/dev/null || echo "Backstage client already exists"
+
 # Create groups
-/opt/bitnami/keycloak/bin/kcadm.sh create groups -r cnoe -s name=superusers 2>/dev/null || true
-/opt/bitnami/keycloak/bin/kcadm.sh create groups -r cnoe -s name=developers 2>/dev/null || true
-"
+$KCADM create groups -r '"${KEYCLOAK_REALM}"' -s name=superusers 2>/dev/null || true
+$KCADM create groups -r '"${KEYCLOAK_REALM}"' -s name=developers 2>/dev/null || true
+
+# Create test user
+$KCADM create users -r '"${KEYCLOAK_REALM}"' -s username=user1 -s email=user1@example.com -s enabled=true -s emailVerified=true 2>/dev/null || true
+$KCADM set-password -r '"${KEYCLOAK_REALM}"' --username user1 --new-password user123 2>/dev/null || true
+
+echo "✓ Keycloak configured successfully"
+'
 
 echo "🔄 Restarting ArgoCD server to apply SSO configuration..."
 kubectl rollout restart -n argocd deployment/argocd-server
@@ -515,7 +581,7 @@ backstage:
     - name: BACKSTAGE_FRONTEND_URL
       value: ${BACKSTAGE_URL}
     - name: KEYCLOAK_NAME_METADATA
-      value: ${KEYCLOAK_URL}/auth/realms/cnoe/.well-known/openid-configuration
+      value: http://keycloak.keycloak.svc.cluster.local:80/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration
     - name: ARGO_CD_URL
       value: ${ARGOCD_URL}
     - name: ARGO_WORKFLOWS_URL
