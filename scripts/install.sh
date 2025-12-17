@@ -37,14 +37,14 @@ global:
   domain: $([[ "${PATH_ROUTING}" == "true" ]] && echo "${DOMAIN_NAME}" || echo "${ARGOCD_SUBDOMAIN}.${DOMAIN_NAME}")
 server:
   ingress:
-    annotations:
-      cert-manager.io/cluster-issuer: $([[ "${PATH_ROUTING}" == "false" ]] && echo '"letsencrypt-prod"' || echo "")
+    annotations: {}
     path: /$([[ "${PATH_ROUTING}" == "true" ]] && echo "argocd" || echo "")
+    tls: false
 configs:
   cm:
     oidc.config: |
       name: Keycloak
-      issuer: https://$ISSUER_URL/auth/realms/cnoe
+      issuer: https://$ISSUER_URL/realms/cnoe
       clientID: argocd
       clientSecret: ${ARGOCD_OIDC_SECRET}
       requestedScopes:
@@ -58,6 +58,7 @@ configs:
   params:
     'server.basehref': /$([[ "${PATH_ROUTING}" == "true" ]] && echo "argocd" || echo "")
     'server.rootpath': $([[ "${PATH_ROUTING}" == "true" ]] && echo "argocd" || echo "")
+    'server.insecure': 'true'
 EOF
 
 echo -e "${BOLD}${GREEN}🔄 Adding Helm repositories...${NC}"
@@ -455,15 +456,9 @@ metadata:
   name: keycloak
   namespace: keycloak
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
     external-dns.alpha.kubernetes.io/hostname: ${KEYCLOAK_HOST}
-    argocd.argoproj.io/sync-wave: "25"
 spec:
   ingressClassName: nginx
-  tls:
-  - hosts:
-    - ${KEYCLOAK_HOST}
-    secretName: keycloak-tls
   rules:
   - host: ${KEYCLOAK_HOST}
     http:
@@ -472,7 +467,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: keycloak-http
+            name: keycloak
             port:
               number: 80
 EOF
@@ -487,15 +482,9 @@ metadata:
   name: backstage
   namespace: backstage
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
     external-dns.alpha.kubernetes.io/hostname: ${BACKSTAGE_HOST}
-    argocd.argoproj.io/sync-wave: "25"
 spec:
   ingressClassName: nginx
-  tls:
-  - hosts:
-    - ${BACKSTAGE_HOST}
-    secretName: backstage-server-tls
   rules:
   - host: ${BACKSTAGE_HOST}
     http:
