@@ -635,5 +635,24 @@ else
   echo -e "${YELLOW}   You may need to manually update the Backstage secret.${NC}"
 fi
 
+# Configure hostAliases for internal Keycloak resolution (hairpin NAT fix)
+echo -e "${CYAN}🔧 Configuring internal DNS for OIDC (hostAliases)...${NC}"
+KC_IP=$(kubectl get svc keycloak -n keycloak -o jsonpath='{.spec.clusterIP}' --kubeconfig $KUBECONFIG_FILE 2>/dev/null)
+if [ -n "$KC_IP" ]; then
+  KEYCLOAK_HOST="${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}"
+
+  # Add hostAliases to ArgoCD
+  kubectl patch deployment argocd-server -n argocd --type='json' \
+    -p="[{\"op\": \"add\", \"path\": \"/spec/template/spec/hostAliases\", \"value\": [{\"ip\": \"$KC_IP\", \"hostnames\": [\"$KEYCLOAK_HOST\"]}]}]" \
+    --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
+
+  # Add hostAliases to Backstage
+  kubectl patch deployment backstage -n backstage --type='json' \
+    -p="[{\"op\": \"add\", \"path\": \"/spec/template/spec/hostAliases\", \"value\": [{\"ip\": \"$KC_IP\", \"hostnames\": [\"$KEYCLOAK_HOST\"]}]}]" \
+    --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
+
+  echo -e "${GREEN}✅ hostAliases configured for ArgoCD and Backstage${NC}"
+fi
+
 echo -e "\n${BOLD}${BLUE}🎉 Installation completed successfully! 🎉${NC}"
 echo -e "${CYAN}📊 You can now access your resources and start deploying applications.${NC}"
