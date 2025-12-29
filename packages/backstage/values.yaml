@@ -14,10 +14,10 @@ ingress:
 backstage:
   replicas: 1
   image:
-    registry: ghcr.io
-    repository: cnoe-io/backstage-app
-    tag: latest
-    pullPolicy: IfNotPresent
+    registry: public.ecr.aws
+    repository: a7h4f2f7/backstage-idp
+    tag: v1.0.5
+    pullPolicy: Always
   command: ["node", "packages/backend"]
   extraEnvVarsSecrets:
     - backstage-env-vars
@@ -69,6 +69,15 @@ backstage:
       name: darede
     backend:
       baseUrl: ${BACKSTAGE_FRONTEND_URL}
+      auth:
+        externalAccess:
+          - type: legacy
+            options:
+              secret: ${BACKEND_SECRET}
+              subject: e2e-api
+            accessRestrictions:
+              - plugin: scaffolder
+              - plugin: catalog
       csp:
         connect-src: ['self', 'http:', 'https:']
       cors:
@@ -168,22 +177,20 @@ backstage:
       session:
         secret: "MW2sV-sIPngEl26vAzatV-6VqfsgAx4bPIz7PuE_2Lk="
       providers:
-        guest: {}
-        keycloak-oidc:
+        # AWS Cognito via generic OIDC provider
+        # Custom Backstage IDP image uses generic 'oidc' provider (no groups scope)
+        oidc:
           development:
-            metadataUrl: ${KEYCLOAK_NAME_METADATA}
-            clientId: backstage
-            clientSecret: ${BACKSTAGE_CLIENT_SECRET}
+            metadataUrl: ${OIDC_ISSUER_URL}/.well-known/openid-configuration
+            clientId: ${OIDC_CLIENT_ID}
+            clientSecret: ${OIDC_CLIENT_SECRET}
             scope: 'openid profile email'
             prompt: auto
-            # Desabilitar adição automática de scopes adicionais (como groups)
-            # que causam erro no Keycloak 17
             dangerouslyAllowSignInWithoutUserInCatalog: true
-            # Desabilitar resolução automática de groups
-            resolver: {}
             signIn:
               resolvers:
                 - resolver: emailMatchingUserEntityProfileEmail
+    signInPage: oidc
 
     scaffolder:
       # Default values for scaffolder - accessible via ${GITHUB_ORG} etc in templates
@@ -215,7 +222,7 @@ backstage:
     argoWorkflows:
       baseUrl: ${ARGO_WORKFLOWS_URL}
 postgresql:
-  enabled: true
+  enabled: false
   image:
     registry: docker.io
     repository: bitnamilegacy/postgresql
