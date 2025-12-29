@@ -68,7 +68,7 @@ spec:
           resourceType: ${{ parameters.resourceType }}
           resourceName: ${{ parameters.resourceName }}
           # Auto-populate owner from Keycloak user identity for verification
-          requestingUser: ${{ (user.ref | parseEntityRef).name | default("unknown") }}
+          requestingUser: ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}
           tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
           tfBackendRegion: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
 
@@ -77,8 +77,8 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: destroy/${{ (user.ref | parseEntityRef).name | default("user") }}-${{ parameters.resourceType }}-${{ parameters.resourceName }}
-        title: "🗑️ DESTROY: ${{ parameters.resourceType }}/${{ (user.ref | parseEntityRef).name | default("user") }}/${{ parameters.resourceName }}"
+        branchName: destroy/${{ (user.ref | default('user:default/user') | parseEntityRef).name | default("user") }}-${{ parameters.resourceType }}-${{ parameters.resourceName }}
+        title: "DESTROY: ${{ parameters.resourceType }}/${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}/${{ parameters.resourceName }}"
         description: |
           ## ⚠️ RESOURCE DESTRUCTION REQUEST
 
@@ -86,12 +86,12 @@ spec:
           |----------|-------|
           | **Type** | `${{ parameters.resourceType }}` |
           | **Name** | `${{ parameters.resourceName }}` |
-          | **Requesting User** | `${{ (user.ref | parseEntityRef).name | default("unknown") }}` |
+          | **Requesting User** | `${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}` |
 
-          ### � Owner Enforcement
-          This PR targets the path: `${{ parameters.resourceType }}/${{ (user.ref | parseEntityRef).name | default("user") }}/${{ parameters.resourceName }}`
+          ### Owner Enforcement
+          This PR targets the path: `${{ parameters.resourceType }}/${{ (user.ref | default('user:default/user') | parseEntityRef).name | default("user") }}/${{ parameters.resourceName }}`
 
-          **Only resources owned by `${{ (user.ref | parseEntityRef).name | default("unknown") }}` can be destroyed.**
+          **Only resources owned by `${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}` can be destroyed.**
 
           Atlantis will verify the `Owner` tag in Terraform state matches the requesting user before allowing destroy.
 
@@ -105,11 +105,11 @@ spec:
           - Resource will be **permanently deleted** from AWS
 
           ---
-          *Destruction request via Backstage by ${{ (user.ref | parseEntityRef).name | default("unknown") }}*
+          *Destruction request via Backstage by ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}*
         sourcePath: ./output
         # Owner-enforced path: {resource_type}/{username}/{resource_name}
-        targetPath: platform/terraform/stacks/${{ parameters.resourceType }}/${{ (user.ref | parseEntityRef).name | default('shared') }}/${{ parameters.resourceName }}
-        gitCommitMessage: "destroy(${{ parameters.resourceType }}): remove ${{ parameters.resourceName }} [owner: ${{ (user.ref | parseEntityRef).name | default("unknown") }}]"
+        targetPath: platform/terraform/stacks/${{ parameters.resourceType }}/${{ (user.ref | default('user:default/shared') | parseEntityRef).name | default('shared') }}/${{ parameters.resourceName }}
+        gitCommitMessage: 'destroy(${{ parameters.resourceType }}): remove ${{ parameters.resourceName }} [owner: ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}]'
 
   output:
     links:

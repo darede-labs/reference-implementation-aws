@@ -82,7 +82,7 @@ spec:
           description: ${{ parameters.description }}
           environment: ${{ parameters.environment }}
           # Auto-populate owner from Keycloak user identity
-          owner: ${{ (user.ref | parseEntityRef).name | default('unknown') }}
+          owner: ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default('unknown') }}
           ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
           secretData: ${{ parameters.secretData }}
           tags: ${{ parameters.tags }}
@@ -95,8 +95,8 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/secret-${{ (user.ref | parseEntityRef).name | default('user') }}-${{ parameters.name | replace("/", "-") }}
-        title: 'feat(secrets): Create secret ${{ parameters.name }} for ${{ (user.ref | parseEntityRef).name | default("user") }}'
+        branchName: infra/secret-${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}-${{ parameters.name | replace("/", "-") }}
+        title: "feat(secrets): Create secret ${{ parameters.name }} for ${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}"
         description: |
           ## 🔐 New Secret Request
           | Property | Value |
@@ -104,12 +104,12 @@ spec:
           | **Name** | `${{ parameters.name }}` |
           | **Environment** | `${{ parameters.environment }}` |
           ### Owner Enforcement
-          Only `${{ (user.ref | parseEntityRef).name | default("unknown") }}` can delete this resource.
+          Only `${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}` can delete this resource.
           ---
-          *Created via Backstage by ${{ (user.ref | parseEntityRef).name | default("unknown") }}*
+          *Created via Backstage by ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}*
         sourcePath: ./output
         # User-segregated path: secrets/{username}/{resource_name}
-        targetPath: platform/terraform/stacks/secrets/${{ (user.ref | parseEntityRef).name | default('shared') }}/${{ parameters.name | replace("/", "-") }}
+        targetPath: platform/terraform/stacks/secrets/${{ (user.ref | default('user:default/shared') | parseEntityRef).name | default('shared') }}/${{ parameters.name | replace("/", "-") }}
   output:
     links:
       - title: Pull Request

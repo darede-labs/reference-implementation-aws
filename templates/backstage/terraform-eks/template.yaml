@@ -113,7 +113,7 @@ spec:
           vpcCidr: ${{ parameters.vpcCidr }}
           enablePublicAccess: ${{ parameters.enablePublicAccess }}
           # Auto-populate owner from Keycloak user identity
-          owner: ${{ (user.ref | parseEntityRef).name | default('unknown') }}
+          owner: ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default('unknown') }}
           ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
           tags: ${{ parameters.tags }}
           githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
@@ -125,8 +125,8 @@ spec:
       action: publish:github:pull-request
       input:
         repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/eks-${{ (user.ref | parseEntityRef).name | default('user') }}-${{ parameters.name }}
-        title: 'feat(eks): Create cluster ${{ parameters.name }} for ${{ (user.ref | parseEntityRef).name | default("user") }}'
+        branchName: infra/eks-${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}-${{ parameters.name }}
+        title: "feat(eks): Create cluster ${{ parameters.name }} for ${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}"
         description: |
           ## ☸️ New EKS Cluster Request
           | Property | Value |
@@ -137,12 +137,12 @@ spec:
           | **Instance** | `${{ parameters.nodeInstanceType }}` |
           | **Nodes** | `${{ parameters.nodeMinSize }}-${{ parameters.nodeMaxSize }}` |
           ### Owner Enforcement
-          Only `${{ (user.ref | parseEntityRef).name | default("unknown") }}` can delete this resource.
+          Only `${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}` can delete this resource.
           ---
-          *Created via Backstage by ${{ (user.ref | parseEntityRef).name | default("unknown") }}*
+          *Created via Backstage by ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}*
         sourcePath: ./output
         # User-segregated path: eks/{username}/{resource_name}
-        targetPath: platform/terraform/stacks/eks/${{ (user.ref | parseEntityRef).name | default('shared') }}/${{ parameters.name }}
+        targetPath: platform/terraform/stacks/eks/${{ (user.ref | default('user:default/shared') | parseEntityRef).name | default('shared') }}/${{ parameters.name }}
   output:
     links:
       - title: Pull Request
