@@ -109,7 +109,7 @@ spec:
         sourcePath: ./output
         # Owner-enforced path: {resource_type}/{username}/{resource_name}
         targetPath: platform/terraform/stacks/${{ parameters.resourceType }}/${{ (user.ref | default('user:default/shared') | parseEntityRef).name | default('shared') }}/${{ parameters.resourceName }}
-        gitCommitMessage: 'destroy(${{ parameters.resourceType }}): remove ${{ parameters.resourceName }} [owner: ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}]'
+        gitCommitMessage: 'destroy(${{ parameters.resourceType }}): remove ${{ parameters.resourceName }} [owner: ${{ (user.ref | default("user:default/unknown") | parseEntityRef).name | default("unknown") }}]'
 
   output:
     links:
