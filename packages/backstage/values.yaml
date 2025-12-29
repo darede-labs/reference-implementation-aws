@@ -173,20 +173,26 @@ backstage:
       publisher:
         type: 'local'
     auth:
-      environment: development
+      environment: production
       session:
-        secret: "MW2sV-sIPngEl26vAzatV-6VqfsgAx4bPIz7PuE_2Lk="
+        secret: ${AUTH_SESSION_SECRET}
       providers:
-        # AWS Cognito via generic OIDC provider
-        # Custom Backstage IDP image uses generic 'oidc' provider (no groups scope)
         oidc:
+          production:
+            metadataUrl: ${OIDC_ISSUER_URL}/.well-known/openid-configuration
+            clientId: ${OIDC_CLIENT_ID}
+            clientSecret: ${OIDC_CLIENT_SECRET}
+            scope: 'openid profile email'
+            prompt: auto
+            signIn:
+              resolvers:
+                - resolver: emailMatchingUserEntityProfileEmail
           development:
             metadataUrl: ${OIDC_ISSUER_URL}/.well-known/openid-configuration
             clientId: ${OIDC_CLIENT_ID}
             clientSecret: ${OIDC_CLIENT_SECRET}
             scope: 'openid profile email'
             prompt: auto
-            dangerouslyAllowSignInWithoutUserInCatalog: true
             signIn:
               resolvers:
                 - resolver: emailMatchingUserEntityProfileEmail
