@@ -10,7 +10,6 @@ spec:
     - ./terraform-vpc/template.yaml
     - ./terraform-dynamodb/template.yaml
     # Compute
-    - ./terraform-ec2/template.yaml
     - ./terraform-ec2-ssm/template.yaml
     - ./terraform-lambda/template.yaml
     # Database
@@ -24,6 +23,11 @@ spec:
     - ./terraform-eks/template.yaml
     # Security
     - ./terraform-secrets/template.yaml
-    # Management
-    - ./terraform-destroy/template.yaml
+    # Management & Admin
     - ./resource-manager/template.yaml
+    - ./terraform-unlock/template.yaml
+    - ./user-management/template.yaml
+    # Applications
+    - ./app-with-bucket/template.yaml
+    - ./argo-workflows/template.yaml
+    - ./basic/template.yaml
