@@ -125,6 +125,19 @@ data:
                         if owner_filter and resource_owner != owner_filter:
                             continue
 
+                        # Download and check if state has actual resources
+                        try:
+                            state_obj = s3.get_object(Bucket=S3_BUCKET, Key=key)
+                            state_content = state_obj['Body'].read().decode('utf-8')
+                            state_data = json.loads(state_content)
+
+                            # Skip empty states (after terraform destroy)
+                            if not state_data.get('resources') or len(state_data.get('resources', [])) == 0:
+                                continue
+                        except Exception as e:
+                            print(f"Error reading state {key}: {e}")
+                            continue
+
                         resources.append({
                             'type': resource_type,
                             'owner': resource_owner,
