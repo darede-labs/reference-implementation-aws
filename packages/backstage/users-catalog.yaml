@@ -1,0 +1,33 @@
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: admin
+  description: Platform Administrator
+spec:
+  profile:
+    displayName: Admin User
+    email: admin@darede.com.br
+  memberOf:
+    - admins
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: admins
+  description: Platform Administrators
+spec:
+  type: team
+  profile:
+    displayName: Administrators
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: users
+  description: Regular Users
+spec:
+  type: team
+  profile:
+    displayName: Users
+  children: []

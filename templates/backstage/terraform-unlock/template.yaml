@@ -1,0 +1,85 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-unlock
+  title: "🔓 Unlock Terraform State"
+  description: |
+    Unlock a Terraform state file that is stuck in a locked state.
+    Automatically detects the lock ID and forces unlock.
+  tags:
+    - terraform
+    - unlock
+    - troubleshooting
+    - admin
+spec:
+  owner: platform-team
+  type: troubleshooting
+
+  parameters:
+    - title: "🔒 State Lock Information"
+      required:
+        - resourceType
+        - resourceOwner
+        - resourceName
+      properties:
+        resourceType:
+          title: "Resource Type"
+          type: string
+          enum:
+            - s3
+            - ec2
+            - rds
+            - lambda
+            - vpc
+            - dynamodb
+            - alb
+            - cloudfront
+            - eks
+          default: s3
+          description: Type of resource
+        resourceOwner:
+          title: "Resource Owner"
+          type: string
+          description: Owner username (state path owner)
+          default: ${{ user.entity.metadata.name | default('admin') }}
+        resourceName:
+          title: "Resource Name"
+          type: string
+          description: Name of the resource with locked state
+          ui:autofocus: true
+
+  steps:
+    - id: fetch-unlock-script
+      name: Create Unlock Script
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./unlock
+        values:
+          resourceType: ${{ parameters.resourceType }}
+          resourceOwner: ${{ parameters.resourceOwner }}
+          resourceName: ${{ parameters.resourceName }}
+
+    - id: terraform-unlock
+      name: Force Unlock Terraform State
+      action: terraform:unlock
+      input:
+        terraformDir: ./unlock
+        backendConfig:
+          bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          key: ${{ parameters.resourceType }}/${{ parameters.resourceOwner }}/${{ parameters.resourceName }}/terraform.tfstate
+          region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+
+  output:
+    text:
+      - title: Status
+        content: |
+          ✅ Terraform state unlocked successfully!
+
+          State: ${{ parameters.resourceType }}/${{ parameters.resourceOwner }}/${{ parameters.resourceName }}
+      - title: Next Steps
+        content: |
+          You can now run terraform operations on this resource again.
+    links:
+      - title: "📂 S3 State Bucket"
+        url: "https://console.aws.amazon.com/s3/buckets/poc-idp-tfstate"
