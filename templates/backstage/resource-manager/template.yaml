@@ -76,6 +76,8 @@ spec:
           bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
           key: ${{ parameters.resourceType }}/${{ user.entity.metadata.name | default('admin') }}/${{ parameters.resourceName }}/terraform.tfstate
           region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+        ownerEmail: ${{ user.entity.spec.profile.email | default('admin@darede.com.br') }}
+        resourceOwner: ${{ user.entity.spec.profile.email | default('admin@darede.com.br') }}
         autoApprove: true
 
   output:
