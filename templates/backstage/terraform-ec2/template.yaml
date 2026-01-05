@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: terraform-ec2-instance
   title: EC2 Instance
-  description: Create an EC2 instance using Terraform and Atlantis (GitOps)
+  description: Create an EC2 instance using Terraform (direct execution with RBAC)
   tags:
     - aws
     - ec2
@@ -141,35 +141,20 @@ spec:
           tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
           tfBackendRegion: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
 
-    - id: publish
-      name: Create Pull Request
-      action: publish:github:pull-request
+    - id: terraform-apply
+      name: Apply Terraform
+      action: terraform:apply
       input:
-        repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/ec2-${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}-${{ parameters.name }}
-        title: "feat(ec2): Create instance ${{ parameters.name }} for ${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}"
-        description: |
-          ## 🖥️ New EC2 Instance Request
-
-          | Property | Value |
-          |----------|-------|
-          | **Name** | `${{ parameters.name }}` |
-          | **Type** | `${{ parameters.instanceType }}` |
-          | **AMI** | `${{ parameters.amiType }}` |
-          | **Subnet** | `${{ parameters.subnetType }}` |
-          | **Key Pair** | `${{ parameters.keyPairName }}` |
-          | **Environment** | `${{ parameters.environment }}` |
-
-          ### Owner Enforcement
-          Only `${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}` can delete this resource.
-
-          ---
-          *Created via Backstage by ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}*
-        sourcePath: ./output
-        # User-segregated path: ec2/{username}/{resource_name}
-        targetPath: platform/terraform/stacks/ec2/${{ (user.ref | default('user:default/shared') | parseEntityRef).name | default('shared') }}/${{ parameters.name }}
+        terraformDir: ./output
+        backendConfig:
+          bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          key: ec2/${{ user.entity.metadata.name | default('unknown') }}/${{ parameters.name }}/terraform.tfstate
+          region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+        autoApprove: true
 
   output:
     links:
-      - title: Pull Request
-        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: View EC2 in AWS Console
+        url: https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Instances:
+      - title: View in Catalog
+        entityRef: resource:default/ec2-${{ parameters.name }}

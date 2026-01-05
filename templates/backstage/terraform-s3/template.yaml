@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: terraform-s3-bucket
   title: S3 Bucket
-  description: Create an S3 bucket using Terraform and Atlantis (GitOps)
+  description: Create an S3 bucket using Terraform (direct execution)
   tags:
     - aws
     - s3
@@ -34,7 +34,7 @@ spec:
         forceDestroy:
           title: Force Destroy (allow deletion with objects)
           type: boolean
-          default: false
+          default: true
 
     - title: Tags
       properties:
@@ -62,54 +62,38 @@ spec:
       action: fetch:template
       input:
         url: ./skeleton
-        targetPath: ./output
+        targetPath: ./terraform
         values:
           name: ${{ parameters.name }}
           environment: ${{ parameters.environment }}
           enableVersioning: ${{ parameters.enableVersioning }}
           forceDestroy: ${{ parameters.forceDestroy }}
-          # Auto-populate owner from Keycloak user identity (use user.ref which contains 'user:default/username')
-          owner: ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default('unknown') }}
-          ownerEmail: ${{ user.entity.spec.profile.email | default('') }}
+          owner: ${{ user.entity.metadata.name | default('unknown') }}
+          ownerEmail: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
           tags: ${{ parameters.tags }}
-          # Platform config from environment variables
-          githubOrg: ${{ env.GITHUB_ORG | default('darede-labs') }}
-          infraRepo: ${{ env.INFRA_REPO | default('infrastructureidp') }}
           tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
           tfBackendRegion: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
 
-    - id: publish
-      name: Create Pull Request
-      action: publish:github:pull-request
+    - id: terraform-apply
+      name: Apply Terraform
+      action: terraform:apply
       input:
-        repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/s3-${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}-${{ parameters.name }}
-        title: "feat(s3): Create bucket ${{ parameters.name }} for ${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}"
-        description: |
-          ## 🪣 New S3 Bucket Request
+        terraformDir: ./terraform
+        backendConfig:
+          bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          key: s3/${{ user.entity.metadata.name | default('unknown') }}/${{ parameters.name }}/terraform.tfstate
+          region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+        autoApprove: true
 
-          | Property | Value |
-          |----------|-------|
-          | **Name** | `${{ parameters.name }}` |
-          | **Owner** | `${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}` |
-          | **Environment** | `${{ parameters.environment }}` |
-          | **Versioning** | `${{ parameters.enableVersioning }}` |
-
-          ### GitOps Flow
-          1. Atlantis runs `terraform plan` automatically
-          2. Review the plan below
-          3. Approve PR and comment `/atlantis apply`
-
-          ### Owner Enforcement
-          Only `${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}` can delete this resource.
-
-          ---
-          *Created via Backstage by ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}*
-        sourcePath: ./output
-        # User-segregated path: s3/{username}/{resource_name}
-        targetPath: platform/terraform/stacks/s3/${{ (user.ref | default('user:default/shared') | parseEntityRef).name | default('shared') }}/${{ parameters.name }}
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        catalogInfoUrl: https://github.com/${{ env.GITHUB_ORG | default('darede-labs') }}/reference-implementation-aws/blob/main/catalog/resources/s3-${{ parameters.name }}.yaml
 
   output:
     links:
-      - title: Pull Request
-        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: View S3 Bucket in AWS Console
+        url: https://s3.console.aws.amazon.com/s3/buckets/${{ parameters.name }}
+      - title: View in Catalog
+        entityRef: resource:default/s3-${{ parameters.name }}

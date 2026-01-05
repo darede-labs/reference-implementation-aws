@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: terraform-vpc
   title: VPC Completa
-  description: Create a VPC with configurable subnets (public/private) using Terraform
+  description: Create a VPC with configurable subnets using Terraform (direct execution with RBAC)
   tags: [aws, vpc, terraform, network]
 spec:
   owner: platform-team
@@ -121,29 +121,20 @@ spec:
           infraRepo: ${{ env.INFRA_REPO | default('infrastructureidp') }}
           tfBackendBucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
           tfBackendRegion: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
-    - id: publish
-      name: Create Pull Request
-      action: publish:github:pull-request
+    - id: terraform-apply
+      name: Apply Terraform
+      action: terraform:apply
       input:
-        repoUrl: github.com?owner=${{ env.GITHUB_ORG | default('darede-labs') }}&repo=${{ env.INFRA_REPO | default('infrastructureidp') }}
-        branchName: infra/vpc-${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}-${{ parameters.name }}
-        title: "feat(vpc): Create VPC ${{ parameters.name }} for ${{ (user.ref | default('user:default/user') | parseEntityRef).name | default('user') }}"
-        description: |
-          ## 🌐 New VPC Request
-          | Property | Value |
-          |----------|-------|
-          | **Name** | `${{ parameters.name }}` |
-          | **CIDR** | `${{ parameters.cidr }}` |
-          | **Subnets** | `${{ parameters.subnets | length }}` |
-          | **NAT Gateway** | `${{ parameters.enableNatGateway }}` |
-          ### Owner Enforcement
-          Only `${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}` can delete this resource.
-          ---
-          *Created via Backstage by ${{ (user.ref | default('user:default/unknown') | parseEntityRef).name | default("unknown") }}*
-        sourcePath: ./output
-        # User-segregated path: vpc/{username}/{resource_name}
-        targetPath: platform/terraform/stacks/vpc/${{ (user.ref | default('user:default/shared') | parseEntityRef).name | default('shared') }}/${{ parameters.name }}
+        terraformDir: ./output
+        backendConfig:
+          bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          key: vpc/${{ user.entity.metadata.name | default('unknown') }}/${{ parameters.name }}/terraform.tfstate
+          region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+        autoApprove: true
+
   output:
     links:
-      - title: Pull Request
-        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: View VPC in AWS Console
+        url: https://console.aws.amazon.com/vpc/home?region=us-east-1#vpcs:
+      - title: View in Catalog
+        entityRef: resource:default/vpc-${{ parameters.name }}

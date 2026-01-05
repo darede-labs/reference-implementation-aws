@@ -16,8 +16,8 @@ backstage:
   image:
     registry: public.ecr.aws
     repository: a7h4f2f7/backstage-idp
-    tag: v1.0.5
-    pullPolicy: Always
+    tag: v1.1.6
+    pullPolicy: IfNotPresent
   command: ["node", "packages/backend"]
   extraEnvVarsSecrets:
     - backstage-env-vars
@@ -43,24 +43,14 @@ backstage:
         secretKeyRef:
           name: backstage-env-vars
           key: TERRAFORM_BACKEND_REGION
-  # extraVolumeMounts:
-  #   - name: backstage-config
-  #     mountPath: "/app/config"
-  #     readOnly: true
-  # extraVolumes:
-  #   - name: backstage-config
-  #     projected:
-  #       sources:
-  #         - secret:
-  #             name: integrations
-  #             items:
-  #               - key: github-integration.yaml
-  #                 path: github-integration.yaml
-  #         - secret:
-  #             name: k8s-config
-  #             items:
-  #               - key: k8s-config.yaml
-  #                 path: k8s-config.yaml
+  extraVolumeMounts:
+    - name: catalog-users
+      mountPath: "/catalog"
+      readOnly: true
+  extraVolumes:
+    - name: catalog-users
+      configMap:
+        name: backstage-users
   appConfig:
     app:
       title: Darede Backstage
@@ -121,6 +111,10 @@ backstage:
           rules:
             - allow: [Template, Location, Component, Resource, API, System]
         - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-dynamodb/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
           target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-eks/template.yaml
           rules:
             - allow: [Template, Location, Component, Resource, API, System]
@@ -132,6 +126,11 @@ backstage:
           target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-destroy/template.yaml
           rules:
             - allow: [Template, Location, Component, Resource, API, System]
+        # Users and Groups (local file from ConfigMap)
+        - type: file
+          target: /catalog/users.yaml
+          rules:
+            - allow: [User, Group]
         # Auto-discover infrastructure resources created via Backstage templates
         - type: url
           target: https://github.com/darede-labs/infrastructureidp/blob/main/catalog-info.yaml
@@ -182,19 +181,21 @@ backstage:
             metadataUrl: ${OIDC_ISSUER_URL}/.well-known/openid-configuration
             clientId: ${OIDC_CLIENT_ID}
             clientSecret: ${OIDC_CLIENT_SECRET}
-            scope: 'openid profile email'
+            additionalScopes: ['profile', 'email']
             prompt: auto
             signIn:
               resolvers:
+                - resolver: emailLocalPartMatchingUserEntityName
                 - resolver: emailMatchingUserEntityProfileEmail
           development:
             metadataUrl: ${OIDC_ISSUER_URL}/.well-known/openid-configuration
             clientId: ${OIDC_CLIENT_ID}
             clientSecret: ${OIDC_CLIENT_SECRET}
-            scope: 'openid profile email'
+            additionalScopes: ['profile', 'email']
             prompt: auto
             signIn:
               resolvers:
+                - resolver: emailLocalPartMatchingUserEntityName
                 - resolver: emailMatchingUserEntityProfileEmail
     signInPage: oidc
 

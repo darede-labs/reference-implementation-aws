@@ -2,13 +2,14 @@ apiVersion: backstage.io/v1alpha1
 kind: Location
 metadata:
   name: infrastructure-templates
-  description: Terraform infrastructure templates for AWS (via Atlantis GitOps)
+  description: Terraform infrastructure templates for AWS (direct execution with RBAC)
 spec:
   targets:
     - ./terraform-s3/template.yaml
     - ./terraform-ec2/template.yaml
-    - ./terraform-security-group/template.yaml
     - ./terraform-vpc/template.yaml
+    - ./terraform-dynamodb/template.yaml
+    - ./terraform-security-group/template.yaml
     - ./terraform-eks/template.yaml
     - ./terraform-secrets/template.yaml
     - ./terraform-destroy/template.yaml
