@@ -199,7 +199,7 @@ spec:
         terraformDir: ./output
         backendConfig:
           bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
-          key: ec2-ssm/${{ parameters.owner }}/${{ parameters.name }}/terraform.tfstate
+          key: ec2/${{ parameters.owner }}/${{ parameters.name }}/terraform.tfstate
           region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
         variables:
           instance_name: ${{ parameters.name }}
@@ -217,13 +217,9 @@ spec:
           owner: ${{ parameters.owner }}
           owner_email: ${{ parameters.ownerEmail }}
           project_name: ${{ parameters.name }}
+        ownerEmail: ${{ parameters.ownerEmail }}
+        resourceOwner: ${{ parameters.ownerEmail }}
         autoApprove: true
-
-    - id: register-catalog
-      name: Register in Catalog
-      action: catalog:register
-      input:
-        catalogInfoUrl: ${{ steps['terraform-apply'].output.catalogInfoUrl }}
 
   output:
     links:
