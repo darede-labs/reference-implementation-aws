@@ -9,22 +9,28 @@ data:
     set -e
     TERRAFORM_VERSION="1.7.5"
 
-    # Install CA certificates
-    echo "Installing CA certificates..."
-    apk add --no-cache ca-certificates > /dev/null 2>&1
+    # Update package list and install required packages
+    echo "Installing CA certificates, git, and dependencies..."
+    apt-get update -qq > /dev/null 2>&1
+    apt-get install -y -qq ca-certificates git wget unzip > /dev/null 2>&1
 
     # Copy CA certs to shared volume
     cp -r /etc/ssl /tools/ssl
+
+    # Copy git binary and all dependencies to shared volume
+    echo "Copying git to shared volume..."
+    cp /usr/bin/git /tools/
+    chmod +x /tools/git
+
+    # Copy git dependencies
+    mkdir -p /tools/usr/lib
+    cp -r /usr/lib/git-core /tools/usr/lib/ 2>/dev/null || true
 
     echo "Downloading Terraform ${TERRAFORM_VERSION}..."
     wget -q "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -O /tmp/terraform.zip
     unzip -q /tmp/terraform.zip -d /tools
     chmod +x /tools/terraform
 
-    echo "Downloading git static binary..."
-    wget -q "https://github.com/git/git/releases/download/v2.43.0/git-2.43.0.tar.gz" -O /tmp/git.tar.gz || \
-    wget -q "https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.43.0.tar.gz" -O /tmp/git.tar.gz || \
-    echo "Using busybox git fallback"
-
-    echo "Terraform installed successfully"
+    echo "Terraform and git installed successfully"
     /tools/terraform version
+    /tools/git --version
