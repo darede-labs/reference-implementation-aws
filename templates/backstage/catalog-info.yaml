@@ -5,11 +5,25 @@ metadata:
   description: Terraform infrastructure templates for AWS (direct execution with RBAC)
 spec:
   targets:
+    # Core Infrastructure
     - ./terraform-s3/template.yaml
-    - ./terraform-ec2/template.yaml
     - ./terraform-vpc/template.yaml
     - ./terraform-dynamodb/template.yaml
+    # Compute
+    - ./terraform-ec2/template.yaml
+    - ./terraform-ec2-ssm/template.yaml
+    - ./terraform-lambda/template.yaml
+    # Database
+    - ./terraform-rds/template.yaml
+    # Networking
+    - ./terraform-alb/template.yaml
     - ./terraform-security-group/template.yaml
+    # CDN & Storage
+    - ./terraform-cloudfront-s3/template.yaml
+    # Kubernetes
     - ./terraform-eks/template.yaml
+    # Security
     - ./terraform-secrets/template.yaml
+    # Management
     - ./terraform-destroy/template.yaml
+    - ./resource-manager/template.yaml

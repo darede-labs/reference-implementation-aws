@@ -1,0 +1,108 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: resource-manager
+  title: "🗑️ Delete My Resources"
+  description: |
+    View and delete resources you have created. Only resources owned by you will be shown.
+    Select resources to destroy and confirm deletion.
+  tags:
+    - terraform
+    - aws
+    - delete
+    - management
+spec:
+  owner: platform-team
+  type: management
+
+  parameters:
+    - title: Select Resources to Delete
+      required:
+        - resourceType
+      properties:
+        resourceType:
+          title: Resource Type
+          type: string
+          description: Type of resource to manage
+          enum:
+            - s3
+            - ec2
+            - ec2-ssm
+            - vpc
+            - rds
+            - dynamodb
+            - lambda
+            - alb
+            - cloudfront
+            - eks
+            - security-group
+            - secrets
+          enumNames:
+            - S3 Buckets
+            - EC2 Instances (Legacy)
+            - EC2 Instances (SSM)
+            - VPCs
+            - RDS Databases
+            - DynamoDB Tables
+            - Lambda Functions
+            - Application Load Balancers
+            - CloudFront Distributions
+            - EKS Clusters
+            - Security Groups
+            - Secrets Manager
+        resourceName:
+          title: Resource Name
+          type: string
+          description: Name of the resource to delete (as created in Backstage)
+          ui:autofocus: true
+        confirmDeletion:
+          title: I confirm I want to permanently delete this resource
+          type: boolean
+          default: false
+          ui:widget: checkbox
+
+    - title: Owner Verification
+      properties:
+        owner:
+          title: Owner (You)
+          type: string
+          default: ${{ user.entity.metadata.name | default('unknown') }}
+          ui:readonly: true
+        ownerEmail:
+          title: Owner Email
+          type: string
+          default: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
+          ui:readonly: true
+
+  steps:
+    - id: verify-confirmation
+      name: Verify Deletion Confirmation
+      action: debug:log
+      input:
+        message: |
+          Deletion request for ${{ parameters.resourceType }}/${{ parameters.resourceName }}
+          Owner: ${{ parameters.owner }}
+          Confirmed: ${{ parameters.confirmDeletion }}
+
+    - id: terraform-destroy
+      name: Destroy Resource
+      if: ${{ parameters.confirmDeletion == true }}
+      action: terraform:destroy
+      input:
+        backendConfig:
+          bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          key: ${{ parameters.resourceType }}/${{ parameters.owner }}/${{ parameters.resourceName }}/terraform.tfstate
+          region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+        ownerEmail: ${{ parameters.ownerEmail }}
+        resourceOwner: ${{ parameters.ownerEmail }}
+        autoApprove: true
+
+  output:
+    links:
+      - title: Back to Catalog
+        url: /catalog
+    text:
+      - title: Status
+        content: |
+          Resource ${{ parameters.resourceName }} deletion
+          ${{ parameters.confirmDeletion == true ? 'completed' : 'cancelled - confirmation required' }}

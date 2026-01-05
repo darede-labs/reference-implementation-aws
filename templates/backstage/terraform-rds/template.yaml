@@ -1,0 +1,257 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-rds
+  title: RDS Database Instance
+  description: |
+    Create an RDS database instance with automatic password management via Secrets Manager.
+    Supports PostgreSQL and MySQL engines with Multi-AZ, encryption, and backup options.
+  tags:
+    - terraform
+    - aws
+    - rds
+    - database
+    - infrastructure
+spec:
+  owner: platform-team
+  type: infrastructure
+
+  parameters:
+    - title: Database Configuration
+      required:
+        - name
+        - dbName
+        - engine
+        - vpcId
+        - subnetIds
+      properties:
+        name:
+          title: Database Identifier
+          type: string
+          description: Unique identifier for the RDS instance
+          pattern: '^[a-z][a-z0-9-]*$'
+        dbName:
+          title: Database Name
+          type: string
+          description: Name of the initial database
+          pattern: '^[a-zA-Z][a-zA-Z0-9_]*$'
+        engine:
+          title: Database Engine
+          type: string
+          default: postgres
+          enum:
+            - postgres
+            - mysql
+          enumNames:
+            - PostgreSQL
+            - MySQL
+        engineVersion:
+          title: Engine Version
+          type: string
+          default: "15.4"
+        instanceClass:
+          title: Instance Class
+          type: string
+          default: db.t3.micro
+          enum:
+            - db.t3.micro
+            - db.t3.small
+            - db.t3.medium
+            - db.t3.large
+            - db.m5.large
+            - db.m5.xlarge
+            - db.r5.large
+            - db.r5.xlarge
+          enumNames:
+            - db.t3.micro (2 vCPU, 1 GB)
+            - db.t3.small (2 vCPU, 2 GB)
+            - db.t3.medium (2 vCPU, 4 GB)
+            - db.t3.large (2 vCPU, 8 GB)
+            - db.m5.large (2 vCPU, 8 GB)
+            - db.m5.xlarge (4 vCPU, 16 GB)
+            - db.r5.large (2 vCPU, 16 GB) - Memory Optimized
+            - db.r5.xlarge (4 vCPU, 32 GB) - Memory Optimized
+        dbUsername:
+          title: Master Username
+          type: string
+          default: admin
+
+    - title: Storage Configuration
+      properties:
+        allocatedStorage:
+          title: Initial Storage (GB)
+          type: number
+          default: 20
+          minimum: 20
+          maximum: 1000
+        maxAllocatedStorage:
+          title: Max Storage (GB) - Autoscaling
+          type: number
+          default: 100
+          minimum: 20
+          maximum: 16384
+        storageType:
+          title: Storage Type
+          type: string
+          default: gp3
+          enum:
+            - gp3
+            - gp2
+            - io1
+          enumNames:
+            - GP3 (Recommended)
+            - GP2 (Legacy)
+            - IO1 (Provisioned IOPS)
+
+    - title: Network Configuration
+      required:
+        - vpcId
+        - subnetIds
+      properties:
+        vpcId:
+          title: VPC ID
+          type: string
+        subnetIds:
+          title: Subnet IDs
+          type: array
+          description: At least 2 subnets in different AZs required
+          items:
+            type: string
+          minItems: 2
+        allowedCidrBlocks:
+          title: Allowed CIDR Blocks
+          type: array
+          description: CIDR blocks allowed to connect
+          items:
+            type: string
+          default: []
+        allowedSecurityGroups:
+          title: Allowed Security Groups
+          type: array
+          description: Security group IDs allowed to connect
+          items:
+            type: string
+          default: []
+        publiclyAccessible:
+          title: Publicly Accessible
+          type: boolean
+          default: false
+          description: WARNING - Only enable for development
+
+    - title: High Availability & Backup
+      properties:
+        multiAz:
+          title: Multi-AZ Deployment
+          type: boolean
+          default: false
+          description: Enable Multi-AZ for high availability (additional cost)
+        backupRetentionPeriod:
+          title: Backup Retention (days)
+          type: number
+          default: 7
+          minimum: 0
+          maximum: 35
+        backupWindow:
+          title: Backup Window (UTC)
+          type: string
+          default: "03:00-04:00"
+        maintenanceWindow:
+          title: Maintenance Window (UTC)
+          type: string
+          default: "Mon:04:00-Mon:05:00"
+
+    - title: Protection & Monitoring
+      properties:
+        deletionProtection:
+          title: Deletion Protection
+          type: boolean
+          default: false
+        skipFinalSnapshot:
+          title: Skip Final Snapshot on Delete
+          type: boolean
+          default: true
+        performanceInsightsEnabled:
+          title: Enable Performance Insights
+          type: boolean
+          default: false
+
+    - title: Metadata
+      required:
+        - environment
+      properties:
+        environment:
+          title: Environment
+          type: string
+          default: dev
+          enum:
+            - dev
+            - staging
+            - prod
+        owner:
+          title: Owner
+          type: string
+          default: ${{ user.entity.metadata.name | default('unknown') }}
+          ui:readonly: true
+        ownerEmail:
+          title: Owner Email
+          type: string
+          default: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
+          ui:readonly: true
+
+  steps:
+    - id: fetch-template
+      name: Fetch Terraform Template
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+
+    - id: terraform-apply
+      name: Apply Terraform
+      action: terraform:apply
+      input:
+        terraformDir: ./output
+        backendConfig:
+          bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          key: rds/${{ parameters.owner }}/${{ parameters.name }}/terraform.tfstate
+          region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+        variables:
+          db_identifier: ${{ parameters.name }}
+          db_name: ${{ parameters.dbName }}
+          engine: ${{ parameters.engine }}
+          engine_version: ${{ parameters.engineVersion }}
+          instance_class: ${{ parameters.instanceClass }}
+          db_username: ${{ parameters.dbUsername }}
+          allocated_storage: ${{ parameters.allocatedStorage }}
+          max_allocated_storage: ${{ parameters.maxAllocatedStorage }}
+          storage_type: ${{ parameters.storageType }}
+          vpc_id: ${{ parameters.vpcId }}
+          subnet_ids: ${{ parameters.subnetIds | dump }}
+          allowed_cidr_blocks: ${{ parameters.allowedCidrBlocks | dump }}
+          allowed_security_groups: ${{ parameters.allowedSecurityGroups | dump }}
+          publicly_accessible: ${{ parameters.publiclyAccessible }}
+          multi_az: ${{ parameters.multiAz }}
+          backup_retention_period: ${{ parameters.backupRetentionPeriod }}
+          backup_window: ${{ parameters.backupWindow }}
+          maintenance_window: ${{ parameters.maintenanceWindow }}
+          deletion_protection: ${{ parameters.deletionProtection }}
+          skip_final_snapshot: ${{ parameters.skipFinalSnapshot }}
+          performance_insights_enabled: ${{ parameters.performanceInsightsEnabled }}
+          environment: ${{ parameters.environment }}
+          owner: ${{ parameters.owner }}
+          owner_email: ${{ parameters.ownerEmail }}
+        autoApprove: true
+
+  output:
+    links:
+      - title: RDS Console
+        url: "https://console.aws.amazon.com/rds/home?region=us-east-1#database:id=${{ parameters.name }}"
+      - title: Secrets Manager
+        url: "https://console.aws.amazon.com/secretsmanager/home?region=us-east-1"
+      - title: View in Catalog
+        entityRef: resource:default/rds-${{ parameters.name }}
+    text:
+      - title: Database Endpoint
+        content: ${{ steps['terraform-apply'].output.outputs.db_endpoint }}
+      - title: Credentials Secret ARN
+        content: ${{ steps['terraform-apply'].output.outputs.secret_arn }}

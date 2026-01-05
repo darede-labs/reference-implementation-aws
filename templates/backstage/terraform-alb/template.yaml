@@ -1,0 +1,151 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-alb
+  title: Application Load Balancer
+  description: |
+    Create an Application Load Balancer with target group, listeners, and security group.
+    Supports HTTP/HTTPS with optional SSL certificate.
+  tags:
+    - terraform
+    - aws
+    - alb
+    - load-balancer
+    - infrastructure
+spec:
+  owner: platform-team
+  type: infrastructure
+
+  parameters:
+    - title: Load Balancer Configuration
+      required:
+        - name
+        - vpcId
+        - subnetIds
+      properties:
+        name:
+          title: Load Balancer Name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*$'
+        vpcId:
+          title: VPC ID
+          type: string
+        subnetIds:
+          title: Subnet IDs
+          type: array
+          description: At least 2 subnets in different AZs
+          items:
+            type: string
+          minItems: 2
+        internal:
+          title: Internal Load Balancer
+          type: boolean
+          default: false
+        enableDeletionProtection:
+          title: Enable Deletion Protection
+          type: boolean
+          default: false
+
+    - title: Target Group Configuration
+      properties:
+        targetType:
+          title: Target Type
+          type: string
+          default: instance
+          enum:
+            - instance
+            - ip
+            - lambda
+        targetPort:
+          title: Target Port
+          type: number
+          default: 80
+        targetProtocol:
+          title: Target Protocol
+          type: string
+          default: HTTP
+          enum:
+            - HTTP
+            - HTTPS
+        healthCheckPath:
+          title: Health Check Path
+          type: string
+          default: "/"
+
+    - title: SSL/TLS Configuration
+      properties:
+        certificateArn:
+          title: ACM Certificate ARN (Optional)
+          type: string
+          default: ""
+          description: Leave empty for HTTP only
+        sslPolicy:
+          title: SSL Policy
+          type: string
+          default: ELBSecurityPolicy-TLS13-1-2-2021-06
+
+    - title: Metadata
+      required:
+        - environment
+      properties:
+        environment:
+          title: Environment
+          type: string
+          default: dev
+          enum: [dev, staging, prod]
+        owner:
+          title: Owner
+          type: string
+          default: ${{ user.entity.metadata.name | default('unknown') }}
+          ui:readonly: true
+        ownerEmail:
+          title: Owner Email
+          type: string
+          default: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
+          ui:readonly: true
+
+  steps:
+    - id: fetch-template
+      name: Fetch Terraform Template
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+
+    - id: terraform-apply
+      name: Apply Terraform
+      action: terraform:apply
+      input:
+        terraformDir: ./output
+        backendConfig:
+          bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          key: alb/${{ parameters.owner }}/${{ parameters.name }}/terraform.tfstate
+          region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+        variables:
+          name: ${{ parameters.name }}
+          vpc_id: ${{ parameters.vpcId }}
+          subnet_ids: ${{ parameters.subnetIds | dump }}
+          internal: ${{ parameters.internal }}
+          enable_deletion_protection: ${{ parameters.enableDeletionProtection }}
+          target_type: ${{ parameters.targetType }}
+          target_port: ${{ parameters.targetPort }}
+          target_protocol: ${{ parameters.targetProtocol }}
+          health_check_path: ${{ parameters.healthCheckPath }}
+          certificate_arn: ${{ parameters.certificateArn }}
+          ssl_policy: ${{ parameters.sslPolicy }}
+          environment: ${{ parameters.environment }}
+          owner: ${{ parameters.owner }}
+          owner_email: ${{ parameters.ownerEmail }}
+        autoApprove: true
+
+  output:
+    links:
+      - title: ALB Console
+        url: "https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#LoadBalancers:"
+      - title: View in Catalog
+        entityRef: resource:default/alb-${{ parameters.name }}
+    text:
+      - title: DNS Name
+        content: ${{ steps['terraform-apply'].output.outputs.alb_dns_name }}
+      - title: Target Group ARN
+        content: ${{ steps['terraform-apply'].output.outputs.target_group_arn }}

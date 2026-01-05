@@ -1,0 +1,112 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-lambda
+  title: Lambda Function
+  description: Create a Lambda function with IAM role, CloudWatch logs, and optional VPC configuration.
+  tags: [terraform, aws, lambda, serverless]
+spec:
+  owner: platform-team
+  type: infrastructure
+  parameters:
+    - title: Function Configuration
+      required: [name, runtime]
+      properties:
+        name:
+          title: Function Name
+          type: string
+          pattern: '^[a-zA-Z][a-zA-Z0-9-_]*$'
+        description:
+          title: Description
+          type: string
+          default: ""
+        runtime:
+          title: Runtime
+          type: string
+          default: python3.11
+          enum: [python3.11, python3.10, python3.9, nodejs20.x, nodejs18.x, java21, java17, go1.x]
+        handler:
+          title: Handler
+          type: string
+          default: index.handler
+        memorySize:
+          title: Memory (MB)
+          type: number
+          default: 128
+          enum: [128, 256, 512, 1024, 2048, 4096]
+        timeout:
+          title: Timeout (seconds)
+          type: number
+          default: 30
+          minimum: 1
+          maximum: 900
+    - title: VPC Configuration (Optional)
+      properties:
+        vpcConfigEnabled:
+          title: Enable VPC
+          type: boolean
+          default: false
+        vpcId:
+          title: VPC ID
+          type: string
+          default: ""
+        subnetIds:
+          title: Subnet IDs
+          type: array
+          items:
+            type: string
+          default: []
+    - title: Metadata
+      required: [environment]
+      properties:
+        environment:
+          title: Environment
+          type: string
+          default: dev
+          enum: [dev, staging, prod]
+        owner:
+          title: Owner
+          type: string
+          default: ${{ user.entity.metadata.name | default('unknown') }}
+          ui:readonly: true
+        ownerEmail:
+          title: Owner Email
+          type: string
+          default: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
+          ui:readonly: true
+  steps:
+    - id: fetch-template
+      name: Fetch Terraform Template
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./output
+    - id: terraform-apply
+      name: Apply Terraform
+      action: terraform:apply
+      input:
+        terraformDir: ./output
+        backendConfig:
+          bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          key: lambda/${{ parameters.owner }}/${{ parameters.name }}/terraform.tfstate
+          region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+        variables:
+          function_name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          runtime: ${{ parameters.runtime }}
+          handler: ${{ parameters.handler }}
+          memory_size: ${{ parameters.memorySize }}
+          timeout: ${{ parameters.timeout }}
+          vpc_config_enabled: ${{ parameters.vpcConfigEnabled }}
+          vpc_id: ${{ parameters.vpcId }}
+          subnet_ids: ${{ parameters.subnetIds | dump }}
+          environment: ${{ parameters.environment }}
+          owner: ${{ parameters.owner }}
+          owner_email: ${{ parameters.ownerEmail }}
+        autoApprove: true
+  output:
+    links:
+      - title: Lambda Console
+        url: "https://console.aws.amazon.com/lambda/home?region=us-east-1#/functions/${{ parameters.name }}"
+      - title: View in Catalog
+        entityRef: resource:default/lambda-${{ parameters.name }}
