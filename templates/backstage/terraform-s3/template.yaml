@@ -85,35 +85,12 @@ spec:
           region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
         autoApprove: true
 
-    - id: catalog-write
-      name: Write Catalog Info
-      action: catalog:write
+    - id: catalog-register
+      name: Register in Catalog
+      action: catalog:register
       input:
-        filePath: catalog-info.yaml
-        entity:
-          apiVersion: backstage.io/v1alpha1
-          kind: Resource
-          metadata:
-            name: s3-${{ parameters.name }}
-            description: "S3 Bucket: ${{ parameters.name }} (Environment: ${{ parameters.environment }})"
-            annotations:
-              terraform.io/backend: s3
-              terraform.io/state-key: s3/${{ user.entity.metadata.name | default('admin') }}/${{ parameters.name }}/terraform.tfstate
-              terraform.io/state-bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
-              terraform.io/state-region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
-            links:
-              - url: https://console.aws.amazon.com/s3/buckets/${{ parameters.name }}
-                title: "AWS S3 Console"
-                icon: cloud
-            tags:
-              - aws
-              - s3
-              - terraform
-              - ${{ parameters.environment }}
-          spec:
-            type: s3-bucket
-            lifecycle: ${{ parameters.environment }}
-            owner: ${{ user.entity.metadata.name | default('admin') }}
+        optional: true
+        catalogInfoUrl: https://backstage.timedevops.click/catalog/default/resource/s3-${{ parameters.name }}
 
   output:
     links:

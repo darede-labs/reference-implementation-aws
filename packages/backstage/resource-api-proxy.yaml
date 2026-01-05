@@ -15,8 +15,8 @@ spec:
   - host: backstage.timedevops.click
     http:
       paths:
-      - path: /api/resources
-        pathType: Prefix
+      - path: /api/resources(/|$)(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: resource-api
