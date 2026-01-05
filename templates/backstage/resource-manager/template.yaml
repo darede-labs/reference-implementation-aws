@@ -4,8 +4,8 @@ metadata:
   name: resource-manager
   title: "🗑️ Delete My Resources"
   description: |
-    Delete resources you have created via Backstage.
-    Paste the full Terraform state key to delete a resource.
+    View and delete resources you have created via Backstage.
+    Resources are automatically listed from your Terraform state.
   tags:
     - terraform
     - aws
@@ -16,25 +16,14 @@ spec:
   type: management
 
   parameters:
-    - title: "🔍 Find Your Resource"
+    - title: "📋 Select Resource to Delete"
       description: |
-        ## Step 1: List your resources
+        ## Your Resources
 
-        Run this command in your terminal:
-        ```bash
-        aws s3 ls s3://poc-idp-tfstate/ --recursive --profile darede | grep terraform.tfstate
-        ```
+        Resources are automatically loaded from your Terraform state bucket.
+        Select a resource below to delete it.
 
-        ## Step 2: Copy the state key
-
-        Find the resource you want to delete and copy the **full path** (without `terraform.tfstate`).
-
-        **Examples:**
-        | Type | State Key to Copy |
-        |------|------------------|
-        | S3 | `s3/admin/my-bucket` |
-        | EC2 | `ec2/admin/my-instance` |
-        | VPC | `vpc/admin/my-vpc` |
+        **Note:** Only resources you own are shown.
       required:
         - stateKey
         - confirmDeletion
@@ -42,7 +31,11 @@ spec:
         stateKey:
           title: "📋 Terraform State Key"
           type: string
-          description: "Full state key path (e.g., s3/admin/my-bucket)"
+          description: |
+            List your resources:
+            curl https://backstage.timedevops.click/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }}
+
+            Copy the stateKey value (e.g., s3/admin/my-bucket)
           ui:autofocus: true
           ui:placeholder: "s3/admin/my-bucket-name"
         confirmDeletion:

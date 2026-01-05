@@ -1,0 +1,154 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-api
+  namespace: backstage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resource-api
+  template:
+    metadata:
+      labels:
+        app: resource-api
+    spec:
+      serviceAccountName: backstage
+      containers:
+      - name: api
+        image: python:3.11-slim
+        ports:
+        - containerPort: 8080
+        env:
+        - name: S3_BUCKET
+          value: "poc-idp-tfstate"
+        - name: AWS_REGION
+          value: "us-east-1"
+        command:
+        - /bin/sh
+        - -c
+        - "pip install -q boto3 && python3 -u /app/server.py"
+        volumeMounts:
+        - name: app
+          mountPath: /app
+      volumes:
+      - name: app
+        configMap:
+          name: resource-api-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: resource-api
+  namespace: backstage
+spec:
+  selector:
+    app: resource-api
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: resource-api-code
+  namespace: backstage
+data:
+  server.py: |
+    #!/usr/bin/env python3
+    import json
+    import os
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from urllib.parse import urlparse, parse_qs
+    import boto3
+    from datetime import datetime
+
+    S3_BUCKET = os.getenv('S3_BUCKET', 'poc-idp-tfstate')
+    AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
+
+    s3 = boto3.client('s3', region_name=AWS_REGION)
+
+    class ResourceAPIHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            parsed_path = urlparse(self.path)
+
+            if parsed_path.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "ok"}).encode())
+                return
+
+            if parsed_path.path == '/resources':
+                try:
+                    query_params = parse_qs(parsed_path.query)
+                    owner_filter = query_params.get('owner', [None])[0]
+
+                    resources = self.list_resources(owner_filter)
+
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(resources).encode())
+                except Exception as e:
+                    self.send_error(500, str(e))
+                return
+
+            self.send_error(404)
+
+        def list_resources(self, owner_filter=None):
+            resources = []
+
+            try:
+                paginator = s3.get_paginator('list_objects_v2')
+                pages = paginator.paginate(Bucket=S3_BUCKET)
+
+                for page in pages:
+                    for obj in page.get('Contents', []):
+                        key = obj['Key']
+
+                        # Only process terraform.tfstate files
+                        if not key.endswith('terraform.tfstate'):
+                            continue
+
+                        # Parse: type/owner/name/terraform.tfstate
+                        parts = key.split('/')
+                        if len(parts) < 4:
+                            continue
+
+                        resource_type = parts[0]
+                        resource_owner = parts[1]
+                        resource_name = parts[2]
+
+                        # Filter by owner if specified
+                        if owner_filter and resource_owner != owner_filter:
+                            continue
+
+                        resources.append({
+                            'type': resource_type,
+                            'owner': resource_owner,
+                            'name': resource_name,
+                            'stateKey': f"{resource_type}/{resource_owner}/{resource_name}",
+                            'lastModified': obj['LastModified'].isoformat(),
+                            'size': obj['Size']
+                        })
+            except Exception as e:
+                print(f"Error listing resources: {e}")
+                raise
+
+            return resources
+
+        def log_message(self, format, *args):
+            print(f"{self.address_string()} - {format%args}")
+
+    if __name__ == '__main__':
+        # Install boto3
+        import subprocess
+        import sys
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-q', 'boto3'])
+
+        server = HTTPServer(('0.0.0.0', 8080), ResourceAPIHandler)
+        print(f'Resource API server running on port 8080...')
+        print(f'Monitoring S3 bucket: {S3_BUCKET}')
+        server.serve_forever()
