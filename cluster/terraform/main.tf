@@ -248,7 +248,8 @@ module "backstage_irsa" {
   role_name = "backstage-terraform-irsa"
 
   role_policy_arns = {
-    policy = aws_iam_policy.backstage_terraform_policy.arn
+    custom_policy = aws_iam_policy.backstage_terraform_policy.arn
+    power_user    = "arn:aws:iam::aws:policy/PowerUserAccess"
   }
 
   oidc_providers = {
