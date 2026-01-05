@@ -43,6 +43,9 @@ locals {
   route53_hosted_zone_id = local.config_file.route53_hosted_zone_id
   path_routing           = tobool(try(local.config_file.path_routing, "false"))
 
+  # Terraform state bucket for Backstage scaffolder
+  terraform_state_bucket = try(local.config_file.terraform.state_bucket, "poc-idp-tfstate")
+
   # Subdomains
   subdomains = try(local.config_file.subdomains, {})
 
