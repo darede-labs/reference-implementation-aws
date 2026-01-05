@@ -46,7 +46,15 @@ backstage:
     - name: PATH
       value: "/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     - name: GIT_EXEC_PATH
-      value: "/tools/git-core"
+      value: "/tools/usr/lib/git-core"
+    - name: LD_LIBRARY_PATH
+      value: "/tools/lib/x86_64-linux-gnu"
+    - name: SSL_CERT_DIR
+      value: "/tools/etc/ssl/certs"
+    - name: SSL_CERT_FILE
+      value: "/tools/etc/ssl/certs/ca-certificates.crt"
+    - name: GIT_SSL_CAINFO
+      value: "/tools/etc/ssl/certs/ca-certificates.crt"
   extraVolumeMounts:
     - name: catalog-users
       mountPath: "/catalog"
