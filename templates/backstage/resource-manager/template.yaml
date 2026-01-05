@@ -5,7 +5,7 @@ metadata:
   title: "🗑️ Delete My Resources"
   description: |
     Delete resources you have created via Backstage.
-    Resources are stored in: s3://poc-idp-tfstate/{type}/{owner}/{name}/terraform.tfstate
+    Paste the full Terraform state key to delete a resource.
   tags:
     - terraform
     - aws
@@ -16,72 +16,42 @@ spec:
   type: management
 
   parameters:
-    - title: "📋 Your Resources"
+    - title: "🔍 Find Your Resource"
       description: |
-        ## How to find your resources
+        ## Step 1: List your resources
 
-        Run this command to list your resources:
+        Run this command in your terminal:
         ```bash
-        aws s3 ls s3://poc-idp-tfstate/ --recursive | grep "/${{ user.entity.metadata.name | default('admin') }}/"
+        aws s3 ls s3://poc-idp-tfstate/ --recursive --profile darede | grep terraform.tfstate
         ```
 
-        Or check the [S3 Console](https://console.aws.amazon.com/s3/buckets/poc-idp-tfstate)
+        ## Step 2: Copy the state key
 
-        ---
+        Find the resource you want to delete and copy the **full path** (without `terraform.tfstate`).
 
-        **Resource path format:** `{type}/{owner}/{name}/terraform.tfstate`
-
-        Examples:
-        - `s3/admin/my-bucket/terraform.tfstate`
-        - `ec2/admin/my-instance/terraform.tfstate`
-        - `vpc/admin/my-vpc/terraform.tfstate`
+        **Examples:**
+        | Type | State Key to Copy |
+        |------|------------------|
+        | S3 | `s3/admin/my-bucket` |
+        | EC2 | `ec2/admin/my-instance` |
+        | VPC | `vpc/admin/my-vpc` |
       required:
-        - resourceType
-        - resourceName
+        - stateKey
         - confirmDeletion
       properties:
-        resourceType:
-          title: Resource Type
+        stateKey:
+          title: "📋 Terraform State Key"
           type: string
-          description: Type of resource to delete
-          enum:
-            - s3
-            - ec2
-            - ec2-ssm
-            - vpc
-            - rds
-            - dynamodb
-            - lambda
-            - alb
-            - cloudfront
-            - eks
-            - security-group
-            - secrets
-          enumNames:
-            - S3 Bucket
-            - EC2 Instance
-            - EC2 Instance (SSM)
-            - VPC
-            - RDS Database
-            - DynamoDB Table
-            - Lambda Function
-            - Application Load Balancer
-            - CloudFront Distribution
-            - EKS Cluster
-            - Security Group
-            - Secrets Manager Secret
-        resourceName:
-          title: Resource Name
-          type: string
-          description: Exact name of the resource to delete
+          description: "Full state key path (e.g., s3/admin/my-bucket)"
           ui:autofocus: true
+          ui:placeholder: "s3/admin/my-bucket-name"
         confirmDeletion:
           title: "⚠️ I CONFIRM I want to PERMANENTLY DELETE this resource"
           type: boolean
           default: false
           ui:widget: checkbox
 
-    - title: Owner Verification
+    - title: "👤 Owner Verification"
       properties:
         owner:
           title: Owner (You)
@@ -101,10 +71,8 @@ spec:
       input:
         message: |
           ⚠️ DELETION REQUEST
-          Type: ${{ parameters.resourceType }}
-          Name: ${{ parameters.resourceName }}
+          State Key: ${{ parameters.stateKey }}/terraform.tfstate
           Owner: ${{ parameters.owner }} (${{ parameters.ownerEmail }})
-          State Key: ${{ parameters.resourceType }}/${{ parameters.owner }}/${{ parameters.resourceName }}/terraform.tfstate
           Confirmed: ${{ parameters.confirmDeletion }}
 
     - id: terraform-destroy
@@ -114,7 +82,7 @@ spec:
       input:
         backendConfig:
           bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
-          key: ${{ parameters.resourceType }}/${{ parameters.owner }}/${{ parameters.resourceName }}/terraform.tfstate
+          key: ${{ parameters.stateKey }}/terraform.tfstate
           region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
         ownerEmail: ${{ parameters.ownerEmail }}
         resourceOwner: ${{ parameters.ownerEmail }}
@@ -122,9 +90,9 @@ spec:
 
   output:
     links:
-      - title: Back to Templates
+      - title: "🔙 Back to Templates"
         url: /create
-      - title: S3 State Bucket
+      - title: "📂 S3 State Bucket"
         url: "https://console.aws.amazon.com/s3/buckets/poc-idp-tfstate"
     text:
       - title: Status
