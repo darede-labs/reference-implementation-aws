@@ -126,6 +126,31 @@ backstage:
           target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-destroy/template.yaml
           rules:
             - allow: [Template, Location, Component, Resource, API, System]
+        # New Templates
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-ec2-ssm/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-rds/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-alb/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-lambda/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-cloudfront-s3/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
+        - type: url
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/resource-manager/template.yaml
+          rules:
+            - allow: [Template, Location, Component, Resource, API, System]
         # Users and Groups (local file from ConfigMap)
         - type: file
           target: /catalog/users.yaml
