@@ -60,15 +60,29 @@ spec:
           resourceOwner: ${{ parameters.resourceOwner }}
           resourceName: ${{ parameters.resourceName }}
 
-    - id: terraform-unlock
-      name: Force Unlock Terraform State
-      action: terraform:unlock
+    - id: terraform-init
+      name: Initialize Terraform
+      action: terraform:init
       input:
         terraformDir: ./unlock
         backendConfig:
           bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
           key: ${{ parameters.resourceType }}/${{ parameters.resourceOwner }}/${{ parameters.resourceName }}/terraform.tfstate
           region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+
+    - id: terraform-force-unlock
+      name: Force Unlock State
+      action: terraform:apply
+      input:
+        terraformDir: ./unlock
+        backendConfig:
+          bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
+          key: ${{ parameters.resourceType }}/${{ parameters.resourceOwner }}/${{ parameters.resourceName }}/terraform.tfstate
+          region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
+        forceUnlock: true
+        ownerEmail: ${{ user.entity.spec.profile.email | default('admin@darede.com.br') }}
+        resourceOwner: ${{ user.entity.spec.profile.email | default('admin@darede.com.br') }}
+        autoApprove: true
 
   output:
     text:
