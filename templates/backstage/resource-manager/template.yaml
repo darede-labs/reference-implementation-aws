@@ -20,12 +20,16 @@ spec:
       description: |
         ## Your Resources
 
-        **List your resources first:**
-        ```bash
-        curl https://backstage.timedevops.click/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }}
-        ```
+        **[🔍 Click here to view your resources](https://backstage.timedevops.click/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }})**
 
-        Then fill in the fields below to delete a resource.
+        The link above shows all resources you own in JSON format. Copy the resource details from there.
+
+        Example response:
+        ```json
+        [
+          {"type": "s3", "owner": "admin", "name": "my-bucket", ...}
+        ]
+        ```
 
         **Note:** Only resources you own can be deleted.
       required:
