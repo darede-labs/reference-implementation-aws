@@ -4,8 +4,8 @@ metadata:
   name: resource-manager
   title: "🗑️ Delete My Resources"
   description: |
-    View and delete resources you have created. Only resources owned by you will be shown.
-    Select resources to destroy and confirm deletion.
+    Delete resources you have created via Backstage.
+    Resources are stored in: s3://poc-idp-tfstate/{type}/{owner}/{name}/terraform.tfstate
   tags:
     - terraform
     - aws
@@ -16,14 +16,34 @@ spec:
   type: management
 
   parameters:
-    - title: Select Resources to Delete
+    - title: "📋 Your Resources"
+      description: |
+        ## How to find your resources
+
+        Run this command to list your resources:
+        ```bash
+        aws s3 ls s3://poc-idp-tfstate/ --recursive | grep "/${{ user.entity.metadata.name | default('admin') }}/"
+        ```
+
+        Or check the [S3 Console](https://console.aws.amazon.com/s3/buckets/poc-idp-tfstate)
+
+        ---
+
+        **Resource path format:** `{type}/{owner}/{name}/terraform.tfstate`
+
+        Examples:
+        - `s3/admin/my-bucket/terraform.tfstate`
+        - `ec2/admin/my-instance/terraform.tfstate`
+        - `vpc/admin/my-vpc/terraform.tfstate`
       required:
         - resourceType
+        - resourceName
+        - confirmDeletion
       properties:
         resourceType:
           title: Resource Type
           type: string
-          description: Type of resource to manage
+          description: Type of resource to delete
           enum:
             - s3
             - ec2
@@ -38,25 +58,25 @@ spec:
             - security-group
             - secrets
           enumNames:
-            - S3 Buckets
-            - EC2 Instances (Legacy)
-            - EC2 Instances (SSM)
-            - VPCs
-            - RDS Databases
-            - DynamoDB Tables
-            - Lambda Functions
-            - Application Load Balancers
-            - CloudFront Distributions
-            - EKS Clusters
-            - Security Groups
-            - Secrets Manager
+            - S3 Bucket
+            - EC2 Instance
+            - EC2 Instance (SSM)
+            - VPC
+            - RDS Database
+            - DynamoDB Table
+            - Lambda Function
+            - Application Load Balancer
+            - CloudFront Distribution
+            - EKS Cluster
+            - Security Group
+            - Secrets Manager Secret
         resourceName:
           title: Resource Name
           type: string
-          description: Name of the resource to delete (as created in Backstage)
+          description: Exact name of the resource to delete
           ui:autofocus: true
         confirmDeletion:
-          title: I confirm I want to permanently delete this resource
+          title: "⚠️ I CONFIRM I want to PERMANENTLY DELETE this resource"
           type: boolean
           default: false
           ui:widget: checkbox
@@ -75,13 +95,16 @@ spec:
           ui:readonly: true
 
   steps:
-    - id: verify-confirmation
-      name: Verify Deletion Confirmation
+    - id: log-request
+      name: Log Deletion Request
       action: debug:log
       input:
         message: |
-          Deletion request for ${{ parameters.resourceType }}/${{ parameters.resourceName }}
-          Owner: ${{ parameters.owner }}
+          ⚠️ DELETION REQUEST
+          Type: ${{ parameters.resourceType }}
+          Name: ${{ parameters.resourceName }}
+          Owner: ${{ parameters.owner }} (${{ parameters.ownerEmail }})
+          State Key: ${{ parameters.resourceType }}/${{ parameters.owner }}/${{ parameters.resourceName }}/terraform.tfstate
           Confirmed: ${{ parameters.confirmDeletion }}
 
     - id: terraform-destroy
@@ -99,10 +122,11 @@ spec:
 
   output:
     links:
-      - title: Back to Catalog
-        url: /catalog
+      - title: Back to Templates
+        url: /create
+      - title: S3 State Bucket
+        url: "https://console.aws.amazon.com/s3/buckets/poc-idp-tfstate"
     text:
       - title: Status
         content: |
-          Resource ${{ parameters.resourceName }} deletion
-          ${{ parameters.confirmDeletion == true ? 'completed' : 'cancelled - confirmation required' }}
+          ${{ parameters.confirmDeletion == true ? '✅ Resource deleted successfully' : '❌ Deletion cancelled - confirmation required' }}
