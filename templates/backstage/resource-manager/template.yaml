@@ -20,24 +20,37 @@ spec:
       description: |
         ## Your Resources
 
-        Resources are automatically loaded from your Terraform state bucket.
-        Select a resource below to delete it.
+        **List your resources first:**
+        ```bash
+        curl https://backstage.timedevops.click/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }}
+        ```
 
-        **Note:** Only resources you own are shown.
+        Then fill in the fields below to delete a resource.
+
+        **Note:** Only resources you own can be deleted.
       required:
-        - stateKey
+        - resourceType
+        - resourceName
         - confirmDeletion
       properties:
-        stateKey:
-          title: "📋 Terraform State Key"
+        resourceType:
+          title: "📦 Resource Type"
+          type: string
+          enum:
+            - s3
+            - ec2
+            - lambda
+            - rds
+          default: s3
+          description: Type of AWS resource to delete
+        resourceName:
+          title: "🏷️ Resource Name"
           type: string
           description: |
-            List your resources:
-            curl https://backstage.timedevops.click/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }}
-
-            Copy the stateKey value (e.g., s3/admin/my-bucket)
+            Name of the resource (e.g., bucket name, instance ID).
+            This is the "name" field from the API response.
           ui:autofocus: true
-          ui:placeholder: "s3/admin/my-bucket-name"
+          ui:placeholder: "my-bucket-name"
         confirmDeletion:
           title: "⚠️ I CONFIRM I want to PERMANENTLY DELETE this resource"
           type: boolean
@@ -64,7 +77,9 @@ spec:
       input:
         message: |
           ⚠️ DELETION REQUEST
-          State Key: ${{ parameters.stateKey }}/terraform.tfstate
+          Type: ${{ parameters.resourceType }}
+          Name: ${{ parameters.resourceName }}
+          State Key: ${{ parameters.resourceType }}/${{ parameters.owner }}/${{ parameters.resourceName }}/terraform.tfstate
           Owner: ${{ parameters.owner }} (${{ parameters.ownerEmail }})
           Confirmed: ${{ parameters.confirmDeletion }}
 
@@ -75,7 +90,7 @@ spec:
       input:
         backendConfig:
           bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
-          key: ${{ parameters.stateKey }}/terraform.tfstate
+          key: ${{ parameters.resourceType }}/${{ parameters.owner }}/${{ parameters.resourceName }}/terraform.tfstate
           region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
         ownerEmail: ${{ parameters.ownerEmail }}
         resourceOwner: ${{ parameters.ownerEmail }}
