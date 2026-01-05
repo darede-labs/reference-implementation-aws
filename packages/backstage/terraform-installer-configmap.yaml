@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: terraform-installer
+  namespace: backstage
+data:
+  install.sh: |
+    #!/bin/sh
+    set -e
+    TERRAFORM_VERSION="1.7.5"
+    echo "Downloading Terraform ${TERRAFORM_VERSION}..."
+    wget -q "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -O /tmp/terraform.zip
+    unzip -q /tmp/terraform.zip -d /tools
+    chmod +x /tools/terraform
+    echo "Terraform installed successfully"
+    /tools/terraform version
