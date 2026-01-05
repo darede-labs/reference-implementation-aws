@@ -20,14 +20,14 @@ spec:
       description: |
         ## Your Resources
 
-        **[🔍 Click here to view your resources](https://backstage.timedevops.click/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }})**
+        **[🔍 Click here to view your resources](https://backstage.timedevops.click/api/resources/resources?owner=admin)**
 
         The link above shows all resources you own in JSON format. Copy the resource details from there.
 
         Example response:
         ```json
         [
-          {"type": "s3", "owner": "admin", "name": "my-bucket", ...}
+          {"type": "s3", "owner": "admin", "name": "laladaredepoc", ...}
         ]
         ```
 
