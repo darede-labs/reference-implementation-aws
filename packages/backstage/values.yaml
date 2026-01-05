@@ -50,6 +50,9 @@ backstage:
     - name: terraform-tools
       mountPath: "/usr/local/bin/terraform"
       subPath: "terraform"
+    - name: terraform-tools
+      mountPath: "/etc/ssl"
+      subPath: "ssl"
   extraVolumes:
     - name: catalog-users
       configMap:

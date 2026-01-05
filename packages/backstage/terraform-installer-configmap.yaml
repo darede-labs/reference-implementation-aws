@@ -8,6 +8,14 @@ data:
     #!/bin/sh
     set -e
     TERRAFORM_VERSION="1.7.5"
+
+    # Install CA certificates
+    echo "Installing CA certificates..."
+    apk add --no-cache ca-certificates > /dev/null 2>&1
+
+    # Copy CA certs to shared volume
+    cp -r /etc/ssl /tools/ssl
+
     echo "Downloading Terraform ${TERRAFORM_VERSION}..."
     wget -q "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -O /tmp/terraform.zip
     unzip -q /tmp/terraform.zip -d /tools
