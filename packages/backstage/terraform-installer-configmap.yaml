@@ -20,5 +20,11 @@ data:
     wget -q "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -O /tmp/terraform.zip
     unzip -q /tmp/terraform.zip -d /tools
     chmod +x /tools/terraform
+
+    echo "Downloading git static binary..."
+    wget -q "https://github.com/git/git/releases/download/v2.43.0/git-2.43.0.tar.gz" -O /tmp/git.tar.gz || \
+    wget -q "https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.43.0.tar.gz" -O /tmp/git.tar.gz || \
+    echo "Using busybox git fallback"
+
     echo "Terraform installed successfully"
     /tools/terraform version

@@ -43,16 +43,16 @@ backstage:
         secretKeyRef:
           name: backstage-env-vars
           key: TERRAFORM_BACKEND_REGION
+    - name: PATH
+      value: "/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    - name: GIT_EXEC_PATH
+      value: "/tools/git-core"
   extraVolumeMounts:
     - name: catalog-users
       mountPath: "/catalog"
       readOnly: true
     - name: terraform-tools
-      mountPath: "/usr/local/bin/terraform"
-      subPath: "terraform"
-    - name: terraform-tools
-      mountPath: "/etc/ssl"
-      subPath: "ssl"
+      mountPath: "/tools"
   extraVolumes:
     - name: catalog-users
       configMap:
