@@ -122,74 +122,16 @@ backstage:
       rules:
         - allow: [Template, Location, Component, Resource, API, System, Group, User]
       locations:
-        # Terraform Templates (via Atlantis GitOps)
+        # All Templates via catalog-info.yaml
         - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-s3/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-ec2/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-security-group/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-vpc/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-dynamodb/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-eks/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-secrets/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-destroy/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        # New Templates
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-ec2-ssm/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-rds/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-alb/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-lambda/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/terraform-cloudfront-s3/template.yaml
-          rules:
-            - allow: [Template, Location, Component, Resource, API, System]
-        - type: url
-          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/resource-manager/template.yaml
+          target: https://github.com/darede-labs/reference-implementation-aws/blob/main/templates/backstage/catalog-info.yaml
           rules:
             - allow: [Template, Location, Component, Resource, API, System]
         # Users and Groups (local file from ConfigMap)
         - type: file
-          target: /catalog/users.yaml
+          target: /catalog/users-catalog.yaml
           rules:
             - allow: [User, Group]
-        # Auto-discover infrastructure resources created via Backstage templates
-        - type: url
-          target: https://github.com/darede-labs/infrastructureidp/blob/main/catalog-info.yaml
-          rules:
-            - allow: [Location, Component, Resource, API, System]
       providers:
         github:
           infrastructureResources:
