@@ -58,23 +58,20 @@ spec:
           ui:widget: checkbox
 
   steps:
-    - id: create-terraform-dir
-      name: Create Terraform Directory
+    - id: fetch-base
+      name: Fetch Terraform Config
       if: ${{ parameters.confirmDeletion == true }}
-      action: fs:write
+      action: fetch:template
       input:
-        path: destroy-workspace/main.tf
-        content: |
-          terraform {
-            backend "s3" {}
-          }
+        url: ./skeleton
+        targetPath: ./terraform
 
     - id: terraform-destroy
       name: Destroy Resource
       if: ${{ parameters.confirmDeletion == true }}
       action: terraform:destroy
       input:
-        terraformDir: ./destroy-workspace
+        terraformDir: ./terraform
         backendConfig:
           bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
           key: ${{ parameters.resourceType }}/${{ user.entity.metadata.name | default('admin') }}/${{ parameters.resourceName }}/terraform.tfstate
