@@ -85,11 +85,21 @@ spec:
           region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
         autoApprove: true
 
+    - id: publish
+      name: Publish Catalog to GitHub
+      action: github:repo:push
+      input:
+        repoUrl: github.com?repo=${{ env.INFRA_REPO | default('reference-implementation-aws') }}&owner=${{ env.GITHUB_ORG | default('darede-labs') }}
+        branchName: main
+        sourcePath: ./terraform
+        targetPath: catalog/resources/s3-${{ parameters.name }}
+        commitMessage: "feat: add S3 bucket ${{ parameters.name }} to catalog [skip ci]"
+
     - id: register
       name: Register in Catalog
       action: catalog:register
       input:
-        catalogInfoUrl: https://github.com/${{ env.GITHUB_ORG | default('darede-labs') }}/reference-implementation-aws/blob/main/catalog/resources/s3-${{ parameters.name }}.yaml
+        catalogInfoUrl: https://github.com/${{ env.GITHUB_ORG | default('darede-labs') }}/${{ env.INFRA_REPO | default('reference-implementation-aws') }}/blob/main/catalog/resources/s3-${{ parameters.name }}/catalog-info.yaml
 
   output:
     links:

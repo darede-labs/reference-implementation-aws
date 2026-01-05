@@ -2,23 +2,19 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: s3-${{ values.name }}
-  description: "S3 Bucket: ${{ values.name }}"
+  description: "S3 Bucket: ${{ values.name }} (Environment: ${{ values.environment }})"
   annotations:
-    backstage.io/techdocs-ref: dir:.
-    # GitHub integration - shows PRs, issues, workflows
-    github.com/project-slug: ${{ values.githubOrg }}/${{ values.infraRepo }}
-    # Source location for viewing code
-    backstage.io/source-location: url:https://github.com/${{ values.githubOrg }}/${{ values.infraRepo }}/tree/main/platform/terraform/stacks/s3/${{ values.name }}
-    # Terraform state info
     terraform.io/backend: s3
-    terraform.io/workspace: default
+    terraform.io/state-key: s3/${{ values.owner }}/${{ values.name }}/terraform.tfstate
+    terraform.io/state-bucket: ${{ values.tfBackendBucket }}
+    terraform.io/state-region: ${{ values.tfBackendRegion }}
   links:
-    - url: https://github.com/${{ values.githubOrg }}/${{ values.infraRepo }}/pulls?q=is%3Apr+s3-${{ values.name }}
-      title: "🔄 Pull Requests"
-      icon: github
     - url: https://console.aws.amazon.com/s3/buckets/${{ values.name }}
-      title: "☁️ AWS Console"
+      title: "AWS S3 Console"
       icon: cloud
+    - url: https://s3.console.aws.amazon.com/s3/object/${{ values.tfBackendBucket }}?prefix=s3/${{ values.owner }}/${{ values.name }}/
+      title: "Terraform State"
+      icon: dashboard
   tags:
     - aws
     - s3
@@ -28,4 +24,3 @@ spec:
   type: s3-bucket
   lifecycle: ${{ values.environment }}
   owner: ${{ values.owner }}
-  system: aws-infrastructure
