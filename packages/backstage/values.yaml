@@ -65,16 +65,13 @@ backstage:
         defaultMode: 493
   initContainers:
     - name: install-terraform
-      image: hashicorp/terraform:1.7.5
-      command: ["/bin/sh", "-c"]
-      args:
-        - |
-          cp /bin/terraform /tools/
-          chmod +x /tools/terraform
-          echo "Terraform copied successfully"
+      image: debian:12-slim
+      command: ["/bin/bash", "/scripts/install.sh"]
       volumeMounts:
         - name: terraform-tools
           mountPath: /tools
+        - name: terraform-installer
+          mountPath: /scripts
   appConfig:
     app:
       title: Darede Backstage
