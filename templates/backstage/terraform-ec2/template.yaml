@@ -155,6 +155,6 @@ spec:
   output:
     links:
       - title: View EC2 in AWS Console
-        url: https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Instances:
+        url: "https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#Instances:"
       - title: View in Catalog
         entityRef: resource:default/ec2-${{ parameters.name }}

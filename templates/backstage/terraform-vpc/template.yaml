@@ -135,6 +135,6 @@ spec:
   output:
     links:
       - title: View VPC in AWS Console
-        url: https://console.aws.amazon.com/vpc/home?region=us-east-1#vpcs:
+        url: "https://console.aws.amazon.com/vpc/home?region=us-east-1#vpcs:"
       - title: View in Catalog
         entityRef: resource:default/vpc-${{ parameters.name }}
