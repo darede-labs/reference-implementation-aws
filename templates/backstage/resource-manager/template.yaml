@@ -57,32 +57,7 @@ spec:
           default: false
           ui:widget: checkbox
 
-    - title: "👤 Owner Verification"
-      properties:
-        owner:
-          title: Owner (You)
-          type: string
-          default: ${{ user.entity.metadata.name | default('unknown') }}
-          ui:readonly: true
-        ownerEmail:
-          title: Owner Email
-          type: string
-          default: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
-          ui:readonly: true
-
   steps:
-    - id: log-request
-      name: Log Deletion Request
-      action: debug:log
-      input:
-        message: |
-          ⚠️ DELETION REQUEST
-          Type: ${{ parameters.resourceType }}
-          Name: ${{ parameters.resourceName }}
-          State Key: ${{ parameters.resourceType }}/${{ parameters.owner }}/${{ parameters.resourceName }}/terraform.tfstate
-          Owner: ${{ parameters.owner }} (${{ parameters.ownerEmail }})
-          Confirmed: ${{ parameters.confirmDeletion }}
-
     - id: terraform-destroy
       name: Destroy Resource
       if: ${{ parameters.confirmDeletion == true }}
@@ -90,10 +65,8 @@ spec:
       input:
         backendConfig:
           bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
-          key: ${{ parameters.resourceType }}/${{ parameters.owner }}/${{ parameters.resourceName }}/terraform.tfstate
+          key: ${{ parameters.resourceType }}/${{ user.entity.metadata.name | default('admin') }}/${{ parameters.resourceName }}/terraform.tfstate
           region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
-        ownerEmail: ${{ parameters.ownerEmail }}
-        resourceOwner: ${{ parameters.ownerEmail }}
         autoApprove: true
 
   output:
