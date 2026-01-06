@@ -16,36 +16,19 @@ spec:
   type: management
 
   parameters:
-    - title: " Step 1: View Your Resources"
+    - title: "🗑️ Delete Resource"
       description: |
-        Copy the URL below and paste it in your browser to see ONLY your resources.
-      properties:
-        yourUsername:
-          title: " Your Username"
-          type: string
-          ui:readonly: true
-          default: ${{ user.entity.metadata.name | default('unknown') }}
-        resourceApiUrl:
-          title: " Your Resources API (copy this URL)"
-          type: string
-          ui:readonly: true
-          ui:widget: textarea
-          ui:options:
-            rows: 2
-          default: "/api/resources/resources?owner=${{ user.entity.metadata.name | default('unknown') }}"
+        ## 🔍 Step 1: View Your Resources
 
-    - title: " Step 2: Delete Resource"
-      description: |
-        Enter the **type** and **name** from YOUR resources only.
+        **👉 [Click here to see all resources](/api/resources/resources)**
 
-        **You can only delete resources where owner = ${{ user.entity.metadata.name }}**
+        Find YOUR resources by looking for your username in the `owner` field.
+        Copy the `type` and `name` from your resource.
 
-        Example API response:
-        ```json
-        [
-          {"type": "ec2", "owner": "${{ user.entity.metadata.name }}", "name": "my-instance"}
-        ]
-        ```
+        ## 📝 Step 2: Fill the form below
+
+        ⚠️ **Security:** You can only delete resources that you own.
+        The backend validates ownership automatically.
       required:
         - resourceType
         - resourceName
