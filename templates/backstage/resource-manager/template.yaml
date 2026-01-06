@@ -16,33 +16,42 @@ spec:
   type: management
 
   parameters:
-    - title: "📋 Select Resource to Delete"
+    - title: " Step 1: View Your Resources"
       description: |
-        ## Your Resources
+        **Copy the URL below and open it in a new browser tab to see all your resources in JSON format.**
 
-        To view your resources, open in a new tab:
+        Look for the `type` and `name` fields in the response.
+      properties:
+        apiLink:
+          title: " Your Resources API URL"
+          type: string
+          description: Copy this entire URL and paste it in your browser address bar (add the domain first)
+          ui:readonly: true
+          ui:widget: textarea
+          ui:options:
+            rows: 2
+          default: "/api/resources/resources?owner=${{ user.entity.metadata.name | default('unknown') }}"
 
-        **`/api/resources/resources?owner=YOUR_USERNAME`**
+    - title: " Step 2: Select Resource to Delete"
+      description: |
+        Enter the **type** and **name** from the API response.
 
-        (Replace YOUR_USERNAME with your actual username)
-
-        The API returns JSON with all resources you own. Copy the resource details from there.
-
-        Example response:
+        Example API response:
         ```json
         [
-          {"type": "s3", "owner": "your-username", "name": "my-bucket-name", ...}
+          {"type": "s3", "owner": "john-doe", "name": "my-test-bucket"},
+          {"type": "ec2", "owner": "john-doe", "name": "my-instance"}
         ]
         ```
 
-        **Note:** Only resources you own can be deleted.
+        **Warning:** This will permanently delete the resource!
       required:
         - resourceType
         - resourceName
         - confirmDeletion
       properties:
         resourceType:
-          title: "📦 Resource Type"
+          title: " Resource Type"
           type: string
           enum:
             - s3
@@ -50,17 +59,15 @@ spec:
             - lambda
             - rds
           default: s3
-          description: Type of AWS resource to delete
+          description: Type from API response (e.g., "s3", "ec2")
         resourceName:
-          title: "🏷️ Resource Name"
+          title: " Resource Name"
           type: string
-          description: |
-            Name of the resource (e.g., bucket name, instance ID).
-            This is the "name" field from the API response.
+          description: Name from API response (e.g., "my-bucket-name")
           ui:autofocus: true
           ui:placeholder: "my-bucket-name"
         confirmDeletion:
-          title: "⚠️ I CONFIRM I want to PERMANENTLY DELETE this resource"
+          title: " I CONFIRM I want to PERMANENTLY DELETE this resource"
           type: boolean
           default: false
           ui:widget: checkbox
