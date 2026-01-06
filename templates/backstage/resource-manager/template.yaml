@@ -20,11 +20,21 @@ spec:
       description: |
         ## Step 1: View Your Resources
 
-        After clicking "Review" at the bottom, you'll see a link to view your resources.
+        **Open this URL in a new browser tab (copy and paste):**
+        ```
+        https://backstage.timedevops.click/api/my-resources/my-resources
+        ```
+
+        Or use the relative path if you're already on Backstage:
+        ```
+        /api/my-resources/my-resources
+        ```
+
+        This endpoint shows ONLY your resources (validated by your login session).
 
         ## Step 2: Fill the form below
 
-        Copy the `type` and `name` from your resources.
+        Copy the `type` and `name` from the JSON response above.
 
         **Security:** You can only delete resources that you own.
       required:
