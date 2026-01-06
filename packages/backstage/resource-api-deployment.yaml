@@ -27,7 +27,7 @@ spec:
         command:
         - /bin/sh
         - -c
-        - "pip install -q boto3 && python3 -u /app/server.py"
+        - "pip install -q boto3 pyjwt && python3 -u /app/server.py"
         volumeMounts:
         - name: app
           mountPath: /app

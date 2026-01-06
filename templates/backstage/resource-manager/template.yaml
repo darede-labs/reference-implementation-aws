@@ -16,29 +16,16 @@ spec:
   type: management
 
   parameters:
-    - title: "🗑️ Delete Resource"
+    - title: " Delete Resource"
       description: |
-        ## 🔍 Step 1: View YOUR Resources
+        **Before deleting, view your resources:**
 
-        **👉 [Click here to view only your resources](/api/proxy/my-resources)**
+        1. Click "Next" to see your resource list URL at the bottom
+        2. Open that URL in a new tab
+        3. Find the `type` and `name` of the resource you want to delete
+        4. Come back and fill the form below
 
-        🔒 **Security:** This endpoint automatically shows ONLY resources you own.
-        Other users' resources are not visible to you.
-
-        Copy the `type` and `name` from the response:
-        ```json
-        [
-          {
-            "type": "s3",
-            "owner": "your-username",
-            "name": "my-bucket"
-          }
-        ]
-        ```
-
-        ## 📝 Step 2: Fill the form below
-
-        🔒 You can only delete resources where owner = your username.
+        **Security:** You can only delete resources that you own.
       required:
         - resourceType
         - resourceName
@@ -91,7 +78,9 @@ spec:
 
   output:
     links:
-      - title: "🔙 Back to Templates"
+      - title: "� View YOUR Resources (filtered by your username)"
+        url: "https://backstage.timedevops.click/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }}"
+      - title: "�🔙 Back to Templates"
         url: /create
       - title: "📂 S3 State Bucket"
         url: "https://console.aws.amazon.com/s3/buckets/poc-idp-tfstate"
@@ -99,3 +88,5 @@ spec:
       - title: Status
         content: |
           ${{ parameters.confirmDeletion == true ? '✅ Resource deleted successfully' : '❌ Deletion cancelled - confirmation required' }}
+      - title: "👤 Your Username"
+        content: ${{ user.entity.metadata.name | default('admin') }}
