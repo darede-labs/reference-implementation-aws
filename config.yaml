@@ -124,24 +124,20 @@ atlantis:
 ################################################################################
 
 secrets:
-  # Keycloak admin credentials
-  keycloak:
-    admin_user: "admin"
-    admin_password: "admin"
-    management_password: "manager123"
-
-  # ArgoCD OIDC client secret (shared with Keycloak)
+  # ArgoCD admin credentials
   argocd:
-    oidc_client_secret: "argocd-secret-2024"
+    admin_password: "argocd-admin-2024"
 
-  # Backstage OIDC client secret (shared with Keycloak)
+  # Backstage configuration
   backstage:
-    oidc_client_secret: "backstage-secret-2024"
     # PostgreSQL credentials
     postgres_host: "backstage-postgresql"
     postgres_port: "5432"
     postgres_user: "backstage"
     postgres_password: "backstage123"
+    # Auth session secret
+    auth_session_secret: "backstage-session-secret-2024"
+    backend_secret: "backstage-backend-secret-2024"
 
 ################################################################################
 # Terraform Backend Configuration
@@ -169,7 +165,6 @@ domain: "timedevops.click"
 subdomains:
   argocd: "argocd"        # argocd.timedevops.click
   backstage: "backstage"  # backstage.timedevops.click
-  keycloak: "keycloak"    # keycloak.timedevops.click
   # To use path routing, set all to "" and enable path_routing below
 
 # Route53 hosted zone ID for configuring external-dns
@@ -193,15 +188,20 @@ acm_certificate_arn: "arn:aws:acm:us-east-1:948881762705:certificate/051f6515-0d
 tls_termination: "nlb"
 
 ################################################################################
-# Keycloak Configuration
+# AWS Cognito Configuration (OIDC Provider)
 ################################################################################
 
-keycloak:
-  # Realm name for OIDC
-  realm: "cnoe"
-  # Client IDs
-  backstage_client_id: "backstage"
-  argocd_client_id: "argocd"
+cognito:
+  # Cognito User Pool ID
+  user_pool_id: "us-east-1_s30jFJZxE"
+  # Cognito User Pool Client ID for Backstage
+  user_pool_client_id: "4f9jq8l1tmqffmf1f0v0mue77n"
+  # Cognito User Pool Client Secret for Backstage
+  user_pool_client_secret: "YOUR_COGNITO_CLIENT_SECRET_HERE"
+  # Cognito User Pool Domain (for OIDC endpoints)
+  user_pool_domain: "idp-poc-darede"
+  # AWS Region
+  region: "us-east-1"
 
 ################################################################################
 # Tags for AWS Resources
