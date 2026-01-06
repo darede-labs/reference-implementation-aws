@@ -16,24 +16,36 @@ spec:
   type: management
 
   parameters:
-    - title: " Select Resource to Delete"
+    - title: " Step 1: View Your Resources"
       description: |
-        ## First: View Your Resources
+        Copy the URL below and paste it in your browser to see ONLY your resources.
+      properties:
+        yourUsername:
+          title: " Your Username"
+          type: string
+          ui:readonly: true
+          default: ${{ user.entity.metadata.name | default('unknown') }}
+        resourceApiUrl:
+          title: " Your Resources API (copy this URL)"
+          type: string
+          ui:readonly: true
+          ui:widget: textarea
+          ui:options:
+            rows: 2
+          default: "/api/resources/resources?owner=${{ user.entity.metadata.name | default('unknown') }}"
 
-        **Click here:** [View All Resources](/api/resources/resources)
+    - title: " Step 2: Delete Resource"
+      description: |
+        Enter the **type** and **name** from YOUR resources only.
 
-        The API shows all resources. Find yours by your username in the `owner` field.
-        Copy the `type` and `name` from your resource.
+        **You can only delete resources where owner = ${{ user.entity.metadata.name }}**
 
-        Example response:
+        Example API response:
         ```json
         [
-          {"type": "ec2", "owner": "your-username", "name": "ssm-role"},
-          {"type": "s3", "owner": "your-username", "name": "my-bucket"}
+          {"type": "ec2", "owner": "${{ user.entity.metadata.name }}", "name": "my-instance"}
         ]
         ```
-
-        **Warning:** Deletion is permanent!
       required:
         - resourceType
         - resourceName
