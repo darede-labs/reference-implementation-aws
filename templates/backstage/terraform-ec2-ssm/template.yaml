@@ -168,18 +168,6 @@ spec:
             - "Yes - Detailed monitoring"
             - "No - Basic monitoring"
           description: Enable detailed CloudWatch monitoring (additional charges apply)
-        owner:
-          title: Owner
-          type: string
-          description: Owner of this resource
-          default: ${{ user.entity.metadata.name | default('unknown') }}
-          ui:readonly: true
-        ownerEmail:
-          title: Owner Email
-          type: string
-          description: Email of the resource owner
-          default: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
-          ui:readonly: true
 
   steps:
     - id: fetch-template
@@ -201,8 +189,8 @@ spec:
           additionalIamPolicies: ${{ parameters.additionalIamPolicies }}
           environment: ${{ parameters.environment }}
           enableDetailedMonitoring: ${{ parameters.enableDetailedMonitoring }}
-          owner: ${{ parameters.owner }}
-          ownerEmail: ${{ parameters.ownerEmail }}
+          owner: ${{ user.entity.metadata.name | default('unknown') }}
+          ownerEmail: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
 
     - id: terraform-apply
       name: Apply Terraform
@@ -211,7 +199,7 @@ spec:
         terraformDir: ./output
         backendConfig:
           bucket: ${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}
-          key: ec2/${{ parameters.owner }}/${{ parameters.name }}/terraform.tfstate
+          key: ec2/${{ user.entity.metadata.name | default('unknown') }}/${{ parameters.name }}/terraform.tfstate
           region: ${{ env.TERRAFORM_BACKEND_REGION | default('us-east-1') }}
         variables:
           instance_name: ${{ parameters.name }}
@@ -226,11 +214,11 @@ spec:
           additional_iam_policies: ${{ parameters.additionalIamPolicies | dump }}
           environment: ${{ parameters.environment }}
           enable_detailed_monitoring: ${{ parameters.enableDetailedMonitoring }}
-          owner: ${{ parameters.owner }}
-          owner_email: ${{ parameters.ownerEmail }}
+          owner: ${{ user.entity.metadata.name | default('unknown') }}
+          owner_email: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
           project_name: ${{ parameters.name }}
-        ownerEmail: ${{ parameters.ownerEmail }}
-        resourceOwner: ${{ parameters.ownerEmail }}
+        ownerEmail: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
+        resourceOwner: ${{ user.entity.spec.profile.email | default('unknown@example.com') }}
         autoApprove: true
 
   output:
