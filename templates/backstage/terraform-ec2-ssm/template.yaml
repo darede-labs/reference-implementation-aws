@@ -88,11 +88,11 @@ spec:
       properties:
         rootVolumeSize:
           title: Root Volume Size (GB)
-          type: number
+          type: string
           description: Size of the root EBS volume (minimum 30GB)
-          default: 30
-          minimum: 30
-          maximum: 500
+          default: "30"
+          pattern: '^([3-9][0-9]|[1-4][0-9]{2}|500)$'
+          ui:help: 'Must be between 30-500 GB'
         rootVolumeType:
           title: Root Volume Type
           type: string
@@ -113,9 +113,15 @@ spec:
       properties:
         associatePublicIp:
           title: Associate Public IP
-          type: boolean
+          type: string
+          default: "false"
+          enum:
+            - "true"
+            - "false"
+          enumNames:
+            - "Yes - Assign public IP"
+            - "No - Private only"
           description: Assign a public IP address to the instance
-          default: false
         additionalSecurityGroupIds:
           title: Additional Security Groups
           type: array
@@ -153,9 +159,15 @@ spec:
             - prod
         enableDetailedMonitoring:
           title: Enable Detailed Monitoring
-          type: boolean
-          description: Enable detailed CloudWatch monitoring (additional cost)
-          default: false
+          type: string
+          default: "false"
+          enum:
+            - "true"
+            - "false"
+          enumNames:
+            - "Yes - Detailed monitoring"
+            - "No - Basic monitoring"
+          description: Enable detailed CloudWatch monitoring (additional charges apply)
         owner:
           title: Owner
           type: string
@@ -207,13 +219,13 @@ spec:
           ami_id: ${{ parameters.amiId }}
           vpc_id: ${{ parameters.vpcId }}
           subnet_id: ${{ parameters.subnetId }}
-          root_volume_size: "${{ parameters.rootVolumeSize }}"
+          root_volume_size: ${{ parameters.rootVolumeSize }}
           root_volume_type: ${{ parameters.rootVolumeType }}
-          associate_public_ip: "${{ parameters.associatePublicIp }}"
+          associate_public_ip: ${{ parameters.associatePublicIp }}
           additional_security_group_ids: ${{ parameters.additionalSecurityGroupIds | dump }}
           additional_iam_policies: ${{ parameters.additionalIamPolicies | dump }}
           environment: ${{ parameters.environment }}
-          enable_detailed_monitoring: "${{ parameters.enableDetailedMonitoring }}"
+          enable_detailed_monitoring: ${{ parameters.enableDetailedMonitoring }}
           owner: ${{ parameters.owner }}
           owner_email: ${{ parameters.ownerEmail }}
           project_name: ${{ parameters.name }}
