@@ -16,20 +16,17 @@ spec:
   type: management
 
   parameters:
-    - title: "🗑️ Delete Resource"
+    - title: " Delete Resource"
       description: |
-        ## 🔍 Step 1: View Your Resources
+        ## Step 1: View Your Resources
 
-        **Click this link to see ONLY YOUR resources:**
-        👉 https://backstage.timedevops.click/api/my-resources/my-resources
+        After clicking "Review" at the bottom, you'll see a link to view your resources.
 
-        The endpoint automatically shows resources you own.
+        ## Step 2: Fill the form below
 
-        ## 📝 Step 2: Fill the form below
+        Copy the `type` and `name` from your resources.
 
-        Copy the `type` and `name` from the JSON response.
-
-        🔒 **Security:** You can only delete resources that you own.
+        **Security:** You can only delete resources that you own.
       required:
         - resourceType
         - resourceName
@@ -82,15 +79,18 @@ spec:
 
   output:
     links:
-      - title: "� View YOUR Resources (filtered by your username)"
-        url: "https://backstage.timedevops.click/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }}"
-      - title: "�� Back to Templates"
+      - title: " View YOUR Resources (auto-filtered)"
+        url: "${{ env.BACKSTAGE_FRONTEND_URL | default('https://backstage.timedevops.click') }}/api/my-resources/my-resources?user=${{ user.entity.metadata.name | default('admin') }}"
+      - title: " Back to Templates"
         url: /create
-      - title: "📂 S3 State Bucket"
-        url: "https://console.aws.amazon.com/s3/buckets/poc-idp-tfstate"
+      - title: " S3 State Bucket"
+        url: "https://console.aws.amazon.com/s3/buckets/${{ env.TERRAFORM_BACKEND_BUCKET | default('poc-idp-tfstate') }}"
     text:
       - title: Status
         content: |
-          ${{ parameters.confirmDeletion == true ? '✅ Resource deleted successfully' : '❌ Deletion cancelled - confirmation required' }}
-      - title: "👤 Your Username"
+          ${{ parameters.confirmDeletion == true ? ' Resource deleted successfully' : ' Deletion cancelled - confirmation required' }}
+      - title: " Your Username"
         content: ${{ user.entity.metadata.name | default('admin') }}
+      - title: " Resources URL"
+        content: |
+          ${{ env.BACKSTAGE_FRONTEND_URL | default('https://backstage.timedevops.click') }}/api/my-resources/my-resources?user=${{ user.entity.metadata.name | default('admin') }}
