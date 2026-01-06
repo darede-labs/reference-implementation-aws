@@ -113,7 +113,7 @@ spec:
           ```
 
           **2. User first login:**
-          - Access: https://backstage.timedevops.click
+          - Access: ${{ env.BACKSTAGE_FRONTEND_URL | default('https://backstage.YOUR_DOMAIN') }}
           - Login with email: ${{ parameters.email }}
           - Use temporary password (will be forced to change)
 

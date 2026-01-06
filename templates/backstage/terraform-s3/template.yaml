@@ -90,7 +90,7 @@ spec:
       action: catalog:register
       input:
         optional: true
-        catalogInfoUrl: https://backstage.timedevops.click/catalog/default/resource/s3-${{ parameters.name }}
+        catalogInfoUrl: ${{ env.BACKSTAGE_FRONTEND_URL | default('https://backstage.YOUR_DOMAIN') }}/catalog/default/resource/s3-${{ parameters.name }}
 
   output:
     links:

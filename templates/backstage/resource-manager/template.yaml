@@ -20,7 +20,7 @@ spec:
       description: |
         ## Your Resources
 
-        **[🔍 Click here to view your resources](https://backstage.timedevops.click/api/resources/resources?owner=admin)**
+        **[🔍 Click here to view your resources](${{ env.BACKSTAGE_FRONTEND_URL | default('https://backstage.YOUR_DOMAIN') }}/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }})**
 
         The link above shows all resources you own in JSON format. Copy the resource details from there.
 
