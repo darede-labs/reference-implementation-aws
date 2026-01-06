@@ -20,14 +20,18 @@ spec:
       description: |
         ## Your Resources
 
-        **[🔍 Click here to view your resources](${{ env.BACKSTAGE_FRONTEND_URL | default('https://backstage.YOUR_DOMAIN') }}/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }})**
+        To view your resources, open in a new tab:
 
-        The link above shows all resources you own in JSON format. Copy the resource details from there.
+        **`/api/resources/resources?owner=YOUR_USERNAME`**
+
+        (Replace YOUR_USERNAME with your actual username)
+
+        The API returns JSON with all resources you own. Copy the resource details from there.
 
         Example response:
         ```json
         [
-          {"type": "s3", "owner": "admin", "name": "laladaredepoc", ...}
+          {"type": "s3", "owner": "your-username", "name": "my-bucket-name", ...}
         ]
         ```
 
