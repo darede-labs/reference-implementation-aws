@@ -16,17 +16,32 @@ spec:
   type: management
 
   parameters:
-    - title: "🗑️ Delete Resource"
+    - title: " Delete Resource"
       description: |
-        ## 🔍 Step 1: View Your Resources
+        ##  FIRST: View All Your Resources
 
-        After clicking **"Review"** below, you'll see a link to view your resources.
+        **Copy this URL and open in a new browser tab:**
 
-        ## 📝 Step 2: Fill the form below
+        ```
+        https://backstage.timedevops.click/api/resources/resources?owner=$USERNAME
+        ```
 
-        Enter the `type` and `name` of the resource you want to delete.
+        **Replace `$USERNAME` with your Backstage username** (e.g., `matheus-andrade`)
 
-        🔒 **Security:** You can only delete resources that you own.
+        Example:
+        ```
+        https://backstage.timedevops.click/api/resources/resources?owner=matheus-andrade
+        ```
+
+        This will show all resources you created with their **type** and **name**.
+
+        ---
+
+        ##  THEN: Fill the form below
+
+        Copy the `type` and `name` from the JSON response above and enter here to delete.
+
+        **Security:** You can only delete resources that you own.
       required:
         - resourceType
         - resourceName
