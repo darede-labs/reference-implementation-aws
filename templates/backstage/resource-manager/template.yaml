@@ -18,17 +18,26 @@ spec:
   parameters:
     - title: "🗑️ Delete Resource"
       description: |
-        ## 🔍 Step 1: View Your Resources
+        ## 🔍 Step 1: Find YOUR Resources
 
-        **👉 [Click here to see all resources](/api/resources/resources)**
+        **👉 [Click here to view all resources](/api/resources/resources)**
 
-        Find YOUR resources by looking for your username in the `owner` field.
-        Copy the `type` and `name` from your resource.
+        ⚠️ The API shows ALL resources. **Find YOURS by:**
+        1. Look for `"owner": "YOUR_USERNAME"` (same as your Backstage login)
+        2. Copy the `type` and `name` from YOUR resource only
+
+        **Example - if your username is "matheus-andrade":**
+        ```json
+        {
+          "type": "s3",
+          "owner": "matheus-andrade",  ← THIS IS YOURS!
+          "name": "my-bucket"
+        }
+        ```
 
         ## 📝 Step 2: Fill the form below
 
-        ⚠️ **Security:** You can only delete resources that you own.
-        The backend validates ownership automatically.
+        🔒 You can only delete resources where owner = your username.
       required:
         - resourceType
         - resourceName
