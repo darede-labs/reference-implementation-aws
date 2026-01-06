@@ -16,35 +16,24 @@ spec:
   type: management
 
   parameters:
-    - title: " Step 1: View Your Resources"
+    - title: " Select Resource to Delete"
       description: |
-        **Copy the URL below and open it in a new browser tab to see all your resources in JSON format.**
+        ## First: View Your Resources
 
-        Look for the `type` and `name` fields in the response.
-      properties:
-        apiLink:
-          title: " Your Resources API URL"
-          type: string
-          description: Copy this entire URL and paste it in your browser address bar (add the domain first)
-          ui:readonly: true
-          ui:widget: textarea
-          ui:options:
-            rows: 2
-          default: "/api/resources/resources?owner=${{ user.entity.metadata.name | default('unknown') }}"
+        **Click here:** [View All Resources](/api/resources/resources)
 
-    - title: " Step 2: Select Resource to Delete"
-      description: |
-        Enter the **type** and **name** from the API response.
+        The API shows all resources. Find yours by your username in the `owner` field.
+        Copy the `type` and `name` from your resource.
 
-        Example API response:
+        Example response:
         ```json
         [
-          {"type": "s3", "owner": "john-doe", "name": "my-test-bucket"},
-          {"type": "ec2", "owner": "john-doe", "name": "my-instance"}
+          {"type": "ec2", "owner": "your-username", "name": "ssm-role"},
+          {"type": "s3", "owner": "your-username", "name": "my-bucket"}
         ]
         ```
 
-        **Warning:** This will permanently delete the resource!
+        **Warning:** Deletion is permanent!
       required:
         - resourceType
         - resourceName
