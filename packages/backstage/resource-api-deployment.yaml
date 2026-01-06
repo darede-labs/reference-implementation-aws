@@ -79,6 +79,30 @@ data:
                 self.wfile.write(json.dumps({"status": "ok"}).encode())
                 return
 
+            if parsed_path.path == '/my-resources':
+                try:
+                    # Extract username from X-Backstage-User header (set by Backstage proxy)
+                    user_entity_ref = self.headers.get('X-Backstage-User', '')
+
+                    if not user_entity_ref:
+                        self.send_error(401, 'Unauthorized: X-Backstage-User header required')
+                        return
+
+                    # Extract username from entity ref: "user:default/username" -> "username"
+                    username = user_entity_ref.split('/')[-1] if '/' in user_entity_ref else user_entity_ref
+
+                    # SECURITY: Only return resources owned by the authenticated user
+                    resources = self.list_resources(owner_filter=username)
+
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(resources).encode())
+                except Exception as e:
+                    self.send_error(500, str(e))
+                return
+
             if parsed_path.path == '/resources':
                 try:
                     query_params = parse_qs(parsed_path.query)

@@ -18,21 +18,22 @@ spec:
   parameters:
     - title: "🗑️ Delete Resource"
       description: |
-        ## 🔍 Step 1: Find YOUR Resources
+        ## 🔍 Step 1: View YOUR Resources
 
-        **👉 [Click here to view all resources](/api/resources/resources)**
+        **👉 [Click here to view only your resources](/api/proxy/my-resources)**
 
-        ⚠️ The API shows ALL resources. **Find YOURS by:**
-        1. Look for `"owner": "YOUR_USERNAME"` (same as your Backstage login)
-        2. Copy the `type` and `name` from YOUR resource only
+        🔒 **Security:** This endpoint automatically shows ONLY resources you own.
+        Other users' resources are not visible to you.
 
-        **Example - if your username is "matheus-andrade":**
+        Copy the `type` and `name` from the response:
         ```json
-        {
-          "type": "s3",
-          "owner": "matheus-andrade",  ← THIS IS YOURS!
-          "name": "my-bucket"
-        }
+        [
+          {
+            "type": "s3",
+            "owner": "your-username",
+            "name": "my-bucket"
+          }
+        ]
         ```
 
         ## 📝 Step 2: Fill the form below

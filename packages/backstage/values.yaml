@@ -148,6 +148,14 @@ backstage:
             - target: https://github.com
               token: ${GITHUB_TOKEN}
     proxy:
+      '/my-resources':
+        target: 'http://resource-api.backstage.svc.cluster.local'
+        changeOrigin: true
+        pathRewrite:
+          '^/api/proxy/my-resources': '/resources'
+        headers:
+          X-Backstage-User:
+            $backstage: auth.identity.userEntityRef
       '/argo-workflows/api':
         target: ${ARGO_WORKFLOWS_URL}
         changeOrigin: true
