@@ -8,12 +8,13 @@ data:
     import os
     import json
     import boto3
+    import requests
     from http.server import BaseHTTPRequestHandler, HTTPServer
-    from urllib.parse import urlparse, parse_qs
-    from http.cookies import SimpleCookie
+    from urllib.parse import urlparse
 
     S3_BUCKET = os.environ.get('S3_BUCKET', 'poc-idp-tfstate')
     AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+    BACKSTAGE_BACKEND_URL = os.environ.get('BACKSTAGE_BACKEND_URL', 'http://backstage-backstage.backstage.svc.cluster.local:7007')
 
     s3 = boto3.client('s3', region_name=AWS_REGION)
 
@@ -30,19 +31,22 @@ data:
 
             if parsed_path.path == '/my-resources':
                 try:
-                    # SECURITY: Accept ONLY X-Backstage-User header (set by secure proxy)
+                    # SECURITY: Validate user via Backstage auth (cookie → refresh → userinfo)
                     # Query params are IGNORED to prevent user enumeration
-                    raw_username = self.headers.get('X-Backstage-User', '').strip()
+                    username = self.get_authenticated_user()
 
-                    if not raw_username:
-                        print("ERROR: X-Backstage-User header missing or empty - direct access blocked")
-                        self.send_error(401, 'Unauthorized: Must access via secure proxy. Direct access not allowed.')
+                    if not username:
+                        print("ERROR: Authentication failed - no valid Backstage session")
+                        self.send_response(401)
+                        self.send_header('Content-type', 'application/json')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({
+                            "error": "Unauthorized",
+                            "message": "Please log in to Backstage first"
+                        }).encode())
                         return
 
-                    # Parse username from entity ref if needed: "user:default/username" -> "username"
-                    username = raw_username.split('/')[-1] if '/' in raw_username else raw_username
-
-                    print(f"INFO: Authenticated request from user: {username} (raw: {raw_username})")
+                    print(f"INFO: Authenticated request from user: {username}")
 
                     # SECURITY: Only return resources owned by the authenticated user
                     resources = self.list_resources(owner_filter=username)
@@ -60,32 +64,81 @@ data:
 
             self.send_error(404)
 
-        def extract_username_from_request(self):
+        def get_authenticated_user(self):
             """
-            Extract username from request context.
-            For now, we'll use X-Forwarded-User header or a query param for testing.
-            In production, this would parse the Backstage session cookie.
+            Authenticate user via Backstage session cookie.
+            Flow: Cookie → /api/auth/oidc/refresh → Bearer token → /api/auth/v1/userinfo → username
             """
-            # Try X-Forwarded-User header (if set by ingress/proxy)
-            username = self.headers.get('X-Forwarded-User')
-            if username:
+            cookie = self.headers.get('Cookie', '')
+            if not cookie:
+                print("DEBUG: No cookie in request")
+                return None
+
+            try:
+                # Step 1: Call refresh endpoint to get token from session cookie
+                print(f"DEBUG: Calling Backstage refresh endpoint...")
+                refresh_response = requests.get(
+                    f'{BACKSTAGE_BACKEND_URL}/api/auth/oidc/refresh',
+                    headers={'Cookie': cookie},
+                    params={'optional': '', 'scope': 'openid profile email'},
+                    timeout=5
+                )
+
+                print(f"DEBUG: Refresh response status: {refresh_response.status_code}")
+
+                if refresh_response.status_code != 200:
+                    print(f"DEBUG: Refresh failed: {refresh_response.text[:200]}")
+                    return None
+
+                # Extract backstage token from response
+                refresh_data = refresh_response.json()
+                backstage_identity = refresh_data.get('backstageIdentity', {})
+                token = backstage_identity.get('token', '')
+
+                if not token:
+                    # Try to get token from different response structure
+                    token = refresh_data.get('token', '')
+
+                if not token:
+                    print(f"DEBUG: No token in refresh response: {json.dumps(refresh_data)[:300]}")
+                    # Fallback: try to extract identity directly from refresh response
+                    identity = backstage_identity.get('identity', {})
+                    user_entity_ref = identity.get('userEntityRef', '')
+                    if user_entity_ref:
+                        username = user_entity_ref.split('/')[-1]
+                        print(f"DEBUG: Got username from refresh identity: {username}")
+                        return username
+                    return None
+
+                # Step 2: Call userinfo endpoint with Bearer token
+                print(f"DEBUG: Calling userinfo with Bearer token...")
+                userinfo_response = requests.get(
+                    f'{BACKSTAGE_BACKEND_URL}/api/auth/v1/userinfo',
+                    headers={'Authorization': f'Bearer {token}'},
+                    timeout=5
+                )
+
+                print(f"DEBUG: Userinfo response status: {userinfo_response.status_code}")
+
+                if userinfo_response.status_code != 200:
+                    print(f"DEBUG: Userinfo failed: {userinfo_response.text[:200]}")
+                    return None
+
+                user_info = userinfo_response.json()
+                user_entity_ref = user_info.get('userEntityRef', '')
+
+                if not user_entity_ref:
+                    print(f"DEBUG: No userEntityRef in response: {json.dumps(user_info)[:200]}")
+                    return None
+
+                # Extract username: "user:default/matheus-andrade" → "matheus-andrade"
+                username = user_entity_ref.split('/')[-1]
+                print(f"DEBUG: Extracted username: {username}")
                 return username
 
-            # Try query param (for testing/fallback)
-            parsed_path = urlparse(self.path)
-            query_params = parse_qs(parsed_path.query)
-            username = query_params.get('user', [None])[0]
-            if username:
-                return username
-
-            # Try to parse from Cookie (simplified - production would decode JWT)
-            cookie_header = self.headers.get('Cookie')
-            if cookie_header:
-                # This is a simplified version - real implementation would decode
-                # the Backstage session token and extract user identity
-                print(f"Cookie present but not parsed (would need JWT decode): {cookie_header[:50]}...")
-
-            return None
+            except Exception as e:
+                print(f"ERROR: Authentication failed: {e}")
+                return None
 
         def list_resources(self, owner_filter=None):
             resources = []
@@ -176,7 +229,7 @@ spec:
         command:
         - /bin/sh
         - -c
-        - "pip install -q boto3 && python3 -u /app/server.py"
+        - "pip install -q boto3 requests && python3 -u /app/server.py"
         volumeMounts:
         - name: app
           mountPath: /app
