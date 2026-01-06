@@ -335,6 +335,7 @@ resource "aws_iam_policy" "backstage_terraform_policy" {
           "iam:AddRoleToInstanceProfile",
           "iam:RemoveRoleFromInstanceProfile",
           "iam:GetInstanceProfile",
+          "iam:ListInstanceProfilesForRole",
           "iam:TagInstanceProfile",
           "iam:UntagInstanceProfile",
           "iam:ListInstanceProfileTags",
