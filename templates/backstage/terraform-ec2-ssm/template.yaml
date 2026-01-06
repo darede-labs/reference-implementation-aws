@@ -89,9 +89,9 @@ spec:
         rootVolumeSize:
           title: Root Volume Size (GB)
           type: number
-          description: Size of the root EBS volume
-          default: 20
-          minimum: 8
+          description: Size of the root EBS volume (minimum 30GB)
+          default: 30
+          minimum: 30
           maximum: 500
         rootVolumeType:
           title: Root Volume Type
@@ -207,13 +207,13 @@ spec:
           ami_id: ${{ parameters.amiId }}
           vpc_id: ${{ parameters.vpcId }}
           subnet_id: ${{ parameters.subnetId }}
-          root_volume_size: ${{ parameters.rootVolumeSize }}
+          root_volume_size: "${{ parameters.rootVolumeSize }}"
           root_volume_type: ${{ parameters.rootVolumeType }}
-          associate_public_ip: ${{ parameters.associatePublicIp }}
+          associate_public_ip: "${{ parameters.associatePublicIp }}"
           additional_security_group_ids: ${{ parameters.additionalSecurityGroupIds | dump }}
           additional_iam_policies: ${{ parameters.additionalIamPolicies | dump }}
           environment: ${{ parameters.environment }}
-          enable_detailed_monitoring: ${{ parameters.enableDetailedMonitoring }}
+          enable_detailed_monitoring: "${{ parameters.enableDetailedMonitoring }}"
           owner: ${{ parameters.owner }}
           owner_email: ${{ parameters.ownerEmail }}
           project_name: ${{ parameters.name }}
