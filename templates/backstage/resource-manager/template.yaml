@@ -89,8 +89,8 @@ spec:
 
   output:
     links:
-      - title: " View YOUR Resources (secure - auto-filtered)"
-        url: /api/my-resources/my-resources
+      - title: " View YOUR Resources (filtered by owner)"
+        url: "/api/resources/resources?owner=${{ user.entity.metadata.name | default('admin') }}"
       - title: " Back to Templates"
         url: /create
       - title: " S3 State Bucket"
