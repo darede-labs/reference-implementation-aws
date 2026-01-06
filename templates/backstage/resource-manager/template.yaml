@@ -79,8 +79,8 @@ spec:
 
   output:
     links:
-      - title: " View YOUR Resources (auto-filtered)"
-        url: "${{ env.BACKSTAGE_FRONTEND_URL | default('https://backstage.timedevops.click') }}/api/my-resources/my-resources?user=${{ user.entity.metadata.name | default('admin') }}"
+      - title: " View YOUR Resources (secure - auto-filtered)"
+        url: /api/my-resources/my-resources
       - title: " Back to Templates"
         url: /create
       - title: " S3 State Bucket"
@@ -93,4 +93,4 @@ spec:
         content: ${{ user.entity.metadata.name | default('admin') }}
       - title: " Resources URL"
         content: |
-          ${{ env.BACKSTAGE_FRONTEND_URL | default('https://backstage.timedevops.click') }}/api/my-resources/my-resources?user=${{ user.entity.metadata.name | default('admin') }}
+          /api/my-resources/my-resources
