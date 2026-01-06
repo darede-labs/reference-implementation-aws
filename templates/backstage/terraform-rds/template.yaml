@@ -222,21 +222,21 @@ spec:
           engine_version: ${{ parameters.engineVersion }}
           instance_class: ${{ parameters.instanceClass }}
           db_username: ${{ parameters.dbUsername }}
-          allocated_storage: ${{ parameters.allocatedStorage }}
-          max_allocated_storage: ${{ parameters.maxAllocatedStorage }}
+          allocated_storage: "${{ parameters.allocatedStorage }}"
+          max_allocated_storage: "${{ parameters.maxAllocatedStorage }}"
           storage_type: ${{ parameters.storageType }}
           vpc_id: ${{ parameters.vpcId }}
           subnet_ids: ${{ parameters.subnetIds | dump }}
           allowed_cidr_blocks: ${{ parameters.allowedCidrBlocks | dump }}
           allowed_security_groups: ${{ parameters.allowedSecurityGroups | dump }}
-          publicly_accessible: ${{ parameters.publiclyAccessible }}
-          multi_az: ${{ parameters.multiAz }}
-          backup_retention_period: ${{ parameters.backupRetentionPeriod }}
+          publicly_accessible: "${{ parameters.publiclyAccessible }}"
+          multi_az: "${{ parameters.multiAz }}"
+          backup_retention_period: "${{ parameters.backupRetentionPeriod }}"
           backup_window: ${{ parameters.backupWindow }}
           maintenance_window: ${{ parameters.maintenanceWindow }}
-          deletion_protection: ${{ parameters.deletionProtection }}
-          skip_final_snapshot: ${{ parameters.skipFinalSnapshot }}
-          performance_insights_enabled: ${{ parameters.performanceInsightsEnabled }}
+          deletion_protection: "${{ parameters.deletionProtection }}"
+          skip_final_snapshot: "${{ parameters.skipFinalSnapshot }}"
+          performance_insights_enabled: "${{ parameters.performanceInsightsEnabled }}"
           environment: ${{ parameters.environment }}
           owner: ${{ parameters.owner }}
           owner_email: ${{ parameters.ownerEmail }}

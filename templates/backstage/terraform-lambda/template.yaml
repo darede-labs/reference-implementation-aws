@@ -95,9 +95,9 @@ spec:
           description: ${{ parameters.description }}
           runtime: ${{ parameters.runtime }}
           handler: ${{ parameters.handler }}
-          memory_size: ${{ parameters.memorySize }}
-          timeout: ${{ parameters.timeout }}
-          vpc_config_enabled: ${{ parameters.vpcConfigEnabled }}
+          memory_size: "${{ parameters.memorySize }}"
+          timeout: "${{ parameters.timeout }}"
+          vpc_config_enabled: "${{ parameters.vpcConfigEnabled }}"
           vpc_id: ${{ parameters.vpcId }}
           subnet_ids: ${{ parameters.subnetIds | dump }}
           environment: ${{ parameters.environment }}

@@ -125,10 +125,10 @@ spec:
           name: ${{ parameters.name }}
           vpc_id: ${{ parameters.vpcId }}
           subnet_ids: ${{ parameters.subnetIds | dump }}
-          internal: ${{ parameters.internal }}
-          enable_deletion_protection: ${{ parameters.enableDeletionProtection }}
+          internal: "${{ parameters.internal }}"
+          enable_deletion_protection: "${{ parameters.enableDeletionProtection }}"
           target_type: ${{ parameters.targetType }}
-          target_port: ${{ parameters.targetPort }}
+          target_port: "${{ parameters.targetPort }}"
           target_protocol: ${{ parameters.targetProtocol }}
           health_check_path: ${{ parameters.healthCheckPath }}
           certificate_arn: ${{ parameters.certificateArn }}
