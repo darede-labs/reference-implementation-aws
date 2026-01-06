@@ -11,6 +11,18 @@ spec:
     - admins
 ---
 apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: matheus-andrade
+  description: Platform Administrator
+spec:
+  profile:
+    displayName: Matheus Andrade
+    email: matheus.andrade@darede.com.br
+  memberOf:
+    - admins
+---
+apiVersion: backstage.io/v1alpha1
 kind: Group
 metadata:
   name: admins
