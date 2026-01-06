@@ -504,16 +504,6 @@ backstage:
           target: https://github.com/${GITHUB_ORG}/${INFRA_REPO}/blob/main/catalog-info.yaml
           rules:
             - allow: [Location, Component, Resource, API, System]
-      providers:
-        github:
-          infrastructureResources:
-            organization: '${GITHUB_ORG}'
-            catalogPath: '/platform/terraform/stacks/**/catalog-info.yaml'
-            filters:
-              repository: '${INFRA_REPO}'
-            schedule:
-              frequency: { minutes: 5 }
-              timeout: { minutes: 3 }
 EOF
 
 # Create ConfigMap with dynamic Backstage values
