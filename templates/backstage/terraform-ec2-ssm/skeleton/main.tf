@@ -19,12 +19,8 @@ provider "aws" {
 
   default_tags {
     tags = {
-      ManagedBy   = "Terraform"
-      CreatedBy   = "Backstage"
-      Owner       = var.owner
-      OwnerEmail  = var.owner_email
-      Environment = var.environment
-      Project     = var.project_name
+      ManagedBy = "Terraform"
+      CreatedBy = "Backstage"
     }
   }
 }
@@ -267,7 +263,11 @@ resource "aws_instance" "main" {
   }
 
   tags = {
-    Name = var.instance_name
+    Name        = var.instance_name
+    Owner       = var.owner
+    OwnerEmail  = var.owner_email
+    Environment = var.environment
+    Project     = var.project_name
   }
 
   lifecycle {
