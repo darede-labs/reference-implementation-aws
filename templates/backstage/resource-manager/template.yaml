@@ -91,6 +91,3 @@ spec:
           ${{ parameters.confirmDeletion == true ? ' Resource deleted successfully' : ' Deletion cancelled - confirmation required' }}
       - title: " Your Username"
         content: ${{ user.entity.metadata.name | default('admin') }}
-      - title: " Resources URL"
-        content: |
-          /api/my-resources/my-resources

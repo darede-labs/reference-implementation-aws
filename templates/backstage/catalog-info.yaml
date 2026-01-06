@@ -2,32 +2,12 @@ apiVersion: backstage.io/v1alpha1
 kind: Location
 metadata:
   name: infrastructure-templates
-  description: Terraform infrastructure templates for AWS (direct execution with RBAC)
+  description: Terraform infrastructure templates for AWS
 spec:
   targets:
     # Core Infrastructure
     - ./terraform-s3/template.yaml
-    - ./terraform-vpc/template.yaml
-    - ./terraform-dynamodb/template.yaml
     # Compute
     - ./terraform-ec2-ssm/template.yaml
-    - ./terraform-lambda/template.yaml
-    # Database
-    - ./terraform-rds/template.yaml
-    # Networking
-    - ./terraform-alb/template.yaml
-    - ./terraform-security-group/template.yaml
-    # CDN & Storage
-    - ./terraform-cloudfront-s3/template.yaml
-    # Kubernetes
-    - ./terraform-eks/template.yaml
-    # Security
-    - ./terraform-secrets/template.yaml
-    # Management & Admin
+    # Management
     - ./resource-manager/template.yaml
-    - ./terraform-unlock/template.yaml
-    - ./user-management/template.yaml
-    # Applications
-    - ./app-with-bucket/template.yaml
-    - ./argo-workflows/template.yaml
-    - ./basic/template.yaml
