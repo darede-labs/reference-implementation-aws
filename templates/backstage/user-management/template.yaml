@@ -21,6 +21,7 @@ spec:
         - email
         - displayName
         - group
+        - temporaryPassword
       properties:
         username:
           title: "Username"
@@ -32,11 +33,17 @@ spec:
           title: "Email"
           type: string
           format: email
-          description: "User email address"
+          description: "User email address (will be used for Cognito login)"
         displayName:
           title: "Display Name"
           type: string
           description: "Full name of the user"
+        temporaryPassword:
+          title: "Temporary Password"
+          type: string
+          description: "Temporary password (min 8 chars, uppercase, lowercase, number, special char). User will be forced to change on first login."
+          ui:widget: password
+          ui:help: "Minimum 8 characters with uppercase, lowercase, number and special character"
         group:
           title: "Group"
           type: string
@@ -86,14 +93,33 @@ spec:
         content: |
           ✅ User **${{ parameters.displayName }}** (${{ parameters.username }}) created successfully!
 
+          **Credentials:**
           - Email: ${{ parameters.email }}
+          - Temporary Password: *(provided during creation)*
           - Group: ${{ parameters.group }}
 
-          The user can now log in with their email via Cognito.
+          **⚠️ IMPORTANT:** The user must create this account in AWS Cognito manually or via AWS CLI with the temporary password provided.
       - title: Next Steps
         content: |
-          1. User must complete first login via Cognito
-          2. Permissions will be applied based on group membership
+          **1. Create user in Cognito (Manual):**
+          ```bash
+          aws cognito-idp admin-create-user \
+            --user-pool-id ${COGNITO_USER_POOL_ID} \
+            --username ${{ parameters.email }} \
+            --user-attributes Name=email,Value=${{ parameters.email }} Name=email_verified,Value=true \
+            --temporary-password "<your-temp-password>" \
+            --message-action SUPPRESS \
+            --profile darede
+          ```
+
+          **2. User first login:**
+          - Access: https://backstage.timedevops.click
+          - Login with email: ${{ parameters.email }}
+          - Use temporary password (will be forced to change)
+
+          **3. Permissions:**
+          - Backstage catalog updated with user and group
+          - RBAC applied based on group membership
     links:
       - title: "View User in Catalog"
         entityRef: user:default/${{ parameters.username }}
