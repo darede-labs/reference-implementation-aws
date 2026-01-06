@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-resources-plugin-ingress
+  namespace: backstage
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: backstage.timedevops.click
+    http:
+      paths:
+      - path: /api/my-resources(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: my-resources-plugin
+            port:
+              number: 80

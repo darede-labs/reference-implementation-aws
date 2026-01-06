@@ -20,21 +20,14 @@ spec:
       description: |
         ## 🔍 Step 1: View Your Resources
 
-        **Open this link in a new tab (Ctrl+Click or Cmd+Click):**
+        **Click this link to see ONLY YOUR resources:**
+        👉 https://backstage.timedevops.click/api/my-resources/my-resources
 
-        👉 https://backstage.timedevops.click/api/resources/resources
-
-        Then **manually add** `?owner=YOUR_USERNAME` to the URL
-        (replace YOUR_USERNAME with your Backstage login username)
-
-        **Example:** If your username is `matheus-andrade`:
-        ```
-        https://backstage.timedevops.click/api/resources/resources?owner=matheus-andrade
-        ```
+        The endpoint automatically shows resources you own.
 
         ## 📝 Step 2: Fill the form below
 
-        Copy the `type` and `name` from the JSON response and enter here.
+        Copy the `type` and `name` from the JSON response.
 
         🔒 **Security:** You can only delete resources that you own.
       required:

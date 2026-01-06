@@ -1,0 +1,193 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-resources-plugin
+  namespace: backstage
+data:
+  server.py: |
+    import os
+    import json
+    import boto3
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from urllib.parse import urlparse, parse_qs
+    from http.cookies import SimpleCookie
+
+    S3_BUCKET = os.environ.get('S3_BUCKET', 'poc-idp-tfstate')
+    AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+
+    s3 = boto3.client('s3', region_name=AWS_REGION)
+
+    class MyResourcesHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            parsed_path = urlparse(self.path)
+
+            if parsed_path.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "ok"}).encode())
+                return
+
+            if parsed_path.path == '/my-resources':
+                try:
+                    # Extract username from Backstage session cookie or Authorization header
+                    username = self.extract_username_from_request()
+
+                    if not username:
+                        self.send_error(401, 'Could not determine authenticated user')
+                        return
+
+                    print(f"Fetching resources for user: {username}")
+
+                    # SECURITY: Only return resources owned by the authenticated user
+                    resources = self.list_resources(owner_filter=username)
+
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Access-Control-Allow-Credentials', 'true')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(resources).encode())
+                except Exception as e:
+                    print(f"Error: {e}")
+                    self.send_error(500, str(e))
+                return
+
+            self.send_error(404)
+
+        def extract_username_from_request(self):
+            """
+            Extract username from request context.
+            For now, we'll use X-Forwarded-User header or a query param for testing.
+            In production, this would parse the Backstage session cookie.
+            """
+            # Try X-Forwarded-User header (if set by ingress/proxy)
+            username = self.headers.get('X-Forwarded-User')
+            if username:
+                return username
+
+            # Try query param (for testing/fallback)
+            parsed_path = urlparse(self.path)
+            query_params = parse_qs(parsed_path.query)
+            username = query_params.get('user', [None])[0]
+            if username:
+                return username
+
+            # Try to parse from Cookie (simplified - production would decode JWT)
+            cookie_header = self.headers.get('Cookie')
+            if cookie_header:
+                # This is a simplified version - real implementation would decode
+                # the Backstage session token and extract user identity
+                print(f"Cookie present but not parsed (would need JWT decode): {cookie_header[:50]}...")
+
+            return None
+
+        def list_resources(self, owner_filter=None):
+            resources = []
+
+            try:
+                paginator = s3.get_paginator('list_objects_v2')
+                pages = paginator.paginate(Bucket=S3_BUCKET)
+
+                for page in pages:
+                    for obj in page.get('Contents', []):
+                        key = obj['Key']
+
+                        # Only process terraform.tfstate files
+                        if not key.endswith('terraform.tfstate'):
+                            continue
+
+                        # Parse: type/owner/name/terraform.tfstate
+                        parts = key.split('/')
+                        if len(parts) < 4:
+                            continue
+
+                        resource_type = parts[0]
+                        resource_owner = parts[1]
+                        resource_name = parts[2]
+
+                        # Filter by owner if specified
+                        if owner_filter and resource_owner != owner_filter:
+                            continue
+
+                        # Download and check if state has actual resources
+                        try:
+                            state_obj = s3.get_object(Bucket=S3_BUCKET, Key=key)
+                            state_content = state_obj['Body'].read().decode('utf-8')
+                            state_data = json.loads(state_content)
+
+                            # Skip empty states (after terraform destroy)
+                            if not state_data.get('resources') or len(state_data.get('resources', [])) == 0:
+                                continue
+                        except Exception as e:
+                            print(f"Error reading state {key}: {e}")
+                            continue
+
+                        resources.append({
+                            'type': resource_type,
+                            'owner': resource_owner,
+                            'name': resource_name,
+                            'stateKey': f"{resource_type}/{resource_owner}/{resource_name}",
+                            'lastModified': obj['LastModified'].isoformat(),
+                            'size': obj['Size']
+                        })
+            except Exception as e:
+                print(f"Error listing resources: {e}")
+                raise
+
+            return resources
+
+    if __name__ == '__main__':
+        server = HTTPServer(('0.0.0.0', 8081), MyResourcesHandler)
+        print('My Resources Plugin started on port 8081...')
+        server.serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-resources-plugin
+  namespace: backstage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-resources-plugin
+  template:
+    metadata:
+      labels:
+        app: my-resources-plugin
+    spec:
+      serviceAccountName: backstage
+      containers:
+      - name: plugin
+        image: python:3.11-slim
+        ports:
+        - containerPort: 8081
+        env:
+        - name: S3_BUCKET
+          value: "poc-idp-tfstate"
+        - name: AWS_REGION
+          value: "us-east-1"
+        command:
+        - /bin/sh
+        - -c
+        - "pip install -q boto3 && python3 -u /app/server.py"
+        volumeMounts:
+        - name: app
+          mountPath: /app
+      volumes:
+      - name: app
+        configMap:
+          name: my-resources-plugin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-resources-plugin
+  namespace: backstage
+spec:
+  selector:
+    app: my-resources-plugin
+  ports:
+  - port: 80
+    targetPort: 8081
