@@ -9,11 +9,10 @@ echo -e "\n${BOLD}${BLUE}🚀 Starting installation process...${NC}"
 
 # Read config values
 ACM_CERTIFICATE_ARN=$(yq eval '.acm_certificate_arn' ${CONFIG_FILE})
-KEYCLOAK_REALM=$(yq eval '.keycloak.realm // "cnoe"' ${CONFIG_FILE})
 
 # Create all namespaces upfront to avoid race conditions
 echo -e "${CYAN}📦 Creating namespaces...${NC}"
-for ns in argocd keycloak backstage argo ingress-nginx external-secrets atlantis crossplane-system external-dns; do
+for ns in argocd backstage argo ingress-nginx external-secrets atlantis crossplane-system external-dns; do
   kubectl create namespace $ns --dry-run=client -o yaml | kubectl apply -f - --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
 done
 
@@ -56,14 +55,12 @@ EXTERNAL_SECRETS_CUSTOM_MANIFESTS_PATH=${REPO_ROOT}/packages/external-secrets/ma
 
 # Build Argo CD dynamic values
 # Read secrets and config from config.yaml
-ARGOCD_OIDC_SECRET=$(yq eval '.secrets.argocd.oidc_client_secret' ${CONFIG_FILE})
-KEYCLOAK_SUBDOMAIN=$(yq eval '.subdomains.keycloak' ${CONFIG_FILE})
 ARGOCD_SUBDOMAIN=$(yq eval '.subdomains.argocd' ${CONFIG_FILE})
+ARGOCD_ADMIN_PASSWORD=$(yq eval '.secrets.argocd.admin_password // "argocd-admin-2024"' ${CONFIG_FILE})
 GITHUB_TOKEN=$(yq eval '.github_token' ${CONFIG_FILE})
 GITHUB_ORG=$(yq eval '.github_org' ${CONFIG_FILE})
 
 ARGOCD_DYNAMIC_VALUES_FILE=$(mktemp)
-ISSUER_URL=$([[ "${PATH_ROUTING}" == "false" ]] && echo "${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}" || echo "${DOMAIN_NAME}/keycloak")
 cat << EOF > "$ARGOCD_DYNAMIC_VALUES_FILE"
 cnoe_ref_impl: # Specific values for reference CNOE implementation to control extraObjects.
   auto_mode: $([[ "${AUTO_MODE}" == "true" ]] && echo '"true"' || echo '"false"')
@@ -75,14 +72,9 @@ server:
     path: /$([[ "${PATH_ROUTING}" == "true" ]] && echo "argocd" || echo "")
     tls: false
 configs:
+  secret:
+    argocdServerAdminPassword: ${ARGOCD_ADMIN_PASSWORD}
   cm:
-    oidc.config: |
-      name: Keycloak
-      issuer: https://$ISSUER_URL/realms/cnoe
-      clientID: argocd
-      clientSecret: ${ARGOCD_OIDC_SECRET}
-      requestedScopes:
-        - openid
         - profile
         - email
         - groups
@@ -260,47 +252,33 @@ kubectl apply -f "$HUB_CLUSTER_SECRET_MANIFEST" --kubeconfig $KUBECONFIG_FILE > 
 rm "$HUB_CLUSTER_SECRET_MANIFEST"
 
 # Create application secrets (workaround for SCP restrictions on Secrets Manager)
-echo -e "${CYAN}🔐 Creating application secrets for Keycloak, Backstage, Argo Workflows...${NC}"
+echo -e "${CYAN}🔐 Creating application secrets for Backstage, Argo Workflows...${NC}"
 
-# Read Keycloak secrets from config.yaml
-KEYCLOAK_ADMIN_USER=$(yq eval '.secrets.keycloak.admin_user // "admin"' ${CONFIG_FILE})
-KEYCLOAK_ADMIN_PASSWORD=$(yq eval '.secrets.keycloak.admin_password // "admin"' ${CONFIG_FILE})
-KEYCLOAK_MGMT_PASSWORD=$(yq eval '.secrets.keycloak.management_password // "manager123"' ${CONFIG_FILE})
-
-# Keycloak secret
-kubectl create secret generic keycloak \
-  --namespace keycloak \
-  --from-literal=admin-password=${KEYCLOAK_ADMIN_PASSWORD} \
-  --from-literal=management-password=${KEYCLOAK_MGMT_PASSWORD} \
-  --dry-run=client -o yaml | kubectl apply -f - --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
-
-# Create ConfigMap with domain configuration for Keycloak bootstrap
-# Note: ARGOCD_SUBDOMAIN and KEYCLOAK_SUBDOMAIN already set above
+# Read Backstage configuration from config.yaml
 BACKSTAGE_SUBDOMAIN=$(yq eval '.subdomains.backstage' ${CONFIG_FILE})
 GITHUB_ORG=$(yq eval '.github_org' ${CONFIG_FILE})
+GITHUB_TOKEN=$(yq eval '.github_token' ${CONFIG_FILE})
 INFRA_REPO=$(yq eval '.infrastructure_repo' ${CONFIG_FILE})
 TF_BACKEND_BUCKET=$(yq eval '.terraform_backend.bucket' ${CONFIG_FILE})
 TF_BACKEND_REGION=$(yq eval '.terraform_backend.region // "us-east-1"' ${CONFIG_FILE})
-BACKSTAGE_OIDC_SECRET=$(yq eval '.secrets.backstage.oidc_client_secret // "backstage-secret-2024"' ${CONFIG_FILE})
+
+# Cognito OIDC configuration
+COGNITO_USER_POOL_ID=$(yq eval '.cognito.user_pool_id' ${CONFIG_FILE})
+COGNITO_CLIENT_ID=$(yq eval '.cognito.user_pool_client_id' ${CONFIG_FILE})
+COGNITO_CLIENT_SECRET=$(yq eval '.cognito.user_pool_client_secret' ${CONFIG_FILE})
+COGNITO_REGION=$(yq eval '.cognito.region // "us-east-1"' ${CONFIG_FILE})
+OIDC_ISSUER_URL="https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}"
+
+# Backstage secrets
+AUTH_SESSION_SECRET=$(yq eval '.secrets.backstage.auth_session_secret // "backstage-session-secret-2024"' ${CONFIG_FILE})
+BACKEND_SECRET=$(yq eval '.secrets.backstage.backend_secret // "backstage-backend-secret-2024"' ${CONFIG_FILE})
 POSTGRES_HOST=$(yq eval '.secrets.backstage.postgres_host // "backstage-postgresql"' ${CONFIG_FILE})
 POSTGRES_PORT=$(yq eval '.secrets.backstage.postgres_port // "5432"' ${CONFIG_FILE})
 POSTGRES_USER=$(yq eval '.secrets.backstage.postgres_user // "backstage"' ${CONFIG_FILE})
 POSTGRES_PASSWORD=$(yq eval '.secrets.backstage.postgres_password // "backstage123"' ${CONFIG_FILE})
 
-kubectl create configmap domain-config \
-  --namespace keycloak \
-  --from-literal=DOMAIN=${DOMAIN_NAME} \
-  --from-literal=ARGOCD_SUBDOMAIN=${ARGOCD_SUBDOMAIN} \
-  --from-literal=BACKSTAGE_SUBDOMAIN=${BACKSTAGE_SUBDOMAIN} \
-  --from-literal=KEYCLOAK_SUBDOMAIN=${KEYCLOAK_SUBDOMAIN} \
-  --from-literal=GITHUB_ORG=${GITHUB_ORG} \
-  --from-literal=INFRA_REPO=${INFRA_REPO} \
-  --dry-run=client -o yaml | kubectl apply -f - --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
-
-# Backstage secret com configuração OIDC para Keycloak
-# Client secret fixo deve corresponder ao configurado no keycloak-bootstrap-job
-# Read GitHub token from config.yaml
-GITHUB_TOKEN=$(yq eval '.github_token' ${REPO_ROOT}/config.yaml)
+# Backstage Frontend URL
+BACKSTAGE_FRONTEND_URL="https://${BACKSTAGE_SUBDOMAIN}.${DOMAIN_NAME}"
 
 echo -e "${CYAN}🔐 Creating Backstage environment variables secret..."
 # Create service account for Backstage Kubernetes plugin
@@ -317,7 +295,12 @@ kubectl create secret generic backstage-env-vars \
   --from-literal=POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
   --from-literal=GITHUB_TOKEN=$GITHUB_TOKEN \
   --from-literal=ARGOCD_ADMIN_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) \
-  --from-literal=BACKSTAGE_CLIENT_SECRET=${BACKSTAGE_OIDC_SECRET} \
+  --from-literal=OIDC_ISSUER_URL="${OIDC_ISSUER_URL}" \
+  --from-literal=OIDC_CLIENT_ID="${COGNITO_CLIENT_ID}" \
+  --from-literal=OIDC_CLIENT_SECRET="${COGNITO_CLIENT_SECRET}" \
+  --from-literal=AUTH_SESSION_SECRET="${AUTH_SESSION_SECRET}" \
+  --from-literal=BACKEND_SECRET="${BACKEND_SECRET}" \
+  --from-literal=BACKSTAGE_FRONTEND_URL="${BACKSTAGE_FRONTEND_URL}" \
   --from-literal=K8S_SA_TOKEN="$K8S_TOKEN" \
   --from-literal=GITHUB_ORG="$GITHUB_ORG" \
   --from-literal=INFRA_REPO="$INFRA_REPO" \
@@ -344,96 +327,9 @@ stringData:
   password: x-oauth-basic
 EOF
 
-echo " Configuring ArgoCD with Keycloak SSO..."
-# Create secret for ArgoCD Keycloak client
-kubectl create secret generic argocd-keycloak-secret -n argocd \
-  --from-literal=secret=${ARGOCD_OIDC_SECRET} \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-# Configure ArgoCD OIDC with Keycloak (using dynamic domain)
-KEYCLOAK_ISSUER_URL="https://${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}/realms/${KEYCLOAK_REALM}"
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cm
-  namespace: argocd
-data:
-  oidc.config: |
-    name: Keycloak
-    issuer: ${KEYCLOAK_ISSUER_URL}
-    clientID: argocd
-    clientSecret: \$argocd-keycloak-secret:secret
-    requestedScopes:
-      - openid
-      - profile
-      - email
-      - groups
-EOF
-
-# Configure ArgoCD RBAC
-kubectl -n argocd patch cm argocd-rbac-cm --type merge -p '{
-  "data": {
-    "policy.csv": "g, superusers, role:admin\ng, developers, role:readonly\np, role:readonly, applications, get, *, allow\np, role:readonly, clusters, get, *, allow\np, role:readonly, repositories, get, *, allow\np, role:readonly, certificates, get, *, allow",
-    "policy.default": "role:readonly"
-  }
-}'
-
-echo "👥 Configuring Keycloak realm, clients, and users..."
-# Wait for Keycloak to be ready
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=keycloak -n keycloak --timeout=300s
-
-# Read client secrets from config
-ARGOCD_CLIENT_SECRET=$(yq eval '.secrets.argocd.oidc_client_secret' ${CONFIG_FILE})
-BACKSTAGE_CLIENT_SECRET=$(yq eval '.secrets.backstage.oidc_client_secret' ${CONFIG_FILE})
-
-# Callback URLs
-ARGOCD_CALLBACK_URL="https://${ARGOCD_SUBDOMAIN}.${DOMAIN_NAME}/*"
-BACKSTAGE_CALLBACK_URL="https://${BACKSTAGE_SUBDOMAIN}.${DOMAIN_NAME}/*"
-
-# Configure Keycloak: create realm, clients, groups, and test user
-kubectl exec -n keycloak keycloak-0 -- bash -c '
-KCADM="/opt/bitnami/keycloak/bin/kcadm.sh"
-
-# Login to Keycloak
-$KCADM config credentials --server http://localhost:8080 --realm master --user '"${KEYCLOAK_ADMIN_USER}"' --password '"${KEYCLOAK_ADMIN_PASSWORD}"'
-
-# Create realm if not exists
-$KCADM create realms -s realm='"${KEYCLOAK_REALM}"' -s enabled=true 2>/dev/null || echo "Realm already exists"
-
-# Create ArgoCD client
-$KCADM create clients -r '"${KEYCLOAK_REALM}"' \
-  -s clientId=argocd \
-  -s "redirectUris=[\"'"${ARGOCD_CALLBACK_URL}"'\"]" \
-  -s publicClient=false \
-  -s protocol=openid-connect \
-  -s enabled=true \
-  -s clientAuthenticatorType=client-secret \
-  -s secret='"${ARGOCD_CLIENT_SECRET}"' 2>/dev/null || echo "ArgoCD client already exists"
-
-# Create Backstage client
-$KCADM create clients -r '"${KEYCLOAK_REALM}"' \
-  -s clientId=backstage \
-  -s "redirectUris=[\"'"${BACKSTAGE_CALLBACK_URL}"'\"]" \
-  -s publicClient=false \
-  -s protocol=openid-connect \
-  -s enabled=true \
-  -s clientAuthenticatorType=client-secret \
-  -s secret='"${BACKSTAGE_CLIENT_SECRET}"' 2>/dev/null || echo "Backstage client already exists"
-
-# Create groups
-$KCADM create groups -r '"${KEYCLOAK_REALM}"' -s name=superusers 2>/dev/null || true
-$KCADM create groups -r '"${KEYCLOAK_REALM}"' -s name=developers 2>/dev/null || true
-
-# Create test user
-$KCADM create users -r '"${KEYCLOAK_REALM}"' -s username=user1 -s email=user1@example.com -s enabled=true -s emailVerified=true 2>/dev/null || true
-$KCADM set-password -r '"${KEYCLOAK_REALM}"' --username user1 --new-password user123 2>/dev/null || true
-
-echo "✓ Keycloak configured successfully"
-'
-
-echo "🔄 Restarting ArgoCD server to apply SSO configuration..."
-kubectl rollout restart -n argocd deployment/argocd-server
+echo "✅ ArgoCD configured with admin password from config.yaml"
+# ArgoCD is now configured with simple admin password
+# OIDC/SSO can be added later if needed via ArgoCD ConfigMap
 
 # Apply Crossplane Compositions (S3, VPC, SecurityGroup, EC2, RDS, EKS)
 echo -e "${CYAN}🔧 Creating Crossplane Compositions...${NC}"
@@ -505,38 +401,8 @@ helm upgrade --install --wait addons-appset ${REPO_ROOT}/packages/appset-chart \
 sleep 10
 wait_for_apps
 
-# Configure Keycloak and Backstage integration
-echo -e "\n${BOLD}${GREEN}🔐 Configuring Keycloak and Backstage integration...${NC}"
-
-# Wait for Keycloak to be ready
-echo -e "${CYAN}⏳ Waiting for Keycloak to be ready...${NC}"
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=keycloak -n keycloak --timeout=300s --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
-
-# Apply Keycloak Ingress (dynamic from config.yaml)
-echo -e "${CYAN}🌐 Creating Keycloak Ingress...${NC}"
-KEYCLOAK_HOST="${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}"
-cat <<EOF | kubectl apply -f - --kubeconfig $KUBECONFIG_FILE > /dev/null
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: keycloak
-  namespace: keycloak
-  annotations:
-    external-dns.alpha.kubernetes.io/hostname: ${KEYCLOAK_HOST}
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: ${KEYCLOAK_HOST}
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: keycloak
-            port:
-              number: 80
-EOF
+# Backstage integration with AWS Cognito
+echo -e "\n${BOLD}${GREEN}🔐 Backstage configured with AWS Cognito OIDC...${NC}"
 
 # Apply Backstage Ingress (dynamic from config.yaml)
 echo -e "${CYAN}🌐 Creating Backstage Ingress...${NC}"
@@ -567,7 +433,6 @@ EOF
 # Generate dynamic Backstage values overlay with correct domain URLs
 echo -e "${CYAN}🔧 Generating dynamic Backstage configuration...${NC}"
 BACKSTAGE_URL="https://${BACKSTAGE_SUBDOMAIN}.${DOMAIN_NAME}"
-KEYCLOAK_URL="https://${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}"
 ARGOCD_URL="https://${ARGOCD_SUBDOMAIN}.${DOMAIN_NAME}"
 REPO_URL=$(yq eval '.repo.url' ${CONFIG_FILE})
 
@@ -580,8 +445,6 @@ backstage:
   extraEnvVars:
     - name: BACKSTAGE_FRONTEND_URL
       value: ${BACKSTAGE_URL}
-    - name: KEYCLOAK_NAME_METADATA
-      value: http://keycloak.keycloak.svc.cluster.local:80/realms/${KEYCLOAK_REALM}/.well-known/openid-configuration
     - name: ARGO_CD_URL
       value: ${ARGOCD_URL}
     - name: ARGO_WORKFLOWS_URL
@@ -659,56 +522,8 @@ kubectl create configmap backstage-dynamic-values \
   --from-file=values.yaml=/tmp/backstage-dynamic-values.yaml \
   --dry-run=client -o yaml | kubectl apply -f - --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
 
-# Apply Keycloak bootstrap Job
-echo -e "${CYAN}🔧 Running Keycloak bootstrap Job...${NC}"
-kubectl apply -f "$REPO_ROOT/packages/keycloak/keycloak-bootstrap-job.yaml" --kubeconfig $KUBECONFIG_FILE > /dev/null
-
-# Wait for Job to complete
-echo -e "${CYAN}⏳ Waiting for Keycloak configuration to complete (this may take a few minutes)...${NC}"
-kubectl wait --for=condition=complete --timeout=300s job/keycloak-bootstrap -n keycloak --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
-
-# Extract client secret from Job logs
-CLIENT_SECRET=$(kubectl logs -n keycloak job/keycloak-bootstrap --kubeconfig $KUBECONFIG_FILE | grep "Client Secret:" | awk '{print $NF}')
-
-if [ -n "$CLIENT_SECRET" ]; then
-  echo -e "${GREEN}✅ Keycloak client configured successfully!${NC}"
-  echo -e "${CYAN}🔐 Updating Backstage secret with Keycloak client secret...${NC}"
-
-  # Update Backstage secret with the actual client secret
-  CLIENT_SECRET_BASE64=$(echo -n "$CLIENT_SECRET" | base64)
-  kubectl -n backstage patch secret backstage-env-vars \
-    -p "{\"data\":{\"BACKSTAGE_CLIENT_SECRET\":\"$CLIENT_SECRET_BASE64\",\"KEYCLOAK_NAME_METADATA\":\"$(echo -n \"https://keycloak.${DOMAIN_NAME}/auth/realms/cnoe/.well-known/openid-configuration\" | base64)\"}}" \
-    --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1
-
-  # Restart Backstage to load new secret
-  echo -e "${CYAN}♻️  Restarting Backstage...${NC}\n"
-  kubectl rollout restart deployment backstage -n backstage --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1
-  kubectl rollout status deployment backstage -n backstage --timeout=180s --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1
-
-  echo -e "${GREEN}✅ Backstage configured successfully!${NC}"
-else
-  echo -e "${YELLOW}⚠️  Warning: Could not extract client secret from Keycloak Job logs.${NC}"
-  echo -e "${YELLOW}   You may need to manually update the Backstage secret.${NC}"
-fi
-
-# Configure hostAliases for internal Keycloak resolution (hairpin NAT fix)
-echo -e "${CYAN}🔧 Configuring internal DNS for OIDC (hostAliases)...${NC}"
-KC_IP=$(kubectl get svc keycloak -n keycloak -o jsonpath='{.spec.clusterIP}' --kubeconfig $KUBECONFIG_FILE 2>/dev/null)
-if [ -n "$KC_IP" ]; then
-  KEYCLOAK_HOST="${KEYCLOAK_SUBDOMAIN}.${DOMAIN_NAME}"
-
-  # Add hostAliases to ArgoCD
-  kubectl patch deployment argocd-server -n argocd --type='json' \
-    -p="[{\"op\": \"add\", \"path\": \"/spec/template/spec/hostAliases\", \"value\": [{\"ip\": \"$KC_IP\", \"hostnames\": [\"$KEYCLOAK_HOST\"]}]}]" \
-    --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
-
-  # Add hostAliases to Backstage
-  kubectl patch deployment backstage -n backstage --type='json' \
-    -p="[{\"op\": \"add\", \"path\": \"/spec/template/spec/hostAliases\", \"value\": [{\"ip\": \"$KC_IP\", \"hostnames\": [\"$KEYCLOAK_HOST\"]}]}]" \
-    --kubeconfig $KUBECONFIG_FILE > /dev/null 2>&1 || true
-
-  echo -e "${GREEN}✅ hostAliases configured for ArgoCD and Backstage${NC}"
-fi
+echo -e "${GREEN}✅ Backstage configured with AWS Cognito OIDC${NC}"
+echo -e "${CYAN}📋 Backstage uses Cognito for authentication - no Keycloak bootstrap needed${NC}"
 
 echo -e "\n${BOLD}${BLUE}🎉 Installation completed successfully! 🎉${NC}"
 echo -e "${CYAN}📊 You can now access your resources and start deploying applications.${NC}"
