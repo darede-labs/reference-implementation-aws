@@ -105,10 +105,28 @@ data:
 
             if parsed_path.path == '/resources':
                 try:
-                    query_params = parse_qs(parsed_path.query)
-                    owner_filter = query_params.get('owner', [None])[0]
+                    # SECURITY: Require authentication via X-Backstage-User header
+                    user_entity_ref = self.headers.get('X-Backstage-User', '')
 
-                    resources = self.list_resources(owner_filter)
+                    if not user_entity_ref:
+                        self.send_error(401, 'Unauthorized: X-Backstage-User header required')
+                        return
+
+                    # Extract authenticated username from entity ref
+                    authenticated_user = user_entity_ref.split('/')[-1] if '/' in user_entity_ref else user_entity_ref
+
+                    # Parse query params
+                    query_params = parse_qs(parsed_path.query)
+                    requested_owner = query_params.get('owner', [None])[0]
+
+                    # SECURITY: User can ONLY list their own resources
+                    # Ignore query param, enforce authenticated user
+                    if requested_owner and requested_owner != authenticated_user:
+                        self.send_error(403, f'Forbidden: Cannot list resources for other users. You can only list resources owned by: {authenticated_user}')
+                        return
+
+                    # List resources for authenticated user only
+                    resources = self.list_resources(authenticated_user)
 
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
