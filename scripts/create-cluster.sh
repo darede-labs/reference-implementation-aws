@@ -67,13 +67,23 @@ if [ "$DEPLOYMENT_TOOL" = "eksctl" ]; then
 elif [ "$DEPLOYMENT_TOOL" = "terraform" ]; then
     echo -e "${CYAN}🔧 Using terraform for cluster creation...${NC}"
 
+    # Validate and create S3 backend bucket
+    echo -e "${BLUE}📦 Validating Terraform backend...${NC}"
+    source ${REPO_ROOT}/scripts/validate-backend.sh
+
     # Set terraform variables
     export TF_VAR_cluster_name="$CLUSTER_NAME"
     export TF_VAR_region="$AWS_REGION"
     export TF_VAR_auto_mode="$AUTO_MODE"
 
-    # Initialize and apply terraform
-    terraform -chdir="$REPO_ROOT/cluster/terraform" init
+    # Initialize terraform with S3 backend
+    terraform -chdir="$REPO_ROOT/cluster/terraform" init \
+      -backend-config="bucket=${TF_BACKEND_BUCKET}" \
+      -backend-config="key=${TF_BACKEND_KEY}" \
+      -backend-config="region=${TF_BACKEND_REGION}" \
+      -reconfigure
+
+    # Apply terraform
     terraform -chdir="$REPO_ROOT/cluster/terraform" apply -auto-approve
 fi
 

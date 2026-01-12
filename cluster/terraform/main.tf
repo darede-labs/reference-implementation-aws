@@ -1,6 +1,7 @@
 provider "aws" {
-  region  = local.region
-  profile = "darede"
+  region = local.region
+  # Profile sourced from environment: export AWS_PROFILE=darede
+  # This allows multi-operator usage and AWS SSO compatibility
 }
 
 data "aws_eks_cluster_auth" "this" {
