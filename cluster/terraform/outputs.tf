@@ -47,3 +47,49 @@ output "external_secrets_role_arn" {
   description = "ARN of the IAM role for External Secrets"
   value       = local.use_irsa ? module.external_secrets_irsa[0].iam_role_arn : "Using Pod Identity"
 }
+
+################################################################################
+# Cognito Outputs
+################################################################################
+
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool ID for authentication"
+  value       = local.use_cognito ? aws_cognito_user_pool.main[0].id : null
+}
+
+output "cognito_user_pool_arn" {
+  description = "Cognito User Pool ARN"
+  value       = local.use_cognito ? aws_cognito_user_pool.main[0].arn : null
+}
+
+output "cognito_user_pool_domain" {
+  description = "Cognito User Pool domain for OIDC endpoints"
+  value       = local.use_cognito ? aws_cognito_user_pool_domain.main[0].domain : null
+}
+
+output "cognito_backstage_client_id" {
+  description = "Cognito App Client ID for Backstage"
+  value       = local.use_cognito ? aws_cognito_user_pool_client.backstage[0].id : null
+}
+
+output "cognito_backstage_client_secret" {
+  description = "Cognito App Client Secret for Backstage (sensitive)"
+  value       = local.use_cognito ? aws_cognito_user_pool_client.backstage[0].client_secret : null
+  sensitive   = true
+}
+
+output "cognito_argocd_client_id" {
+  description = "Cognito App Client ID for ArgoCD"
+  value       = local.use_cognito ? aws_cognito_user_pool_client.argocd[0].id : null
+}
+
+output "cognito_argocd_client_secret" {
+  description = "Cognito App Client Secret for ArgoCD (sensitive)"
+  value       = local.use_cognito ? aws_cognito_user_pool_client.argocd[0].client_secret : null
+  sensitive   = true
+}
+
+output "cognito_issuer_url" {
+  description = "OIDC Issuer URL for Cognito"
+  value       = local.use_cognito ? "https://cognito-idp.${local.region}.amazonaws.com/${aws_cognito_user_pool.main[0].id}" : null
+}

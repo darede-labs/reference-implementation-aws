@@ -178,18 +178,13 @@ tls_termination: "nlb"
 ################################################################################
 # AWS Cognito Configuration (OIDC Provider)
 ################################################################################
-
-cognito:
-  # Cognito User Pool ID
-  user_pool_id: "us-east-1_s30jFJZxE"
-  # Cognito User Pool Client ID for Backstage
-  user_pool_client_id: "4f9jq8l1tmqffmf1f0v0mue77n"
-  # Cognito User Pool Client Secret for Backstage
-  user_pool_client_secret: "YOUR_COGNITO_CLIENT_SECRET_HERE"
-  # Cognito User Pool Domain (for OIDC endpoints)
-  user_pool_domain: "idp-poc-darede"
-  # AWS Region
-  region: "us-east-1"
+# NOTE: Cognito resources are now FULLY MANAGED by Terraform (cluster/terraform/cognito.tf)
+# Values are automatically created during cluster provisioning and read from Terraform outputs
+# No manual configuration required - install.sh reads from: terraform output cognito_*
+#
+# Optional: Set identity_provider to skip Cognito creation
+# identity_provider: "keycloak"  # Options: "cognito" (default), "keycloak", "okta"
+################################################################################
 
 ################################################################################
 # Tags for AWS Resources

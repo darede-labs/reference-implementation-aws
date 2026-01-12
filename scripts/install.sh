@@ -192,12 +192,19 @@ INFRA_REPO=$(yq eval '.infrastructure_repo' ${CONFIG_FILE})
 TF_BACKEND_BUCKET=$(yq eval '.terraform_backend.bucket' ${CONFIG_FILE})
 TF_BACKEND_REGION=$(yq eval '.terraform_backend.region // "us-east-1"' ${CONFIG_FILE})
 
-# Cognito OIDC configuration
-COGNITO_USER_POOL_ID=$(yq eval '.cognito.user_pool_id' ${CONFIG_FILE})
-COGNITO_CLIENT_ID=$(yq eval '.cognito.user_pool_client_id' ${CONFIG_FILE})
-COGNITO_CLIENT_SECRET=$(yq eval '.cognito.user_pool_client_secret' ${CONFIG_FILE})
-COGNITO_REGION=$(yq eval '.cognito.region // "us-east-1"' ${CONFIG_FILE})
-OIDC_ISSUER_URL="https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}"
+# Cognito OIDC configuration - read from Terraform outputs (not config.yaml)
+echo -e "${CYAN}🔐 Reading Cognito configuration from Terraform state...${NC}"
+COGNITO_ISSUER_URL=$(terraform -chdir="$REPO_ROOT/cluster/terraform" output -raw cognito_issuer_url 2>/dev/null || echo "")
+COGNITO_CLIENT_ID=$(terraform -chdir="$REPO_ROOT/cluster/terraform" output -raw cognito_backstage_client_id 2>/dev/null || echo "")
+COGNITO_CLIENT_SECRET=$(terraform -chdir="$REPO_ROOT/cluster/terraform" output -raw cognito_backstage_client_secret 2>/dev/null || echo "")
+
+if [ -z "$COGNITO_ISSUER_URL" ] || [ "$COGNITO_ISSUER_URL" = "null" ]; then
+  echo -e "${RED}❌ ERROR: Cognito not configured in Terraform state${NC}"
+  echo -e "${YELLOW}⚠️  Make sure cluster was created with Terraform (not eksctl)${NC}"
+  exit 1
+fi
+
+echo -e "${GREEN}✅ Cognito configuration loaded from Terraform${NC}"
 
 # Backstage secrets
 AUTH_SESSION_SECRET=$(yq eval '.secrets.backstage.auth_session_secret // "backstage-session-secret-2024"' ${CONFIG_FILE})
