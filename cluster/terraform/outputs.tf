@@ -93,3 +93,17 @@ output "cognito_issuer_url" {
   description = "OIDC Issuer URL for Cognito"
   value       = local.use_cognito ? "https://cognito-idp.${local.region}.amazonaws.com/${aws_cognito_user_pool.main[0].id}" : null
 }
+
+################################################################################
+# Secrets Manager Outputs
+################################################################################
+
+output "github_app_secret_arn" {
+  description = "ARN of GitHub App credentials secret in Secrets Manager"
+  value       = aws_secretsmanager_secret.github_app.arn
+}
+
+output "github_app_secret_name" {
+  description = "Name of GitHub App credentials secret"
+  value       = aws_secretsmanager_secret.github_app.name
+}

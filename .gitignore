@@ -49,3 +49,7 @@ site
 # Checks
 .tfsec
 
+
+# GitHub App credentials (managed in AWS Secrets Manager)
+github-app-*.yaml
+*-credentials.yaml
