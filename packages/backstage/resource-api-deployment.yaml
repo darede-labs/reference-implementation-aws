@@ -4,7 +4,7 @@ metadata:
   name: resource-api
   namespace: backstage
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: resource-api
@@ -24,6 +24,13 @@ spec:
           value: "poc-idp-tfstate"
         - name: AWS_REGION
           value: "us-east-1"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
         command:
         - /bin/sh
         - -c

@@ -1,0 +1,41 @@
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backstage-pdb
+  namespace: backstage
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backstage
+      app.kubernetes.io/instance: backstage
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: resource-api-pdb
+  namespace: backstage
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: resource-api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ingress-nginx-controller-pdb
+  namespace: ingress-nginx
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+      app.kubernetes.io/component: controller
