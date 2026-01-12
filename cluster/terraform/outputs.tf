@@ -107,3 +107,22 @@ output "github_app_secret_name" {
   description = "Name of GitHub App credentials secret"
   value       = aws_secretsmanager_secret.github_app.name
 }
+
+################################################################################
+# AWS Backup Outputs
+################################################################################
+
+output "backup_vault_name" {
+  description = "Name of AWS Backup vault"
+  value       = aws_backup_vault.main.name
+}
+
+output "backup_vault_arn" {
+  description = "ARN of AWS Backup vault"
+  value       = aws_backup_vault.main.arn
+}
+
+output "backup_plan_id" {
+  description = "ID of PostgreSQL backup plan"
+  value       = aws_backup_plan.postgresql.id
+}
