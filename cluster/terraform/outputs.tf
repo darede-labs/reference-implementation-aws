@@ -126,3 +126,8 @@ output "backup_plan_id" {
   description = "ID of PostgreSQL backup plan"
   value       = aws_backup_plan.postgresql.id
 }
+
+output "backup_plan_eks_id" {
+  description = "ID of full EKS cluster backup plan"
+  value       = aws_backup_plan.eks_cluster.id
+}

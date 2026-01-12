@@ -6,7 +6,19 @@ This document describes backup procedures for the Backstage IDP platform using *
 
 ## What is Backed Up
 
-### 1. PostgreSQL Database (Backstage Catalog)
+### 1. Full EKS Cluster (NEW - Comprehensive DR)
+- **Location:** Entire EKS cluster
+- **Data:**
+  - Cluster configuration and settings
+  - All Kubernetes resources (Deployments, StatefulSets, ConfigMaps, Secrets, etc.)
+  - Persistent volumes (EBS, EFS, S3)
+  - Network policies and RBAC
+- **Backup Method:** AWS Backup native EKS support
+- **Schedule:** Weekly (Sunday 1 AM UTC)
+- **Retention:** 90 days
+- **Restore Options:** New cluster or existing cluster
+
+### 2. PostgreSQL Database (Backstage Catalog)
 - **Location:** backstage-postgresql StatefulSet
 - **Data:** User entities, templates, catalog items, relationships
 - **Storage:** 8Gi PVC on EBS gp3
@@ -15,12 +27,12 @@ This document describes backup procedures for the Backstage IDP platform using *
   - Daily backups: 30 days
   - Weekly backups: 90 days
 
-### 2. Terraform State
+### 3. Terraform State
 - **Location:** S3 bucket (poc-idp-tfstate)
 - **Protection:** Versioning enabled, encryption at rest
 - **Retention:** All versions retained
 
-### 3. GitHub Repositories
+### 4. GitHub Repositories
 - **Location:** github.com/darede-labs/*
 - **Protection:** Git version control
 - **Retention:** Infinite (Git history)
