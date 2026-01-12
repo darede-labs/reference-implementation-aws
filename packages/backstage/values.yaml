@@ -225,7 +225,7 @@ backstage:
     argoWorkflows:
       baseUrl: ${ARGO_WORKFLOWS_URL}
 postgresql:
-  enabled: false
+  enabled: true
   image:
     registry: docker.io
     repository: bitnamilegacy/postgresql
@@ -237,5 +237,17 @@ postgresql:
       adminPasswordKey: POSTGRES_PASSWORD
       userPasswordKey: POSTGRES_PASSWORD
   architecture: standalone
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: "gp3"  # AWS EBS gp3 for better performance
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
 serviceAccount:
   create: true
