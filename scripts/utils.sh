@@ -146,7 +146,7 @@ fi
 if [ $PHASE = "install" ]; then
   echo -e "${CYAN}📋 Configuration Details:${NC}"
   echo -e "${YELLOW}----------------------------------------------------${NC}"
-  yq '... comments=""' "$CONFIG_FILE"
+  yq '... comments="" | del(.github_token) | .secrets = "REDACTED"' "$CONFIG_FILE"
   echo -e "${YELLOW}----------------------------------------------------${NC}"
 
   echo -e "\n${BOLD}${GREEN}❓ Are you sure you want to continue with installation?${NC}"

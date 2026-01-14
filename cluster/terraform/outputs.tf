@@ -28,6 +28,21 @@ output "oidc_provider_arn" {
   value       = module.eks.oidc_provider_arn
 }
 
+output "nlb_dns_name" {
+  description = "DNS name of the NLB for ingress-nginx"
+  value       = length(aws_lb.ingress_nginx) > 0 ? aws_lb.ingress_nginx[0].dns_name : null
+}
+
+output "nlb_arn" {
+  description = "ARN of the NLB for ingress-nginx"
+  value       = length(aws_lb.ingress_nginx) > 0 ? aws_lb.ingress_nginx[0].arn : null
+}
+
+output "nlb_zone_id" {
+  description = "Hosted zone ID of the NLB for Route53"
+  value       = length(aws_lb.ingress_nginx) > 0 ? aws_lb.ingress_nginx[0].zone_id : null
+}
+
 output "auto_mode_enabled" {
   description = "Whether EKS Auto Mode is enabled"
   value       = local.auto_mode
@@ -127,7 +142,7 @@ output "backup_plan_id" {
   value       = aws_backup_plan.postgresql.id
 }
 
-output "backup_plan_eks_id" {
-  description = "ID of full EKS cluster backup plan"
-  value       = aws_backup_plan.eks_cluster.id
-}
+# output "backup_plan_eks_id" {
+#   description = "ID of full EKS cluster backup plan"
+#   value       = aws_backup_plan.eks_cluster.id
+# }

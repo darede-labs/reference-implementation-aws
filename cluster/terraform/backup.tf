@@ -140,51 +140,54 @@ resource "aws_backup_selection" "postgresql_volumes" {
 # - Cluster configuration and Kubernetes resources
 # - Persistent volumes (EBS, EFS, S3)
 # - Can restore to new or existing cluster
+#
+# NOTE: Policy AWSBackupServiceRolePolicyForEKS not available in this region/account
+# Disabling full EKS cluster backup - PostgreSQL volume backup remains active
 
-# Additional IAM permissions for EKS backup
-resource "aws_iam_role_policy_attachment" "backup_eks" {
-  role       = aws_iam_role.backup.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForEKS"
-}
-
-# Backup plan for full EKS cluster
-resource "aws_backup_plan" "eks_cluster" {
-  name = "${local.cluster_name}-full-cluster-backup"
-
-  # Weekly full cluster backup (Sunday 1 AM UTC)
-  rule {
-    rule_name         = "weekly-full-cluster"
-    target_vault_name = aws_backup_vault.main.name
-    schedule          = "cron(0 1 ? * SUN *)"
-    start_window      = 120  # 2 hour window
-    completion_window = 240  # 4 hours to complete
-
-    lifecycle {
-      delete_after = 90 # Retain for 90 days
-    }
-
-    recovery_point_tags = merge(
-      local.tags,
-      {
-        BackupPlan = "weekly-full-cluster"
-        Component  = "eks-cluster"
-      }
-    )
-  }
-
-  tags = local.tags
-}
-
-# Backup selection for full EKS cluster
-resource "aws_backup_selection" "eks_cluster" {
-  name         = "${local.cluster_name}-full-cluster"
-  plan_id      = aws_backup_plan.eks_cluster.id
-  iam_role_arn = aws_iam_role.backup.arn
-
-  resources = [
-    module.eks.cluster_arn
-  ]
-}
+# # Additional IAM permissions for EKS backup
+# resource "aws_iam_role_policy_attachment" "backup_eks" {
+#   role       = aws_iam_role.backup.name
+#   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForEKS"
+# }
+#
+# # Backup plan for full EKS cluster
+# resource "aws_backup_plan" "eks_cluster" {
+#   name = "${local.cluster_name}-full-cluster-backup"
+#
+#   # Weekly full cluster backup (Sunday 1 AM UTC)
+#   rule {
+#     rule_name         = "weekly-full-cluster"
+#     target_vault_name = aws_backup_vault.main.name
+#     schedule          = "cron(0 1 ? * SUN *)"
+#     start_window      = 120  # 2 hour window
+#     completion_window = 240  # 4 hours to complete
+#
+#     lifecycle {
+#       delete_after = 90 # Retain for 90 days
+#     }
+#
+#     recovery_point_tags = merge(
+#       local.tags,
+#       {
+#         BackupPlan = "weekly-full-cluster"
+#         Component  = "eks-cluster"
+#       }
+#     )
+#   }
+#
+#   tags = local.tags
+# }
+#
+# # Backup selection for full EKS cluster
+# resource "aws_backup_selection" "eks_cluster" {
+#   name         = "${local.cluster_name}-full-cluster"
+#   plan_id      = aws_backup_plan.eks_cluster.id
+#   iam_role_arn = aws_iam_role.backup.arn
+#
+#   resources = [
+#     module.eks.cluster_arn
+#   ]
+# }
 
 # Backup vault lock policy (optional - prevents deletion of backups)
 resource "aws_backup_vault_lock_configuration" "main" {

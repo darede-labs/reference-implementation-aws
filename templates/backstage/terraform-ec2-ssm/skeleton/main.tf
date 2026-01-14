@@ -119,7 +119,7 @@ variable "enable_detailed_monitoring" {
 variable "associate_public_ip" {
   description = "Associate public IP address"
   type        = bool
-  default     = false
+  default     = true
 }
 
 # Data sources

@@ -32,9 +32,9 @@ locals {
   node_config      = try(local.config_file.node_groups, {})
   capacity_type    = try(local.node_config.capacity_type, "SPOT")
   instance_types   = try(local.node_config.instance_types, ["t3.medium", "t3a.medium", "t2.medium"])
-  node_min_size    = try(local.node_config.scaling.min_size, 2)
-  node_max_size    = try(local.node_config.scaling.max_size, 6)
-  node_desired     = try(local.node_config.scaling.desired_size, 2)
+  node_min_size    = try(local.node_config.scaling.min_size, 1)
+  node_max_size    = try(local.node_config.scaling.max_size, 3)
+  node_desired     = try(local.node_config.scaling.desired_size, 1)
   node_disk_size   = try(local.node_config.disk_size, 50)
   node_labels      = try(local.node_config.labels, {})
 
@@ -48,6 +48,10 @@ locals {
 
   # Subdomains
   subdomains = try(local.config_file.subdomains, {})
+
+  # Network Load Balancer for ingress-nginx
+  enable_nlb = tobool(try(local.config_file.enable_nlb, true))
+  acm_certificate_arn = try(local.config_file.acm_certificate_arn, "")
 
   # Tags from config
   config_tags = local.config_file.tags

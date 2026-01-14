@@ -97,7 +97,7 @@ github_org: "darede-labs"
 # GitHub Personal Access Token for Backstage integration
 # Required scopes: repo, workflow, read:org, read:user
 # Generate at: https://github.com/settings/tokens
-github_token: "YOUR_GITHUB_TOKEN_HERE"
+github_token: "yourGHTOKEN"
 
 # Repository for infrastructure resources (S3, RDS, EKS, etc.)
 # Backstage will create Pull Requests here when provisioning resources
@@ -115,6 +115,10 @@ secrets:
   # ArgoCD admin credentials
   argocd:
     admin_password: "argocd-admin-2024"
+
+  # Cognito default user password (auto-created from users-catalog.yaml)
+  cognito:
+    default_password: "Tampico@2024!"
 
   # Backstage configuration
   backstage:
