@@ -1,0 +1,68 @@
+################################################################################
+# Keycloak Database Secret Retrieval Job
+# Generated from template - DO NOT EDIT MANUALLY
+# Fetches RDS credentials from AWS Secrets Manager and creates K8s Secret
+################################################################################
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: keycloak-db-secret-fetcher
+  namespace: keycloak
+  annotations:
+    eks.amazonaws.com/role-arn: {{ external_secrets_role_arn }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-db-secret-fetcher
+  namespace: keycloak
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: keycloak-db-secret-fetcher
+    spec:
+      serviceAccountName: keycloak-db-secret-fetcher
+      restartPolicy: OnFailure
+      containers:
+      - name: aws-cli
+        image: amazon/aws-cli:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Fetching database credentials from Secrets Manager..."
+          
+          # Fetch secret from AWS Secrets Manager
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id {{ keycloak_db_secret_arn }} \
+            --region {{ region }} \
+            --query SecretString \
+            --output text)
+          
+          # Parse JSON and extract values
+          DB_USERNAME=$(echo "$SECRET_JSON" | jq -r .username)
+          DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r .password)
+          DB_HOST=$(echo "$SECRET_JSON" | jq -r .host)
+          DB_PORT=$(echo "$SECRET_JSON" | jq -r .port)
+          DB_NAME=$(echo "$SECRET_JSON" | jq -r .dbname)
+          
+          # Create Kubernetes Secret using kubectl
+          kubectl create secret generic keycloak-db-credentials \
+            --namespace=keycloak \
+            --from-literal=username="$DB_USERNAME" \
+            --from-literal=password="$DB_PASSWORD" \
+            --from-literal=host="$DB_HOST" \
+            --from-literal=port="$DB_PORT" \
+            --from-literal=database="$DB_NAME" \
+            --from-literal=jdbc-url="jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_NAME" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          
+          echo "✓ Secret created successfully"
+        env:
+        - name: AWS_REGION
+          value: {{ region }}
+      # Optional: Add IRSA token projection for enhanced security
+      volumes: []

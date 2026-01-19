@@ -195,7 +195,7 @@ if [ "$SKIP_APPS" = false ]; then
       warn "install-karpenter.sh not found, skipping"
     fi
   fi
-  
+
   # Install ArgoCD (if configured)
   info "Installing ArgoCD..."
   if [ "$DRY_RUN" = false ]; then
@@ -209,8 +209,8 @@ if [ "$SKIP_APPS" = false ]; then
   # Install Keycloak (if configured)
   info "Installing Keycloak..."
   if [ "$DRY_RUN" = false ]; then
-    if [ -f "platform/keycloak/install.sh" ]; then
-      bash platform/keycloak/install.sh
+    if [ -f "scripts/install-keycloak.sh" ]; then
+      bash scripts/install-keycloak.sh
     else
       info "Keycloak install script not found yet, skipping for now"
     fi

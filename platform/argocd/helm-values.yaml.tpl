@@ -12,7 +12,7 @@ configs:
   params:
     server.insecure: true  # TLS terminated at NLB
     application.instanceLabelKey: argocd.argoproj.io/instance
-  
+
   cm:
     # Helm chart repositories
     helm.repositories: |
@@ -28,12 +28,12 @@ configs:
       - name: crossplane
         type: helm
         url: https://charts.crossplane.io/stable
-    
+
     # Git repositories (for app-of-apps)
     repositories: |
       - url: {{ git_repo_url }}
         name: platform-infra
-    
+
     # Resource customizations
     resource.customizations.health.argoproj.io_Application: |
       hs = {}
@@ -64,7 +64,7 @@ configs:
 ## Controller
 controller:
   replicas: 1
-  
+
   resources:
     limits:
       cpu: 500m
@@ -76,7 +76,7 @@ controller:
 ## Server
 server:
   replicas: 2
-  
+
   resources:
     limits:
       cpu: 100m
@@ -84,7 +84,7 @@ server:
     requests:
       cpu: 50m
       memory: 64Mi
-  
+
   # Ingress configuration
   ingress:
     enabled: true
@@ -103,7 +103,7 @@ server:
 ## Repo Server
 repoServer:
   replicas: 2
-  
+
   resources:
     limits:
       cpu: 200m
@@ -115,7 +115,7 @@ repoServer:
 ## ApplicationSet Controller
 applicationSet:
   replicas: 2
-  
+
   resources:
     limits:
       cpu: 100m
@@ -127,7 +127,7 @@ applicationSet:
 ## Notifications Controller
 notifications:
   enabled: true
-  
+
   resources:
     limits:
       cpu: 100m
@@ -143,7 +143,7 @@ dex:
 ## Redis
 redis:
   enabled: true
-  
+
   resources:
     limits:
       cpu: 200m

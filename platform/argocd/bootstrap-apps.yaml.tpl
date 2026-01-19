@@ -12,16 +12,16 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  
+
   source:
     repoURL: {{ git_repo_url }}
     targetRevision: {{ git_branch }}
     path: platform/argocd/applications
-  
+
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
-  
+
   syncPolicy:
     automated:
       prune: false  # Don't auto-prune for safety

@@ -11,16 +11,16 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  
+
   source:
     repoURL: {{ git_repo_url }}
     targetRevision: {{ git_branch }}
     path: apps/backstage
-  
+
   destination:
     server: https://kubernetes.default.svc
     namespace: backstage
-  
+
   syncPolicy:
     automated:
       prune: true
