@@ -38,7 +38,7 @@ error() {
 ################################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TERRAFORM_DIR="${SCRIPT_DIR}/../terraform"
+TERRAFORM_DIR="${SCRIPT_DIR}/../cluster/terraform"
 KARPENTER_NAMESPACE="karpenter"
 
 info "Starting Karpenter installation..."
@@ -158,7 +158,7 @@ kubectl get pods -n "$KARPENTER_NAMESPACE" -l app.kubernetes.io/name=karpenter
 # Apply NodePool and NodeClass (if they exist)
 ################################################################################
 
-KARPENTER_MANIFESTS_DIR="${SCRIPT_DIR}/../../packages/karpenter"
+KARPENTER_MANIFESTS_DIR="${SCRIPT_DIR}/../platform/karpenter"
 
 if [ -d "$KARPENTER_MANIFESTS_DIR" ]; then
     info "Applying Karpenter NodePool and EC2NodeClass..."

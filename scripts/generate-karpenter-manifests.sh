@@ -9,8 +9,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TERRAFORM_DIR="${SCRIPT_DIR}/../terraform"
-OUTPUT_DIR="${SCRIPT_DIR}/../../packages/karpenter"
+TERRAFORM_DIR="${SCRIPT_DIR}/../cluster/terraform"
+OUTPUT_DIR="${SCRIPT_DIR}/../platform/karpenter"
 
 # Get Terraform outputs
 cd "$TERRAFORM_DIR"

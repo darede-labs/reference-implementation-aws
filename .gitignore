@@ -28,3 +28,10 @@ temp/
 *.pem
 *.key
 secrets/
+
+# Generated manifests (created from templates)
+manifests/
+
+# Rendered Helm values
+**/helm-values.yaml
+!**/helm-values.yaml.tpl
