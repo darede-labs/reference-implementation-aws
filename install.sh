@@ -121,19 +121,19 @@ info "✓ AWS credentials valid"
 
 if [ "$SKIP_TERRAFORM" = false ]; then
   step "Phase 1: Infrastructure Provisioning (Terraform)"
-  
+
   cd cluster/terraform
-  
+
   info "Initializing Terraform..."
   if [ "$DRY_RUN" = false ]; then
     terraform init
   fi
-  
+
   info "Planning infrastructure..."
   if [ "$DRY_RUN" = false ]; then
     terraform plan -out=tfplan
   fi
-  
+
   info "Applying infrastructure..."
   if [ "$DRY_RUN" = false ]; then
     terraform apply tfplan
@@ -141,9 +141,9 @@ if [ "$SKIP_TERRAFORM" = false ]; then
   else
     info "[DRY RUN] Would run: terraform apply"
   fi
-  
+
   cd "$SCRIPT_DIR"
-  
+
   # Update kubeconfig
   info "Updating kubeconfig..."
   if [ "$DRY_RUN" = false ]; then
@@ -151,7 +151,7 @@ if [ "$SKIP_TERRAFORM" = false ]; then
     REGION=$(cd cluster/terraform && terraform output -raw region)
     aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION"
   fi
-  
+
   # Wait for cluster to be ready
   info "Waiting for cluster to be ready..."
   if [ "$DRY_RUN" = false ]; then
@@ -172,7 +172,7 @@ fi
 
 if [ "$SKIP_APPS" = false ]; then
   step "Phase 2: Platform Components"
-  
+
   # Render templates
   info "Rendering manifest templates..."
   if [ "$DRY_RUN" = false ]; then
@@ -180,17 +180,17 @@ if [ "$SKIP_APPS" = false ]; then
       bash scripts/render-templates.sh
     else
       # Fallback: use existing generate scripts
-      if [ -f "cluster/scripts/generate-karpenter-manifests.sh" ]; then
-        bash cluster/scripts/generate-karpenter-manifests.sh
+      if [ -f "scripts/generate-karpenter-manifests.sh" ]; then
+        bash scripts/generate-karpenter-manifests.sh
       fi
     fi
   fi
-  
+
   # Install Karpenter
   info "Installing Karpenter..."
   if [ "$DRY_RUN" = false ]; then
-    if [ -f "cluster/scripts/install-karpenter.sh" ]; then
-      bash cluster/scripts/install-karpenter.sh
+    if [ -f "scripts/install-karpenter.sh" ]; then
+      bash scripts/install-karpenter.sh
     else
       warn "install-karpenter.sh not found, skipping"
     fi
@@ -199,13 +199,13 @@ if [ "$SKIP_APPS" = false ]; then
   # Install ArgoCD (if configured)
   info "Installing ArgoCD..."
   if [ "$DRY_RUN" = false ]; then
-    if [ -f "platform/argocd/install.sh" ]; then
-      bash platform/argocd/install.sh
+    if [ -f "scripts/install-argocd.sh" ]; then
+      bash scripts/install-argocd.sh
     else
       info "ArgoCD install script not found yet, skipping for now"
     fi
   fi
-  
+
   # Install Keycloak (if configured)
   info "Installing Keycloak..."
   if [ "$DRY_RUN" = false ]; then
@@ -215,13 +215,13 @@ if [ "$SKIP_APPS" = false ]; then
       info "Keycloak install script not found yet, skipping for now"
     fi
   fi
-  
+
 ################################################################################
 # Phase 3: Applications
 ################################################################################
 
   step "Phase 3: Applications"
-  
+
   # Install Backstage (if configured)
   info "Installing Backstage..."
   if [ "$DRY_RUN" = false ]; then
@@ -249,7 +249,7 @@ echo ""
 if [ "$DRY_RUN" = false ] && [ "$SKIP_TERRAFORM" = false ]; then
   CLUSTER_NAME=$(cd cluster/terraform && terraform output -raw cluster_name 2>/dev/null || echo "unknown")
   NLB_DNS=$(cd cluster/terraform && terraform output -raw nlb_dns_name 2>/dev/null || echo "unknown")
-  
+
   info "Cluster: $CLUSTER_NAME"
   info "Load Balancer: $NLB_DNS"
   echo ""

@@ -49,7 +49,7 @@ vim config.yaml
 
 # Done! Access your platform:
 # - Backstage: https://backstage.yourdomain.com
-# - ArgoCD: https://argocd.yourdomain.com  
+# - ArgoCD: https://argocd.yourdomain.com
 # - Keycloak: https://keycloak.yourdomain.com
 ```
 
