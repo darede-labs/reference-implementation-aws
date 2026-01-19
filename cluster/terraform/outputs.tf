@@ -124,25 +124,20 @@ output "github_app_secret_name" {
 }
 
 ################################################################################
-# AWS Backup Outputs
+# Karpenter Outputs
 ################################################################################
 
-output "backup_vault_name" {
-  description = "Name of AWS Backup vault"
-  value       = aws_backup_vault.main.name
+output "karpenter_enabled" {
+  description = "Whether Karpenter is enabled for node provisioning"
+  value       = local.karpenter_enabled
 }
 
-output "backup_vault_arn" {
-  description = "ARN of AWS Backup vault"
-  value       = aws_backup_vault.main.arn
+output "karpenter_irsa_arn" {
+  description = "ARN of Karpenter IRSA role"
+  value       = local.karpenter_enabled ? module.karpenter[0].iam_role_arn : null
 }
 
-output "backup_plan_id" {
-  description = "ID of PostgreSQL backup plan"
-  value       = aws_backup_plan.postgresql.id
+output "karpenter_queue_name" {
+  description = "Name of Karpenter SQS interruption queue"
+  value       = local.karpenter_enabled ? module.karpenter[0].queue_name : null
 }
-
-# output "backup_plan_eks_id" {
-#   description = "ID of full EKS cluster backup plan"
-#   value       = aws_backup_plan.eks_cluster.id
-# }

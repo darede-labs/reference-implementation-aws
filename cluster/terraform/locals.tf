@@ -9,8 +9,8 @@ locals {
   auto_mode    = tobool(local.config_file.auto_mode)
 
   # IAM authentication method: "irsa" or "pod-identity"
-  iam_auth_method = try(local.config_file.iam_auth_method, "irsa")
-  use_irsa        = local.iam_auth_method == "irsa"
+  iam_auth_method  = try(local.config_file.iam_auth_method, "irsa")
+  use_irsa         = local.iam_auth_method == "irsa"
   use_pod_identity = local.iam_auth_method == "pod-identity"
 
   # VPC configuration
@@ -21,22 +21,22 @@ locals {
   azs        = slice(data.aws_availability_zones.available.names, 0, local.azs_count)
 
   # Existing VPC config (only used if mode is "existing")
-  existing_vpc_id            = try(local.vpc_config.vpc_id, null)
-  existing_private_subnets   = try(local.vpc_config.private_subnet_ids, [])
-  existing_public_subnets    = try(local.vpc_config.public_subnet_ids, [])
+  existing_vpc_id          = try(local.vpc_config.vpc_id, null)
+  existing_private_subnets = try(local.vpc_config.private_subnet_ids, [])
+  existing_public_subnets  = try(local.vpc_config.public_subnet_ids, [])
 
   # NAT Gateway mode: single or one_per_az
   nat_gateway_single = try(local.vpc_config.nat_gateway_mode, "single") == "single"
 
   # Node groups configuration
-  node_config      = try(local.config_file.node_groups, {})
-  capacity_type    = try(local.node_config.capacity_type, "SPOT")
-  instance_types   = try(local.node_config.instance_types, ["t3.medium", "t3a.medium", "t2.medium"])
-  node_min_size    = try(local.node_config.scaling.min_size, 1)
-  node_max_size    = try(local.node_config.scaling.max_size, 3)
-  node_desired     = try(local.node_config.scaling.desired_size, 1)
-  node_disk_size   = try(local.node_config.disk_size, 50)
-  node_labels      = try(local.node_config.labels, {})
+  node_config    = try(local.config_file.node_groups, {})
+  capacity_type  = try(local.node_config.capacity_type, "SPOT")
+  instance_types = try(local.node_config.instance_types, ["t3.medium", "t3a.medium", "t2.medium"])
+  node_min_size  = try(local.node_config.scaling.min_size, 1)
+  node_max_size  = try(local.node_config.scaling.max_size, 3)
+  node_desired   = try(local.node_config.scaling.desired_size, 1)
+  node_disk_size = try(local.node_config.disk_size, 50)
+  node_labels    = try(local.node_config.labels, {})
 
   # Domain configuration
   domain                 = local.config_file.domain
@@ -50,7 +50,7 @@ locals {
   subdomains = try(local.config_file.subdomains, {})
 
   # Network Load Balancer for ingress-nginx
-  enable_nlb = tobool(try(local.config_file.enable_nlb, true))
+  enable_nlb          = tobool(try(local.config_file.enable_nlb, true))
   acm_certificate_arn = try(local.config_file.acm_certificate_arn, "")
 
   # Tags from config
@@ -60,7 +60,7 @@ locals {
   tags = merge(
     local.config_tags,
     {
-      ManagedBy = "terraform"
+      ManagedBy    = "terraform"
       ConfigSource = "config.yaml"
     }
   )

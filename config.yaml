@@ -53,19 +53,51 @@ vpc:
   nat_gateway_mode: "single"
 
 ################################################################################
-# Node Group Configuration (only when auto_mode is "false")
+# Node Provisioning Configuration
+################################################################################
+
+# Use Karpenter for dynamic node provisioning (recommended for cost optimization)
+# Set to "true" to enable Karpenter, "false" to use managed node groups
+use_karpenter: "true"
+
+# Karpenter Configuration (only when use_karpenter is "true")
+karpenter:
+  # Default instance types (Karpenter will choose based on workload)
+  # Recommended: Use instance families for flexibility
+  instance_types:
+    - "t3a.medium"    # Primary: Best cost-performance
+    - "t3.medium"     # Fallback: Widely available
+    - "t2.medium"     # Fallback: Additional availability
+
+  # Capacity type: "spot" (70% cheaper) or "on-demand" (reliable)
+  # Karpenter can mix both based on availability
+  capacity_type: "spot"  # Options: "spot", "on-demand", "spot-preferred"
+
+  # Resource limits (to prevent runaway costs)
+  limits:
+    cpu: 20        # Maximum vCPUs across all Karpenter nodes
+    memory: 80Gi   # Maximum memory across all Karpenter nodes
+
+  # Consolidation: Automatically remove underutilized nodes
+  consolidation_enabled: true
+
+  # TTL: Time nodes stay empty before termination (in seconds)
+  ttl_seconds_after_empty: 30
+
+  # Disruption budget: Limit node replacements
+  disruption_budget: "10%"  # Max 10% of nodes can be disrupted at once
+
+  # Disk size per node in GB
+  disk_size: 50
+
+################################################################################
+# Legacy Node Group Configuration (only when use_karpenter is "false")
 ################################################################################
 
 node_groups:
   # Capacity type: "SPOT" (70% cheaper) or "ON_DEMAND" (reliable)
-  # Recommended: SPOT for dev/staging, ON_DEMAND for production
   capacity_type: "SPOT"
-  # Instance types (list for better Spot availability)
-  # Recommended families:
-  #   - General purpose: t3, t3a, t2, m5, m6i
-  #   - Compute optimized: c5, c6i
-  #   - Memory optimized: r5, r6i
-  # Sizes: medium, large, xlarge, 2xlarge
+  
   instance_types:
     - "t3.medium"
     - "t3a.medium"
@@ -73,12 +105,11 @@ node_groups:
 
   # Auto Scaling configuration
   scaling:
-    min_size: 3      # Minimum nodes (recommended: 3 for HA)
-    max_size: 6      # Maximum nodes (adjust based on workload)
-    desired_size: 4  # Initial nodes (needed for full platform deployment)
+    min_size: 2      # Minimum nodes for POC
+    max_size: 4      # Maximum nodes
+    desired_size: 2  # Initial nodes (cost-optimized)
 
   # Disk size per node in GB
-  # Recommended: 50-100 GB for general workloads
   disk_size: 50
 
   # Node labels (for pod scheduling)

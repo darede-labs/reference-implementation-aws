@@ -8,7 +8,7 @@ locals {
   use_cognito = try(local.config_file.identity_provider, "cognito") == "cognito"
 
   # Cognito configuration from config.yaml
-  cognito_config     = try(local.config_file.cognito, {})
+  cognito_config      = try(local.config_file.cognito, {})
   cognito_admin_email = try(local.cognito_config.admin_email, "admin@example.com")
 
   # Application hosts (dynamic from config.yaml)
