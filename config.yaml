@@ -280,9 +280,9 @@ keycloak:
 ################################################################################
 
 tags:
-  # OBRIGATÓRIO - Cloud Economics (altere com código do projeto no Jira)
-  cloud_economics: "Darede-IDP::platform"  # ALTERAR para código correto do Jira
-  
+  # OBRIGATÓRIO - Cloud Economics (vertical DevOps)
+  cloud_economics: "Darede-IDP::devops"
+
   # Tags adicionais para organização
   githubRepo: "github.com/darede-labs/reference-implementation-aws"
   env: "poc"
