@@ -58,11 +58,18 @@ vpc:
 
 # Use Karpenter for dynamic node provisioning (recommended for cost optimization)
 # Set to "true" to enable Karpenter, "false" to use managed node groups
-# Temporarily disabled to create initial nodes
-use_karpenter: "false"
+use_karpenter: "true"
 
 # Karpenter Configuration (only when use_karpenter is "true")
+# Latest versions: https://github.com/aws/karpenter-provider-aws/tags
 karpenter:
+  # Karpenter Helm chart version
+  # v1.8.5 (Jan 15, 2026) - Latest stable
+  # v1.8.4 (Jan 13, 2026)
+  # v1.7.4 (Dec 12, 2025)
+  # v1.1.1 (Legacy - your previous version)
+  version: "1.8.5"
+
   # Default instance types (Karpenter will choose based on workload)
   # Recommended: Use instance families for flexibility
   instance_types:

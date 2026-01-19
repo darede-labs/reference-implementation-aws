@@ -113,22 +113,21 @@ resource "aws_eks_node_group" "karpenter_bootstrap" {
   # Use on-demand for stability (Karpenter controller must always run)
   capacity_type = "ON_DEMAND"
 
-  instance_types = ["t3a.small"] # Small instance for Karpenter controller
+  instance_types = ["t3a.small", "t3.small"] # Small instances for Karpenter controller
 
   scaling_config {
     desired_size = 2
-    min_size     = 2
-    max_size     = 2
+    min_size     = 1
+    max_size     = 3
   }
 
-  # Taint to prevent workloads from scheduling here
-  # Karpenter will provision separate nodes for application workloads
-  taint {
-    key    = "CriticalAddonsOnly"
-    value  = "true"
-    effect = "NO_SCHEDULE"
+  update_config {
+    max_unavailable = 1
   }
 
+  # Labels for identification
+  # Note: No taints - allow system pods and Karpenter controller to schedule here
+  # Application workloads will prefer Karpenter-provisioned nodes via nodeSelector/affinity
   labels = {
     role                     = "karpenter-bootstrap"
     "karpenter.sh/discovery" = module.eks.cluster_name

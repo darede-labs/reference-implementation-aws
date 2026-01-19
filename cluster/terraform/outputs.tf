@@ -142,6 +142,11 @@ output "karpenter_queue_name" {
   value       = local.karpenter_enabled ? module.karpenter[0].queue_name : null
 }
 
+output "karpenter_version" {
+  description = "Karpenter Helm chart version (from config.yaml)"
+  value       = local.karpenter_version
+}
+
 ################################################################################
 # Keycloak RDS Outputs
 ################################################################################

@@ -44,6 +44,8 @@ locals {
 
   # Karpenter configuration
   karpenter_enabled = tobool(try(local.config_file.use_karpenter, "false"))
+  karpenter_config  = try(local.config_file.karpenter, {})
+  karpenter_version = try(local.karpenter_config.version, "1.8.5")
 
   # Subdomains
   subdomains = try(local.config_file.subdomains, {})
