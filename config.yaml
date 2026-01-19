@@ -214,14 +214,61 @@ acm_certificate_arn: "arn:aws:acm:us-east-1:948881762705:certificate/051f6515-0d
 tls_termination: "nlb"
 
 ################################################################################
-# AWS Cognito Configuration (OIDC Provider)
+# Identity Provider Configuration
 ################################################################################
-# NOTE: Cognito resources are now FULLY MANAGED by Terraform (cluster/terraform/cognito.tf)
-# Values are automatically created during cluster provisioning and read from Terraform outputs
-# No manual configuration required - install.sh reads from: terraform output cognito_*
-#
-# Optional: Set identity_provider to skip Cognito creation
-# identity_provider: "keycloak"  # Options: "cognito" (default), "keycloak", "okta"
+
+# Choose identity provider: "cognito" or "keycloak"
+# - cognito: AWS managed, limited user management UI
+# - keycloak: Self-hosted, full admin UI, better for team management
+identity_provider: "keycloak"
+
+################################################################################
+# Keycloak Configuration (when identity_provider: "keycloak")
+################################################################################
+
+keycloak:
+  # Enable Keycloak deployment and RDS database
+  enabled: "true"
+  
+  # Keycloak deployment configuration
+  replicas: 1  # Single replica for POC (use 2+ for production HA)
+  
+  # Admin credentials (stored in Secrets Manager)
+  admin_user: "admin"
+  admin_password: "changeme"  # Change this!
+  
+  # Subdomain for Keycloak UI
+  subdomain: "keycloak"  # Will be: keycloak.timedevops.click
+  
+  # Database configuration
+  database:
+    # Instance type - cost optimized options:
+    # - db.t4g.micro: ~$12/month (ARM Graviton2, cheapest)
+    # - db.t3.micro: ~$14/month (x86, wider region support)
+    # - db.t4g.small: ~$24/month (more performance if needed)
+    instance_class: "db.t4g.micro"
+    
+    # Storage configuration (minimum for cost savings)
+    allocated_storage: 20  # GB - minimum recommended
+    
+    # PostgreSQL version (Keycloak supports 12+)
+    postgres_version: "15.8"
+    
+    # Database name and username
+    name: "keycloak"
+    username: "keycloak"
+    
+    # High availability (disable for cost savings in dev/POC)
+    multi_az: "false"  # Set to "true" for production
+    
+    # Backup retention (1 day minimum for cost savings)
+    backup_retention_days: 1  # Increase to 7-30 for production
+
+################################################################################
+# AWS Cognito Configuration (DEPRECATED - use Keycloak instead)
+################################################################################
+# NOTE: Cognito resources only created if identity_provider: "cognito"
+# Keycloak is recommended for better user management
 ################################################################################
 
 ################################################################################
