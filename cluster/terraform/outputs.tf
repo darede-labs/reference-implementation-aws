@@ -147,6 +147,11 @@ output "karpenter_version" {
   value       = local.karpenter_version
 }
 
+output "karpenter_node_role_name" {
+  description = "IAM role name for Karpenter-provisioned nodes"
+  value       = local.karpenter_enabled ? module.karpenter[0].node_iam_role_name : null
+}
+
 ################################################################################
 # Keycloak RDS Outputs
 ################################################################################

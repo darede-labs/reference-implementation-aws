@@ -17,9 +17,12 @@ cd "$TERRAFORM_DIR"
 
 CLUSTER_NAME=$(terraform output -raw cluster_name)
 CLUSTER_ENDPOINT=$(terraform output -raw cluster_endpoint)
-CLUSTER_CA=$(terraform output -raw cluster_certificate_authority_data)
+CLUSTER_CA=$(terraform output -raw cluster_certificate_authority_data 2>/dev/null || echo "")
 KARPENTER_NODE_ROLE=$(terraform output -raw karpenter_node_role_name 2>/dev/null || echo "")
 AWS_REGION=$(terraform output -raw region)
+
+# Get cloud_economics tag from Terraform
+CLOUD_ECONOMICS_TAG=$(terraform output -json validation_summary 2>/dev/null | jq -r '.cloud_economics_tag // "Darede-IDP::devops"')
 
 if [ -z "$KARPENTER_NODE_ROLE" ]; then
     echo "Warning: karpenter_node_role_name output not found, using default pattern"
@@ -46,15 +49,15 @@ spec:
   # IAM Role for nodes (created by Terraform)
   role: "${KARPENTER_NODE_ROLE}"
 
-  # Subnet selection (private subnets with Karpenter discovery tag)
+  # Subnet selection (private subnets for EKS)
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}"
+        kubernetes.io/role/internal-elb: "1"
 
-  # Security group selection
+  # Security group selection (cluster security group)
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}"
+        aws:eks:cluster-name: "${CLUSTER_NAME}"
 
   # Block device mappings (disk configuration)
   blockDeviceMappings:
@@ -83,6 +86,7 @@ spec:
     Name: "karpenter-${CLUSTER_NAME}"
     ManagedBy: karpenter
     Environment: poc
+    cloud_economics: "${CLOUD_ECONOMICS_TAG}"
     karpenter.sh/discovery: "${CLUSTER_NAME}"
 EOF
 
@@ -165,9 +169,6 @@ spec:
     # Budget for disruptions (max 10% of nodes can be disrupted at once)
     budgets:
       - nodes: "10%"
-
-    # Expire nodes after 168h (7 days) to get fresh nodes with latest AMI
-    expireAfter: 168h
 
   # Weight for scheduling priority (higher = preferred)
   weight: 10

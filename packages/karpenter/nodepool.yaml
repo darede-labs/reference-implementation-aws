@@ -41,7 +41,7 @@ spec:
           operator: In
           values: ["linux"]
 
-        # Instance category: general purpose
+        # Instance category: general purpose (t-series)
         - key: karpenter.k8s.aws/instance-category
           operator: In
           values: ["t"]
@@ -51,12 +51,17 @@ spec:
           operator: Gt
           values: ["2"]
 
+        # Specific instance types (from config.yaml)
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["t3a.medium", "t3.medium", "t2.medium"]
+
   # Limits for this NodePool
   limits:
     cpu: "20"      # Maximum 20 vCPUs across all nodes in this pool
     memory: 80Gi   # Maximum 80GB RAM across all nodes in this pool
 
-  # Disruption settings (consolidation, drift, etc)
+  # Disruption settings (consolidation, expiration, etc)
   disruption:
     # Consolidation: Replace underutilized nodes with cheaper/smaller ones
     consolidationPolicy: WhenEmptyOrUnderutilized

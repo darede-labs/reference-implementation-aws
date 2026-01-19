@@ -5,31 +5,21 @@ metadata:
 spec:
   # AMI Selection
   amiSelectorTerms:
-    # Use latest EKS-optimized AMI
+    # Use latest EKS-optimized Amazon Linux 2023 AMI
     - alias: al2023@latest
 
   # IAM Role for nodes (created by Terraform)
-  role: "Karpenter-{{ cluster_name }}-{{ region }}"
+  role: "Karpenter-idp-poc-darede-cluster-20260119170820638700000005"
 
-  # Subnet selection (private subnets with EKS cluster tag)
+  # Subnet selection (private subnets for EKS)
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "{{ cluster_name }}"
+        kubernetes.io/role/internal-elb: "1"
 
-  # Security group selection
+  # Security group selection (cluster security group)
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "{{ cluster_name }}"
-
-  # User data for node bootstrapping
-  userData: |
-    #!/bin/bash
-    set -euo pipefail
-
-    # Bootstrap EKS node
-    /etc/eks/bootstrap.sh "{{ cluster_name }}" \
-      --b64-cluster-ca "{{ cluster_ca }}" \
-      --apiserver-endpoint "{{ cluster_endpoint }}"
+        aws:eks:cluster-name: "idp-poc-darede-cluster"
 
   # Block device mappings (disk configuration)
   blockDeviceMappings:
@@ -55,6 +45,8 @@ spec:
 
   # Tags applied to EC2 instances
   tags:
-    Name: "karpenter-{{ cluster_name }}"
+    Name: "karpenter-idp-poc-darede-cluster"
     ManagedBy: karpenter
     Environment: poc
+    cloud_economics: "Darede-IDP::devops"
+    karpenter.sh/discovery: "idp-poc-darede-cluster"
