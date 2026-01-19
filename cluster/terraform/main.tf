@@ -4,10 +4,6 @@ provider "aws" {
   # This allows multi-operator usage and AWS SSO compatibility
 }
 
-data "aws_eks_cluster_auth" "this" {
-  name = module.eks.cluster_name
-}
-
 data "aws_caller_identity" "current" {}
 data "aws_availability_zones" "available" {}
 

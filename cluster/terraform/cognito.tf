@@ -7,10 +7,6 @@
 locals {
   use_cognito = try(local.config_file.identity_provider, "cognito") == "cognito"
 
-  # Cognito configuration from config.yaml
-  cognito_config      = try(local.config_file.cognito, {})
-  cognito_admin_email = try(local.cognito_config.admin_email, "admin@example.com")
-
   # Application hosts (dynamic from config.yaml)
   backstage_host = local.path_routing ? local.domain : "${try(local.subdomains.backstage, "backstage")}.${local.domain}"
   argocd_host    = local.path_routing ? local.domain : "${try(local.subdomains.argocd, "argocd")}.${local.domain}"
