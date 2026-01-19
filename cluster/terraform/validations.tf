@@ -16,6 +16,37 @@
 ################################################################################
 
 ################################################################################
+# Cloud Economics Tag Validation (MANDATORY)
+################################################################################
+# All AWS resources MUST have the cloud_economics tag for cost tracking
+# Format: "Darede-<JIRA_CODE>::<vertical>"
+# Example: "Darede-RPCNE::netfound", "Darede-IDP::platform"
+################################################################################
+
+resource "null_resource" "validate_cloud_economics_tag" {
+  triggers = {
+    cloud_economics_tag = try(local.config_tags.cloud_economics, "")
+  }
+
+  lifecycle {
+    precondition {
+      condition     = can(local.config_tags.cloud_economics) && length(local.config_tags.cloud_economics) > 0
+      error_message = "MANDATORY: 'cloud_economics' tag is missing in config.yaml. Add it with format: 'Darede-<JIRA_CODE>::<vertical>'. Example: 'Darede-IDP::platform'"
+    }
+
+    precondition {
+      condition     = can(regex("^Darede-[A-Z0-9]+(::.*)?$", local.config_tags.cloud_economics))
+      error_message = "INVALID FORMAT: cloud_economics tag '${try(local.config_tags.cloud_economics, "")}' must follow format: 'Darede-<JIRA_CODE>::<vertical>'. Example: 'Darede-RPCNE::devops'"
+    }
+
+    precondition {
+      condition     = can(regex("::", local.config_tags.cloud_economics))
+      error_message = "INCOMPLETE TAG: cloud_economics tag '${try(local.config_tags.cloud_economics, "")}' must include vertical. Format: 'Darede-<JIRA_CODE>::<vertical>'. Example: 'Darede-IDP::platform'"
+    }
+  }
+}
+
+################################################################################
 # Cluster Name Validations
 ################################################################################
 

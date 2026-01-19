@@ -20,7 +20,7 @@ locals {
   # Instance configuration
   keycloak_db_instance_class    = try(local.config_file.keycloak.database.instance_class, "db.t4g.micro")
   keycloak_db_allocated_storage = try(local.config_file.keycloak.database.allocated_storage, 20)
-  keycloak_db_engine_version    = try(local.config_file.keycloak.database.postgres_version, "15.8")
+  keycloak_db_engine_version    = try(local.config_file.keycloak.database.postgres_version, "15.15")
 
   # High availability (disable for cost savings in dev)
   keycloak_db_multi_az = tobool(try(local.config_file.keycloak.database.multi_az, "false"))
@@ -198,9 +198,6 @@ resource "aws_db_instance" "keycloak" {
   # Deletion protection - disabled for POC (enable in production)
   deletion_protection = false
 
-  # Parameter group for PostgreSQL optimization (optional)
-  # parameter_group_name = aws_db_parameter_group.keycloak[0].name
-
   tags = merge(
     local.tags,
     {
@@ -215,37 +212,3 @@ resource "aws_db_instance" "keycloak" {
   ]
 }
 
-################################################################################
-# Optional: DB Parameter Group for Keycloak Optimization
-################################################################################
-
-resource "aws_db_parameter_group" "keycloak" {
-  count = local.keycloak_enabled ? 1 : 0
-
-  name_prefix = "${local.cluster_name}-keycloak-"
-  family      = "postgres15"
-  description = "PostgreSQL parameter group for Keycloak"
-
-  # Optimizations for Keycloak workload (mostly reads)
-  parameter {
-    name  = "max_connections"
-    value = "100"
-  }
-
-  parameter {
-    name  = "shared_buffers"
-    value = "{DBInstanceClassMemory/32768}" # 25% of RAM
-  }
-
-  tags = merge(
-    local.tags,
-    {
-      Name      = "${local.cluster_name}-keycloak-params"
-      Component = "keycloak"
-    }
-  )
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}

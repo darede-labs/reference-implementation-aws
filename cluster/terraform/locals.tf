@@ -56,6 +56,8 @@ locals {
   config_tags = local.config_file.tags
 
   # Merge with additional tags
+  # cloud_economics tag is MANDATORY for all resources (Cloud Economics policy)
+  # Validation is performed in validations.tf
   tags = merge(
     local.config_tags,
     {

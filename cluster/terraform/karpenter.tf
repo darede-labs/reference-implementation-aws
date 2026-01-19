@@ -33,202 +33,28 @@ module "karpenter" {
 }
 
 ################################################################################
-# Karpenter Helm Release (installed via Terraform for consistency)
+# Karpenter Installation
 ################################################################################
-
-resource "helm_release" "karpenter" {
-  count      = local.karpenter_enabled ? 1 : 0
-  namespace  = "kube-system"
-  name       = "karpenter"
-  repository = "oci://public.ecr.aws/karpenter"
-  chart      = "karpenter"
-  version    = "1.1.1" # Latest stable version as of 2026-01
-
-  values = [
-    yamlencode({
-      settings = {
-        clusterName       = module.eks.cluster_name
-        clusterEndpoint   = module.eks.cluster_endpoint
-        interruptionQueue = module.karpenter[0].queue_name
-      }
-      serviceAccount = {
-        annotations = {
-          "eks.amazonaws.com/role-arn" = module.karpenter[0].iam_role_arn
-        }
-      }
-      # Resource limits for Karpenter controller
-      resources = {
-        requests = {
-          cpu    = "100m"
-          memory = "256Mi"
-        }
-        limits = {
-          cpu    = "1000m"
-          memory = "1Gi"
-        }
-      }
-    })
-  ]
-
-  depends_on = [
-    module.eks,
-    module.karpenter
-  ]
-}
-
+# NOTE: Karpenter Helm chart and CRDs must be installed AFTER cluster creation.
+#
+# This is intentionally not managed by Terraform to avoid circular dependencies.
+# After cluster creation, install using:
+#
+# 1. Configure kubectl:
+#    aws eks update-kubeconfig --name <cluster-name> --region us-east-1
+#
+# 2. Install Karpenter:
+#    helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
+#      --version 1.1.1 \
+#      --namespace kube-system \
+#      --set settings.clusterName=$(terraform output -raw cluster_name) \
+#      --set settings.clusterEndpoint=$(terraform output -raw cluster_endpoint) \
+#      --set settings.interruptionQueue=$(terraform output -raw karpenter_queue_name) \
+#      --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=$(terraform output -raw karpenter_irsa_arn)
+#
+# 3. Apply NodePool and EC2NodeClass manifests from packages/karpenter/ directory
+#
 ################################################################################
-# Karpenter NodePool (previously Provisioner in v0.x)
-################################################################################
-
-resource "kubectl_manifest" "karpenter_node_pool" {
-  count = local.karpenter_enabled ? 1 : 0
-
-  yaml_body = yamlencode({
-    apiVersion = "karpenter.sh/v1"
-    kind       = "NodePool"
-    metadata = {
-      name = "default"
-    }
-    spec = {
-      # Template for nodes created by this NodePool
-      template = {
-        spec = {
-          # Node class reference
-          nodeClassRef = {
-            group = "karpenter.k8s.aws"
-            kind  = "EC2NodeClass"
-            name  = "default"
-          }
-
-          # Requirements for node selection
-          requirements = [
-            {
-              key      = "karpenter.sh/capacity-type"
-              operator = "In"
-              values   = [try(local.config_file.karpenter.capacity_type, "spot")]
-            },
-            {
-              key      = "node.kubernetes.io/instance-type"
-              operator = "In"
-              values   = try(local.config_file.karpenter.instance_types, ["t3a.medium", "t3.medium", "t2.medium"])
-            },
-            {
-              key      = "kubernetes.io/arch"
-              operator = "In"
-              values   = ["amd64"]
-            }
-          ]
-
-          # Taints to apply to nodes (optional)
-          # taints = []
-        }
-      }
-
-      # Resource limits to prevent runaway costs
-      limits = {
-        cpu    = try(local.config_file.karpenter.limits.cpu, "20")
-        memory = try(local.config_file.karpenter.limits.memory, "80Gi")
-      }
-
-      # Disruption budget
-      disruption = {
-        consolidationPolicy = try(local.config_file.karpenter.consolidation_enabled, true) ? "WhenEmptyOrUnderutilized" : "WhenEmpty"
-        consolidateAfter    = "${try(local.config_file.karpenter.ttl_seconds_after_empty, 30)}s"
-        budgets = [
-          {
-            nodes = try(local.config_file.karpenter.disruption_budget, "10%")
-          }
-        ]
-      }
-    }
-  })
-
-  depends_on = [
-    helm_release.karpenter
-  ]
-}
-
-################################################################################
-# Karpenter EC2NodeClass (AWS-specific configuration)
-################################################################################
-
-resource "kubectl_manifest" "karpenter_node_class" {
-  count = local.karpenter_enabled ? 1 : 0
-
-  yaml_body = yamlencode({
-    apiVersion = "karpenter.k8s.aws/v1"
-    kind       = "EC2NodeClass"
-    metadata = {
-      name = "default"
-    }
-    spec = {
-      # AMI Family
-      amiFamily = "AL2023" # Amazon Linux 2023 (recommended)
-
-      # Subnets for node placement
-      subnetSelectorTerms = [
-        {
-          tags = {
-            "kubernetes.io/role/internal-elb" = "1"
-          }
-        }
-      ]
-
-      # Security groups for nodes
-      securityGroupSelectorTerms = [
-        {
-          tags = {
-            "aws:eks:cluster-name" = module.eks.cluster_name
-          }
-        }
-      ]
-
-      # IAM role for nodes
-      role = module.karpenter[0].node_iam_role_name
-
-      # User data (bootstrap script)
-      userData = base64encode(<<-EOT
-        #!/bin/bash
-        /etc/eks/bootstrap.sh ${module.eks.cluster_name}
-      EOT
-      )
-
-      # Block device mappings
-      blockDeviceMappings = [
-        {
-          deviceName = "/dev/xvda"
-          ebs = {
-            volumeSize          = "${try(local.config_file.karpenter.disk_size, 50)}Gi"
-            volumeType          = "gp3"
-            deleteOnTermination = true
-            encrypted           = true
-          }
-        }
-      ]
-
-      # Tags to apply to launched instances
-      tags = merge(
-        local.tags,
-        {
-          Name                   = "${local.cluster_name}-karpenter-node"
-          "karpenter.sh/cluster" = module.eks.cluster_name
-        }
-      )
-
-      # Metadata options for IMDSv2
-      metadataOptions = {
-        httpEndpoint            = "enabled"
-        httpProtocolIPv6        = "disabled"
-        httpPutResponseHopLimit = 2
-        httpTokens              = "required" # IMDSv2 only
-      }
-    }
-  })
-
-  depends_on = [
-    helm_release.karpenter
-  ]
-}
 
 ################################################################################
 # IAM Role for Karpenter Bootstrap Nodes
