@@ -97,7 +97,7 @@ karpenter:
 node_groups:
   # Capacity type: "SPOT" (70% cheaper) or "ON_DEMAND" (reliable)
   capacity_type: "SPOT"
-  
+
   instance_types:
     - "t3.medium"
     - "t3a.medium"

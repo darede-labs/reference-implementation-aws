@@ -7,10 +7,7 @@
 # - Node consolidation (removes underutilized nodes)
 # - Flexible instance type selection
 ################################################################################
-
-locals {
-  karpenter_enabled = tobool(try(local.config_file.use_karpenter, "false"))
-}
+# Note: karpenter_enabled is defined in locals.tf
 
 ################################################################################
 # Karpenter Module
