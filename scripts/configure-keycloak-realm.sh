@@ -73,20 +73,25 @@ kubectl cp "${KEYCLOAK_DIR}/realm-config.json" \
     "$KEYCLOAK_NAMESPACE/$POD_NAME:/tmp/realm-config.json"
 
 # Import realm using Keycloak CLI
+# Use /tmp for config file as /home/keycloak is read-only in Bitnami containers
 kubectl exec -n "$KEYCLOAK_NAMESPACE" "$POD_NAME" -- bash -c "
+    # Set config file to writeable location
+    export KC_OPTS='-Dkc.config.file=/tmp/kcadm.config'
+    
     /opt/bitnami/keycloak/bin/kcadm.sh config credentials \
         --server http://localhost:8080 \
         --realm master \
         --user '$ADMIN_USER' \
-        --password '$ADMIN_PASSWORD'
-    
+        --password '$ADMIN_PASSWORD' \
+        --config /tmp/kcadm.config
+
     # Check if realm already exists
-    if /opt/bitnami/keycloak/bin/kcadm.sh get realms/platform 2>/dev/null; then
+    if /opt/bitnami/keycloak/bin/kcadm.sh get realms/platform --config /tmp/kcadm.config 2>/dev/null; then
         echo 'Realm platform already exists, updating...'
-        /opt/bitnami/keycloak/bin/kcadm.sh update realms/platform -f /tmp/realm-config.json
+        /opt/bitnami/keycloak/bin/kcadm.sh update realms/platform -f /tmp/realm-config.json --config /tmp/kcadm.config
     else
         echo 'Creating realm platform...'
-        /opt/bitnami/keycloak/bin/kcadm.sh create realms -f /tmp/realm-config.json
+        /opt/bitnami/keycloak/bin/kcadm.sh create realms -f /tmp/realm-config.json --config /tmp/kcadm.config
     fi
 "
 
@@ -101,58 +106,64 @@ info "Configuring OIDC clients..."
 # ArgoCD Client
 if [ -f "${KEYCLOAK_DIR}/clients/argocd-client.json" ]; then
     info "Importing ArgoCD OIDC client..."
-    
+
     kubectl cp "${KEYCLOAK_DIR}/clients/argocd-client.json" \
         "$KEYCLOAK_NAMESPACE/$POD_NAME:/tmp/argocd-client.json"
-    
+
     kubectl exec -n "$KEYCLOAK_NAMESPACE" "$POD_NAME" -- bash -c "
+        export KC_OPTS='-Dkc.config.file=/tmp/kcadm.config'
+        
         /opt/bitnami/keycloak/bin/kcadm.sh config credentials \
             --server http://localhost:8080 \
             --realm master \
             --user '$ADMIN_USER' \
-            --password '$ADMIN_PASSWORD'
-        
+            --password '$ADMIN_PASSWORD' \
+            --config /tmp/kcadm.config
+
         # Check if client exists
-        CLIENT_ID=\$(/opt/bitnami/keycloak/bin/kcadm.sh get clients -r platform --fields id,clientId | grep '\"clientId\" : \"argocd\"' -B 1 | grep '\"id\"' | cut -d '\"' -f 4)
-        
+        CLIENT_ID=\$(/opt/bitnami/keycloak/bin/kcadm.sh get clients -r platform --fields id,clientId --config /tmp/kcadm.config | grep '\"clientId\" : \"argocd\"' -B 1 | grep '\"id\"' | cut -d '\"' -f 4)
+
         if [ -n \"\$CLIENT_ID\" ]; then
             echo 'ArgoCD client already exists, updating...'
-            /opt/bitnami/keycloak/bin/kcadm.sh update clients/\$CLIENT_ID -r platform -f /tmp/argocd-client.json
+            /opt/bitnami/keycloak/bin/kcadm.sh update clients/\$CLIENT_ID -r platform -f /tmp/argocd-client.json --config /tmp/kcadm.config
         else
             echo 'Creating ArgoCD client...'
-            /opt/bitnami/keycloak/bin/kcadm.sh create clients -r platform -f /tmp/argocd-client.json
+            /opt/bitnami/keycloak/bin/kcadm.sh create clients -r platform -f /tmp/argocd-client.json --config /tmp/kcadm.config
         fi
     "
-    
+
     info "✓ ArgoCD client configured"
 fi
 
 # Backstage Client
 if [ -f "${KEYCLOAK_DIR}/clients/backstage-client.json" ]; then
     info "Importing Backstage OIDC client..."
-    
+
     kubectl cp "${KEYCLOAK_DIR}/clients/backstage-client.json" \
         "$KEYCLOAK_NAMESPACE/$POD_NAME:/tmp/backstage-client.json"
-    
+
     kubectl exec -n "$KEYCLOAK_NAMESPACE" "$POD_NAME" -- bash -c "
+        export KC_OPTS='-Dkc.config.file=/tmp/kcadm.config'
+        
         /opt/bitnami/keycloak/bin/kcadm.sh config credentials \
             --server http://localhost:8080 \
             --realm master \
             --user '$ADMIN_USER' \
-            --password '$ADMIN_PASSWORD'
-        
+            --password '$ADMIN_PASSWORD' \
+            --config /tmp/kcadm.config
+
         # Check if client exists
-        CLIENT_ID=\$(/opt/bitnami/keycloak/bin/kcadm.sh get clients -r platform --fields id,clientId | grep '\"clientId\" : \"backstage\"' -B 1 | grep '\"id\"' | cut -d '\"' -f 4)
-        
+        CLIENT_ID=\$(/opt/bitnami/keycloak/bin/kcadm.sh get clients -r platform --fields id,clientId --config /tmp/kcadm.config | grep '\"clientId\" : \"backstage\"' -B 1 | grep '\"id\"' | cut -d '\"' -f 4)
+
         if [ -n \"\$CLIENT_ID\" ]; then
             echo 'Backstage client already exists, updating...'
-            /opt/bitnami/keycloak/bin/kcadm.sh update clients/\$CLIENT_ID -r platform -f /tmp/backstage-client.json
+            /opt/bitnami/keycloak/bin/kcadm.sh update clients/\$CLIENT_ID -r platform -f /tmp/backstage-client.json --config /tmp/kcadm.config
         else
             echo 'Creating Backstage client...'
-            /opt/bitnami/keycloak/bin/kcadm.sh create clients -r platform -f /tmp/backstage-client.json
+            /opt/bitnami/keycloak/bin/kcadm.sh create clients -r platform -f /tmp/backstage-client.json --config /tmp/kcadm.config
         fi
     "
-    
+
     info "✓ Backstage client configured"
 fi
 

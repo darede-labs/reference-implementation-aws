@@ -72,8 +72,9 @@ resource "aws_security_group" "keycloak_rds" {
   }
 }
 
-# Allow PostgreSQL access from EKS nodes
-resource "aws_security_group_rule" "keycloak_rds_ingress_from_eks" {
+# Allow PostgreSQL access from EKS cluster security group (additional security group)
+# This is the cluster-level security group that gets attached to all nodes
+resource "aws_security_group_rule" "keycloak_rds_ingress_from_eks_cluster" {
   count = local.keycloak_enabled ? 1 : 0
 
   type                     = "ingress"
@@ -81,8 +82,22 @@ resource "aws_security_group_rule" "keycloak_rds_ingress_from_eks" {
   to_port                  = 5432
   protocol                 = "tcp"
   security_group_id        = aws_security_group.keycloak_rds[0].id
-  source_security_group_id = module.eks.node_security_group_id
-  description              = "Allow PostgreSQL from EKS nodes"
+  source_security_group_id = module.eks.cluster_security_group_id
+  description              = "Allow PostgreSQL from EKS additional cluster security group"
+}
+
+# Allow PostgreSQL access from EKS primary security group
+# This is the primary security group created by EKS for the cluster
+resource "aws_security_group_rule" "keycloak_rds_ingress_from_eks_primary" {
+  count = local.keycloak_enabled ? 1 : 0
+
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.keycloak_rds[0].id
+  source_security_group_id = module.eks.cluster_primary_security_group_id
+  description              = "Allow PostgreSQL from EKS primary security group"
 }
 
 # Allow all outbound (for updates, patches, etc)

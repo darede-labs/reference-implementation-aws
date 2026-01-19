@@ -9,6 +9,15 @@
 global:
   storageClass: gp3
 
+## Image configuration
+## IMPORTANT: Since August 28, 2024, Bitnami moved non-hardened images to bitnamilegacy registry
+## Using latest tag as it's the most reliable for bitnamilegacy registry
+image:
+  registry: docker.io
+  repository: bitnamilegacy/keycloak
+  tag: latest
+  pullPolicy: IfNotPresent
+
 ## Keycloak configuration
 auth:
   adminUser: {{ keycloak_admin_user }}
@@ -19,6 +28,9 @@ production: true
 
 ## Proxy configuration (TLS terminated at NLB)
 proxy: edge
+
+## Proxy headers (required for production mode when TLS is terminated externally)
+proxyHeaders: xforwarded
 
 ## Database configuration (External PostgreSQL - RDS)
 postgresql:
@@ -65,21 +77,32 @@ resources:
     memory: 512Mi
 
 ## Liveness and readiness probes
+## Initial startup takes ~4-5min for DB schema initialization
+## Maximum timeout: 120s per probe (failureThreshold * timeoutSeconds)
 livenessProbe:
   enabled: true
-  initialDelaySeconds: 120
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 6
+  initialDelaySeconds: 300  # 5min to allow for DB schema init
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
   successThreshold: 1
 
 readinessProbe:
   enabled: true
-  initialDelaySeconds: 60
+  initialDelaySeconds: 240  # 4min to allow for startup
   periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 6
+  failureThreshold: 12  # 2min of failures allowed
   successThreshold: 1
+
+## Startup probe (added for Kubernetes 1.18+)
+## This prevents liveness probe from killing the container during initial startup
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 12  # 6min total (12 * 30s)
 
 ## Pod Disruption Budget
 pdb:

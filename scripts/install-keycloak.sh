@@ -21,7 +21,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TERRAFORM_DIR="${SCRIPT_DIR}/../cluster/terraform"
 KEYCLOAK_DIR="${SCRIPT_DIR}/../platform/keycloak"
-KEYCLOAK_VERSION="${KEYCLOAK_VERSION:-23.0.7}"
+KEYCLOAK_VERSION="${KEYCLOAK_VERSION:-24.0.4}"
 KEYCLOAK_NAMESPACE="keycloak"
 
 info "Starting Keycloak installation..."
@@ -111,34 +111,51 @@ info "✓ Namespace ready"
 
 info "Fetching database credentials from AWS Secrets Manager..."
 
-# Apply the secret fetcher job
-if [ -f "${KEYCLOAK_DIR}/db-secret-job.yaml" ]; then
-    kubectl apply -f "${KEYCLOAK_DIR}/db-secret-job.yaml"
-    
-    # Wait for job to complete
-    info "Waiting for secret fetcher job to complete..."
-    kubectl wait --for=condition=complete --timeout=120s \
-        job/keycloak-db-secret-fetcher \
-        -n "$KEYCLOAK_NAMESPACE" 2>/dev/null || warn "Job may still be running"
-    
-    # Verify secret was created
-    if kubectl get secret keycloak-db-credentials -n "$KEYCLOAK_NAMESPACE" &>/dev/null; then
-        info "✓ Database credentials retrieved"
-    else
-        error "Failed to retrieve database credentials"
-    fi
-else
-    warn "db-secret-job.yaml not found, skipping credential fetch"
+# Fetch credentials directly using AWS CLI
+info "Retrieving secret from AWS Secrets Manager..."
+SECRET_JSON=$(aws secretsmanager get-secret-value \
+    --secret-id "$KEYCLOAK_DB_SECRET_ARN" \
+    --region "$REGION" \
+    --query SecretString \
+    --output text 2>/dev/null)
+
+if [ -z "$SECRET_JSON" ]; then
+    error "Failed to retrieve database credentials from Secrets Manager"
 fi
 
+# Parse JSON and extract values
+DB_USERNAME=$(echo "$SECRET_JSON" | jq -r .username)
+DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r .password)
+DB_HOST=$(echo "$SECRET_JSON" | jq -r .host)
+DB_PORT=$(echo "$SECRET_JSON" | jq -r .port)
+DB_NAME=$(echo "$SECRET_JSON" | jq -r .dbname)
+
+if [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" = "null" ]; then
+    error "Failed to parse database credentials"
+fi
+
+# Create Kubernetes Secret
+info "Creating Kubernetes secret for database credentials..."
+kubectl create secret generic keycloak-db-credentials \
+    --namespace="$KEYCLOAK_NAMESPACE" \
+    --from-literal=username="$DB_USERNAME" \
+    --from-literal=password="$DB_PASSWORD" \
+    --from-literal=host="$DB_HOST" \
+    --from-literal=port="$DB_PORT" \
+    --from-literal=database="$DB_NAME" \
+    --from-literal=jdbc-url="jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_NAME" \
+    --dry-run=client -o yaml | kubectl apply -f -
+
+info "✓ Database credentials retrieved and secret created"
+
 ################################################################################
-# Add Bitnami Legacy Helm Repository
+# Add Bitnami Helm Repository
 ################################################################################
 
-info "Adding Bitnami Legacy Helm repository..."
+info "Adding Bitnami Helm repository..."
 
-# Use bitnami-legacy to avoid hardened-only limitations
-helm repo add bitnami-legacy https://raw.githubusercontent.com/bitnami/charts/main/bitnami 2>/dev/null || true
+# Use bitnami repository (has all versions available)
+helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
 helm repo update
 
 info "✓ Helm repository updated"
@@ -157,7 +174,7 @@ fi
 
 info "Running: helm $HELM_ACTION keycloak..."
 
-helm "$HELM_ACTION" keycloak bitnami-legacy/keycloak \
+helm "$HELM_ACTION" keycloak bitnami/keycloak \
     --namespace "$KEYCLOAK_NAMESPACE" \
     --version "$KEYCLOAK_VERSION" \
     --values "${KEYCLOAK_DIR}/helm-values.yaml" \
