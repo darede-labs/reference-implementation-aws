@@ -58,7 +58,8 @@ vpc:
 
 # Use Karpenter for dynamic node provisioning (recommended for cost optimization)
 # Set to "true" to enable Karpenter, "false" to use managed node groups
-use_karpenter: "true"
+# Temporarily disabled to create initial nodes
+use_karpenter: "false"
 
 # Karpenter Configuration (only when use_karpenter is "true")
 karpenter:
