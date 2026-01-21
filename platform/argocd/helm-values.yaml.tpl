@@ -49,6 +49,24 @@ configs:
       end
       return hs
 
+    # ArgoCD Server URL (required for OIDC redirects)
+    url: https://{{ argocd_subdomain }}.{{ domain }}
+
+    # OIDC Configuration
+    oidc.config: |
+      name: Keycloak
+      issuer: https://{{ keycloak_subdomain }}.{{ domain }}/realms/platform
+      clientID: argocd
+      clientSecret: $oidc.keycloak.clientSecret
+      requestedScopes:
+        - openid
+        - profile
+        - email
+        - groups
+      requestedIDTokenClaims:
+        groups:
+          essential: true
+
   # RBAC Configuration
   rbac:
     policy.default: role:readonly
@@ -60,6 +78,11 @@ configs:
       p, role:org-admin, repositories, update, *, allow
       p, role:org-admin, repositories, delete, *, allow
       g, platform-team, role:org-admin
+
+  # SSO Configuration (Keycloak OIDC)
+  secret:
+    extra:
+      oidc.keycloak.clientSecret: "{{ keycloak_argocd_client_secret }}"
 
 ## Controller
 controller:

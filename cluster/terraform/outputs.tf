@@ -48,6 +48,17 @@ output "auto_mode_enabled" {
   value       = local.auto_mode
 }
 
+# Observability - Loki
+output "loki_bucket_name" {
+  description = "S3 bucket name for Loki chunks"
+  value       = aws_s3_bucket.loki.id
+}
+
+output "loki_role_arn" {
+  description = "IAM role ARN for Loki IRSA"
+  value       = module.loki_irsa.iam_role_arn
+}
+
 output "configure_kubectl" {
   description = "Configure kubectl: make sure you're logged in with the correct AWS profile and run the following command to update your kubeconfig"
   value       = "aws eks --region ${local.region} update-kubeconfig --name ${module.eks.cluster_name}"
@@ -190,4 +201,99 @@ output "keycloak_jdbc_url" {
   description = "JDBC URL for Keycloak database connection"
   value       = local.keycloak_enabled ? "jdbc:postgresql://${aws_db_instance.keycloak[0].address}:${aws_db_instance.keycloak[0].port}/${local.keycloak_db_name}" : null
   sensitive   = false
+}
+
+################################################################################
+# External DNS Outputs
+################################################################################
+
+output "external_dns_role_arn" {
+  description = "ARN of IAM role for external-dns (IRSA)"
+  value       = module.external_dns_irsa.iam_role_arn
+}
+
+output "external_dns_role_name" {
+  description = "Name of IAM role for external-dns"
+  value       = module.external_dns_irsa.iam_role_name
+}
+
+################################################################################
+# Configuration Outputs (for scripts)
+################################################################################
+
+output "domain" {
+  description = "Base domain for the platform"
+  value       = local.domain
+}
+
+output "argocd_subdomain" {
+  description = "Subdomain for ArgoCD"
+  value       = local.argocd_subdomain
+}
+
+output "keycloak_subdomain" {
+  description = "Subdomain for Keycloak"
+  value       = local.keycloak_subdomain
+}
+
+output "backstage_subdomain" {
+  description = "Subdomain for Backstage"
+  value       = local.backstage_subdomain
+}
+
+output "route53_hosted_zone_id" {
+  description = "Route53 Hosted Zone ID"
+  value       = local.route53_hosted_zone_id
+}
+
+output "acm_certificate_arn" {
+  description = "ACM Certificate ARN for TLS termination"
+  value       = local.acm_certificate_arn
+}
+
+################################################################################
+# Crossplane Outputs
+################################################################################
+
+output "crossplane_role_arn" {
+  description = "ARN of IAM role for Crossplane (IRSA)"
+  value       = module.crossplane_irsa.iam_role_arn
+}
+
+output "crossplane_role_name" {
+  description = "Name of IAM role for Crossplane"
+  value       = module.crossplane_irsa.iam_role_name
+}
+
+################################################################################
+# ECR Outputs
+################################################################################
+
+output "ecr_repository_urls" {
+  description = "Map of ECR repository URLs"
+  value = {
+    for k, repo in aws_ecr_repository.platform_apps : k => repo.repository_url
+  }
+}
+
+output "ecr_repository_arns" {
+  description = "Map of ECR repository ARNs"
+  value = {
+    for k, repo in aws_ecr_repository.platform_apps : k => repo.arn
+  }
+}
+
+output "github_oidc_provider_arn" {
+  description = "ARN of GitHub OIDC provider for CI/CD"
+  value       = try(local.config_file.github.enable_oidc, false) ? aws_iam_openid_connect_provider.github[0].arn : null
+}
+
+output "github_ecr_push_role_arn" {
+  description = "ARN of IAM role for GitHub Actions to push to ECR"
+  value       = try(local.config_file.github.enable_oidc, false) ? aws_iam_role.github_ecr_push[0].arn : null
+}
+
+output "ecr_account_url" {
+  description = "Base ECR URL for the AWS account"
+  value       = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${local.region}.amazonaws.com"
 }

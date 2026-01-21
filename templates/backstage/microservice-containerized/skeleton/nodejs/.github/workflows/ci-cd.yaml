@@ -1,0 +1,274 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  AWS_REGION: ${{ values.awsRegion }}
+  ECR_REPOSITORY: ${{ values.name }}
+  GITOPS_REPO: ${{ values.gitopsRepo }}
+  GITOPS_ORG: ${{ values.gitHubOrg }}
+  APP_NAME: ${{ values.name }}
+  APP_NAMESPACE: ${{ values.namespace }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install validation tools
+        run: |
+          # Install yamllint
+          pip install yamllint
+
+          # Install kubeconform
+          curl -L https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Lint Node.js code
+        run: |
+          npm install
+          npm run lint || true  # Non-blocking for now
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Check if ECR repository exists
+        id: check-ecr-repo
+        run: |
+          if aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }} 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create ECR repository if not exists
+        if: steps.check-ecr-repo.outputs.exists == 'false'
+        run: |
+          aws ecr create-repository \
+            --repository-name ${{ env.ECR_REPOSITORY }} \
+            --region ${{ env.AWS_REGION }} \
+            --image-scanning-configuration scanOnPush=true \
+            --encryption-configuration encryptionType=AES256
+
+          # Add lifecycle policy
+          aws ecr put-lifecycle-policy \
+            --repository-name ${{ env.ECR_REPOSITORY }} \
+            --region ${{ env.AWS_REGION }} \
+            --lifecycle-policy-text '{
+              "rules": [
+                {
+                  "rulePriority": 1,
+                  "description": "Keep last 10 production images",
+                  "selection": {
+                    "tagStatus": "tagged",
+                    "tagPrefixList": ["prod-", "v"],
+                    "countType": "imageCountMoreThan",
+                    "countNumber": 10
+                  },
+                  "action": {
+                    "type": "expire"
+                  }
+                },
+                {
+                  "rulePriority": 2,
+                  "description": "Keep last 5 staging images",
+                  "selection": {
+                    "tagStatus": "tagged",
+                    "tagPrefixList": ["staging-", "dev-"],
+                    "countType": "imageCountMoreThan",
+                    "countNumber": 5
+                  },
+                  "action": {
+                    "type": "expire"
+                  }
+                },
+                {
+                  "rulePriority": 3,
+                  "description": "Expire untagged images after 7 days",
+                  "selection": {
+                    "tagStatus": "untagged",
+                    "countType": "sinceImagePushed",
+                    "countUnit": "days",
+                    "countNumber": 7
+                  },
+                  "action": {
+                    "type": "expire"
+                  }
+                }
+              ]
+            }'
+
+      - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Push Docker image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Clone GitOps repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_ORG }}/${{ env.GITOPS_REPO }}
+          path: gitops
+          token: ${{ secrets.GITOPS_PAT }}
+
+      - name: Check if deployment.yaml exists
+        id: check-deployment
+        run: |
+          DEPLOYMENT_PATH="gitops/applications/workloads/${{ env.APP_NAMESPACE }}/${{ env.APP_NAME }}/deployment.yaml"
+          if [ ! -f "$DEPLOYMENT_PATH" ]; then
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Deployment file not found, will create initial version"
+
+            # Create directory
+            mkdir -p "gitops/applications/workloads/${{ env.APP_NAMESPACE }}/${{ env.APP_NAME }}"
+
+            # Create initial deployment.yaml
+            cat > "$DEPLOYMENT_PATH" << 'EOF'
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: ${{ env.APP_NAME }}
+            namespace: ${{ env.APP_NAMESPACE }}
+            labels:
+              app.kubernetes.io/name: ${{ env.APP_NAME }}
+              app.kubernetes.io/component: backend
+              app.kubernetes.io/part-of: platform-services
+              app.kubernetes.io/version: "1.0.0"
+              app.kubernetes.io/managed-by: backstage
+          spec:
+            replicas: 2
+            selector:
+              matchLabels:
+                app.kubernetes.io/name: ${{ env.APP_NAME }}
+            template:
+              metadata:
+                labels:
+                  app.kubernetes.io/name: ${{ env.APP_NAME }}
+                  app.kubernetes.io/component: backend
+                  app.kubernetes.io/part-of: platform-services
+                  app.kubernetes.io/version: "1.0.0"
+              spec:
+                containers:
+                - name: ${{ env.APP_NAME }}
+                  image: placeholder
+                  imagePullPolicy: IfNotPresent
+                  ports:
+                  - containerPort: 3000
+                    name: http
+                    protocol: TCP
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: http
+                    initialDelaySeconds: 15
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+                  readinessProbe:
+                    httpGet:
+                      path: /ready
+                      port: http
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                    timeoutSeconds: 3
+                    failureThreshold: 3
+                  resources:
+                    requests:
+                      cpu: 100m
+                      memory: 128Mi
+                    limits:
+                      cpu: 500m
+                      memory: 512Mi
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: ${{ env.APP_NAME }}
+            namespace: ${{ env.APP_NAMESPACE }}
+            labels:
+              app.kubernetes.io/name: ${{ env.APP_NAME }}
+          spec:
+            type: ClusterIP
+            ports:
+            - port: 80
+              targetPort: http
+              protocol: TCP
+              name: http
+            selector:
+              app.kubernetes.io/name: ${{ env.APP_NAME }}
+          EOF
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update deployment image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        working-directory: gitops
+        run: |
+          DEPLOYMENT_FILE="applications/workloads/${{ env.APP_NAMESPACE }}/${{ env.APP_NAME }}/deployment.yaml"
+          NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+          # Update image using yq
+          yq eval ".spec.template.spec.containers[0].image = \"$NEW_IMAGE\"" -i "$DEPLOYMENT_FILE"
+
+          # Update version label
+          yq eval ".metadata.labels.\"app.kubernetes.io/version\" = \"$IMAGE_TAG\"" -i "$DEPLOYMENT_FILE"
+          yq eval ".spec.template.metadata.labels.\"app.kubernetes.io/version\" = \"$IMAGE_TAG\"" -i "$DEPLOYMENT_FILE"
+
+      - name: Validate Kubernetes manifests
+        working-directory: gitops
+        run: |
+          # Validate with yamllint
+          yamllint manifests/ || echo "yamllint warnings (non-blocking)"
+
+          # Validate with kubeconform
+          kubeconform \
+            -strict \
+            -ignore-missing-schemas \
+            -kubernetes-version 1.28.0 \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -summary \
+            manifests/
+
+      - name: Commit and push to GitOps repo
+        working-directory: gitops
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add .
+          git diff --staged --quiet || git commit -m "chore: update ${{ env.APP_NAME }} image to ${{ github.sha }}"
+          git push

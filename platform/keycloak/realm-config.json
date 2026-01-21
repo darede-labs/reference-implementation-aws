@@ -147,6 +147,6 @@
   "defaultLocale": "en",
   "authenticationFlows": [],
   "attributes": {
-    "frontendUrl": "https://null.timedevops.click"
+    "frontendUrl": "https://keycloak.timedevops.click"
   }
 }

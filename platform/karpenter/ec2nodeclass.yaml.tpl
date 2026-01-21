@@ -1,0 +1,52 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  # AMI Selection
+  amiSelectorTerms:
+    # Use latest EKS-optimized Amazon Linux 2023 AMI
+    - alias: al2023@latest
+
+  # IAM Role for nodes (created by Terraform)
+  role: "{{ karpenter_node_role_name }}"
+
+  # Subnet selection (private subnets for EKS)
+  subnetSelectorTerms:
+    - tags:
+        kubernetes.io/role/internal-elb: "1"
+
+  # Security group selection (cluster security group)
+  securityGroupSelectorTerms:
+    - tags:
+        aws:eks:cluster-name: "{{ cluster_name }}"
+
+  # Block device mappings (disk configuration)
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+        # gp3 performance settings (cost-optimized)
+        iops: 3000
+        throughput: 125
+
+  # Metadata options (IMDSv2 required for security)
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required  # Require IMDSv2
+
+  # Detailed monitoring (disabled to save costs in POC)
+  detailedMonitoring: false
+
+  # Tags applied to EC2 instances
+  tags:
+    Name: "karpenter-{{ cluster_name }}"
+    ManagedBy: karpenter
+    Environment: "{{ env }}"
+    cloud_economics: "{{ cloud_economics_tag }}"
+    karpenter.sh/discovery: "{{ cluster_name }}"

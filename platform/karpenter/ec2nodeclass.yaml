@@ -47,6 +47,6 @@ spec:
   tags:
     Name: "karpenter-idp-poc-darede-cluster"
     ManagedBy: karpenter
-    Environment: poc
+    Environment: "poc"
     cloud_economics: "Darede-IDP::devops"
     karpenter.sh/discovery: "idp-poc-darede-cluster"

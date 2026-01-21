@@ -54,6 +54,26 @@ locals {
   enable_nlb          = tobool(try(local.config_file.enable_nlb, true))
   acm_certificate_arn = try(local.config_file.acm_certificate_arn, "")
 
+  # Route53 Configuration for external-dns
+  route53_hosted_zone_id = try(local.config_file.route53_hosted_zone_id, "")
+
+  # Subdomain configuration
+  argocd_subdomain    = try(local.subdomains.argocd, "argocd")
+  keycloak_subdomain  = try(local.subdomains.keycloak, "keycloak")
+  backstage_subdomain = try(local.subdomains.backstage, "backstage")
+
+  # Keycloak Database Configuration
+  keycloak_config            = try(local.config_file.keycloak, {})
+  keycloak_enabled           = tobool(try(local.keycloak_config.enabled, "false"))
+  keycloak_db_config         = try(local.keycloak_config.database, {})
+  keycloak_db_name           = try(local.keycloak_db_config.name, "keycloak")
+  keycloak_db_username       = try(local.keycloak_db_config.username, "keycloak")
+  keycloak_db_instance_class = try(local.keycloak_db_config.instance_class, "db.t4g.micro")
+  keycloak_db_allocated_storage = try(local.keycloak_db_config.allocated_storage, 20)
+  keycloak_db_engine_version = try(local.keycloak_db_config.postgres_version, "15.15")
+  keycloak_db_multi_az       = tobool(try(local.keycloak_db_config.multi_az, "false"))
+  keycloak_db_backup_retention = try(local.keycloak_db_config.backup_retention_days, 1)
+
   # Tags from config
   config_tags = local.config_file.tags
 

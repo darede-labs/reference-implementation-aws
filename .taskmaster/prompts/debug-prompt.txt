@@ -1,0 +1,9 @@
+We have an issue. Here are the logs / error messages:
+
+<PASTE LOGS HERE>
+
+Please:
+1) Identify the likely root cause
+2) Provide 2-3 hypotheses ordered by probability
+3) Give me the exact commands to confirm each hypothesis
+4) Provide the minimal fix (small diff) and explain why it works

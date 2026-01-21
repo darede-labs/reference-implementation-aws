@@ -13,8 +13,8 @@ spec:
   project: default
 
   source:
-    repoURL: null
-    targetRevision: null
+    repoURL: https://github.com/darede-labs/reference-implementation-aws
+    targetRevision: main
     path: platform/keycloak
 
   destination:

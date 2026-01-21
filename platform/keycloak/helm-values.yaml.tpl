@@ -62,6 +62,7 @@ ingress:
   hostname: {{ keycloak_subdomain }}.{{ domain }}
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     external-dns.alpha.kubernetes.io/hostname: {{ keycloak_subdomain }}.{{ domain }}
   tls: true
@@ -132,10 +133,19 @@ podSecurityContext:
 
 ## Extra environment variables (for advanced configuration)
 extraEnvVars:
+  # Keycloak frontend URL (required for proper OIDC redirect)
+  - name: KEYCLOAK_HOSTNAME
+    value: "https://{{ keycloak_subdomain }}.{{ domain }}"
+  - name: KC_HOSTNAME_URL
+    value: "https://{{ keycloak_subdomain }}.{{ domain }}"
+  - name: KC_HOSTNAME_STRICT
+    value: "false"
+  # Features
   - name: KC_FEATURES
     value: "token-exchange,admin-fine-grained-authz"
   - name: KC_LOG_LEVEL
     value: "INFO"
+  # Database pool configuration
   - name: KC_DB_POOL_INITIAL_SIZE
     value: "5"
   - name: KC_DB_POOL_MAX_SIZE

@@ -1,0 +1,128 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: ecr-repository
+  labels:
+    crossplane.io/xrd: xecrrepositories.platform.darede.io
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: platform.darede.io/v1alpha1
+    kind: XECRRepository
+
+  resources:
+    - name: ecr-repository
+      base:
+        apiVersion: ecr.aws.upbound.io/v1beta1
+        kind: Repository
+        spec:
+          forProvider:
+            imageScanningConfiguration:
+              - scanOnPush: true
+            encryptionConfiguration:
+              - encryptionType: AES256
+            imageTagMutability: MUTABLE
+            tags:
+              managed-by: crossplane
+              created-via: backstage
+          providerConfigRef:
+            name: default
+      patches:
+        # Repository name
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.repositoryName
+          toFieldPath: metadata.name
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.repositoryName
+          toFieldPath: spec.forProvider.name
+
+        # Image scanning
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.imageScanningEnabled
+          toFieldPath: spec.forProvider.imageScanningConfiguration[0].scanOnPush
+
+        # Encryption type
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.encryptionType
+          toFieldPath: spec.forProvider.encryptionConfiguration[0].encryptionType
+
+        # Custom tags
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.tags
+          toFieldPath: spec.forProvider.tags
+          policy:
+            mergeOptions:
+              appendSlice: false
+              keepMapValues: true
+
+        # Status fields
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.repositoryUrl
+          toFieldPath: status.repositoryUri
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.registryId
+          toFieldPath: status.registryId
+        - type: ToCompositeFieldPath
+          fromFieldPath: status.atProvider.arn
+          toFieldPath: status.repositoryArn
+
+    - name: ecr-lifecycle-policy
+      base:
+        apiVersion: ecr.aws.upbound.io/v1beta1
+        kind: LifecyclePolicy
+        spec:
+          forProvider:
+            policy: |
+              {
+                "rules": [
+                  {
+                    "rulePriority": 1,
+                    "description": "Keep last 10 production images",
+                    "selection": {
+                      "tagStatus": "tagged",
+                      "tagPrefixList": ["prod-", "v"],
+                      "countType": "imageCountMoreThan",
+                      "countNumber": 10
+                    },
+                    "action": {
+                      "type": "expire"
+                    }
+                  },
+                  {
+                    "rulePriority": 2,
+                    "description": "Keep last 5 staging images",
+                    "selection": {
+                      "tagStatus": "tagged",
+                      "tagPrefixList": ["staging-", "dev-"],
+                      "countType": "imageCountMoreThan",
+                      "countNumber": 5
+                    },
+                    "action": {
+                      "type": "expire"
+                    }
+                  },
+                  {
+                    "rulePriority": 3,
+                    "description": "Expire untagged images after 7 days",
+                    "selection": {
+                      "tagStatus": "untagged",
+                      "countType": "sinceImagePushed",
+                      "countUnit": "days",
+                      "countNumber": 7
+                    },
+                    "action": {
+                      "type": "expire"
+                    }
+                  }
+                ]
+              }
+            repositoryNameSelector:
+              matchControllerRef: true
+          providerConfigRef:
+            name: default
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.lifecyclePolicyText
+          toFieldPath: spec.forProvider.policy
+          policy:
+            fromFieldPath: Optional

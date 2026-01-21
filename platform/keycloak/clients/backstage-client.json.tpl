@@ -1,65 +1,42 @@
 {
   "clientId": "backstage",
-  "name": "Backstage",
-  "description": "Backstage Developer Portal",
+  "name": "Backstage IDP",
+  "description": "Internal Developer Platform - Backstage",
   "enabled": true,
-  "clientAuthenticatorType": "client-secret",
-  "secret": "{{ backstage_client_secret }}",
-  "redirectUris": [
-    "https://{{ backstage_subdomain }}.{{ domain }}/api/auth/oidc/handler/frame",
-    "http://localhost:3000/api/auth/oidc/handler/frame",
-    "http://localhost:7007/api/auth/oidc/handler/frame"
-  ],
-  "webOrigins": [
-    "https://{{ backstage_subdomain }}.{{ domain }}",
-    "http://localhost:3000",
-    "http://localhost:7007"
-  ],
   "protocol": "openid-connect",
   "publicClient": false,
-  "frontchannelLogout": true,
+  "secret": "{{ backstage_client_secret }}",
+  "redirectUris": [
+    "https://{{ backstage_hostname }}/*",
+    "https://{{ backstage_hostname }}/api/auth/oidc/handler/frame"
+  ],
+  "webOrigins": [
+    "https://{{ backstage_hostname }}"
+  ],
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": true,
+  "serviceAccountsEnabled": false,
+  "authorizationServicesEnabled": false,
+  "fullScopeAllowed": true,
   "attributes": {
     "saml.assertion.signature": "false",
     "saml.multivalued.roles": "false",
     "saml.force.post.binding": "false",
     "saml.encrypt": "false",
-    "oauth2.device.authorization.grant.enabled": "false",
-    "backchannel.logout.revoke.offline.tokens": "false",
     "saml.server.signature": "false",
     "saml.server.signature.keyinfo.ext": "false",
-    "use.refresh.tokens": "true",
     "exclude.session.state.from.auth.response": "false",
-    "oidc.ciba.grant.enabled": "false",
-    "saml.artifact.binding": "false",
-    "backchannel.logout.session.required": "true",
-    "client_credentials.use_refresh_token": "false",
     "saml_force_name_id_format": "false",
-    "require.pushed.authorization.requests": "false",
     "saml.client.signature": "false",
     "tls.client.certificate.bound.access.tokens": "false",
     "saml.authnstatement": "false",
     "display.on.consent.screen": "false",
     "saml.onetimeuse.condition": "false"
   },
-  "authenticationFlowBindingOverrides": {},
-  "fullScopeAllowed": true,
-  "nodeReRegistrationTimeout": -1,
-  "defaultClientScopes": [
-    "web-origins",
-    "profile",
-    "roles",
-    "email",
-    "groups"
-  ],
-  "optionalClientScopes": [
-    "address",
-    "phone",
-    "offline_access",
-    "microprofile-jwt"
-  ],
   "protocolMappers": [
     {
-      "name": "backstage-groups",
+      "name": "groups",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-group-membership-mapper",
       "consentRequired": false,
@@ -72,14 +49,42 @@
       }
     },
     {
-      "name": "backstage-audience",
+      "name": "email",
       "protocol": "openid-connect",
-      "protocolMapper": "oidc-audience-mapper",
+      "protocolMapper": "oidc-usermodel-property-mapper",
       "consentRequired": false,
       "config": {
-        "included.client.audience": "backstage",
+        "userinfo.token.claim": "true",
+        "user.attribute": "email",
         "id.token.claim": "true",
-        "access.token.claim": "true"
+        "access.token.claim": "true",
+        "claim.name": "email",
+        "jsonType.label": "String"
+      }
+    },
+    {
+      "name": "preferred_username",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "userinfo.token.claim": "true",
+        "user.attribute": "username",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "claim.name": "preferred_username",
+        "jsonType.label": "String"
+      }
+    },
+    {
+      "name": "name",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-full-name-mapper",
+      "consentRequired": false,
+      "config": {
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true"
       }
     }
   ]

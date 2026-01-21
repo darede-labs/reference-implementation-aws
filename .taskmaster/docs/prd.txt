@@ -1,0 +1,966 @@
+################################################################################
+# PRODUCT REQUIREMENTS DOCUMENT (PRD)
+# Internal Developer Platform (IDP) - AWS Reference Implementation
+################################################################################
+
+## 1. VISION & OBJECTIVES
+
+### Vision
+Build a complete, production-ready Internal Developer Platform (IDP) from scratch
+on AWS EKS, enabling self-service infrastructure provisioning, GitOps deployments,
+and enterprise-grade security.
+
+### Primary Objectives
+1. Provide developers with self-service infrastructure via Backstage UI
+2. Implement GitOps-based continuous delivery with ArgoCD
+3. Enable dynamic infrastructure provisioning with Crossplane
+4. Ensure enterprise-grade security (OIDC, IRSA, encryption)
+5. Optimize costs with Karpenter and spot instances
+6. Maintain operational excellence with observability and automation
+
+### Success Criteria
+- Developers can provision AWS resources (EC2, RDS, S3, etc.) via Backstage templates
+- All applications deployed via GitOps (no manual kubectl apply)
+- Infrastructure provisioned via Crossplane compositions (no manual Terraform after bootstrap)
+- 100% OIDC authentication (Keycloak as IdP)
+- Zero static AWS credentials in workloads (IRSA for everything)
+- <15 minute end-to-end provisioning time (from template to running resource)
+- 70%+ cost savings via Karpenter spot instances
+
+## 2. TARGET ARCHITECTURE
+
+### Repository Structure
+
+**Repo 1: platform-infra**
+- EKS cluster bootstrap (Terraform - IaC for base infrastructure only)
+- ArgoCD app-of-apps (GitOps orchestration)
+- Crossplane + AWS providers (infrastructure as APIs)
+- XRDs/Compositions (t-shirt sizes: small/medium/large)
+- Backstage (developer portal + templates to create Claims in Git)
+- Keycloak OIDC integration (SSO for all platform components)
+
+**Repo 2: hello-node-app**
+- Node.js hello world application
+- Docker build + push to ECR (GitHub Actions with OIDC)
+- Helm chart or Kustomize deployment
+- Deployed automatically via ArgoCD
+
+### Component Stack
+
+#### Infrastructure Layer (AWS)
+- VPC: Multi-AZ with public/private subnets
+- EKS: Kubernetes 1.33+ with OIDC provider enabled
+- RDS: PostgreSQL for Keycloak (db.t4g.micro)
+- NLB: Network Load Balancer with TLS termination
+- ACM: Certificate Manager for TLS certificates
+- Route53: DNS management with external-dns
+
+#### Platform Layer (Kubernetes)
+- **ArgoCD**: GitOps continuous delivery
+  - App-of-apps pattern
+  - Auto-sync enabled
+  - OIDC with Keycloak
+
+- **Keycloak**: Identity Provider
+  - OIDC/SAML provider
+  - External RDS database
+  - Integrated with ArgoCD, Backstage, Argo Workflows
+
+- **Karpenter**: Intelligent node autoscaling
+  - Spot instance prioritization
+  - Multi-instance-type support
+  - Automatic consolidation
+
+- **ingress-nginx**: HTTP/HTTPS routing
+  - TLS passthrough from NLB
+  - Path-based and subdomain routing
+
+- **external-dns**: Automatic DNS management
+  - Route53 integration
+  - IRSA authentication
+
+- **cert-manager**: TLS certificate management
+  - Let's Encrypt integration (if not using ACM)
+
+- **Crossplane**: Infrastructure as APIs
+  - AWS Provider with IRSA
+  - XRDs for resource abstractions
+  - Compositions for t-shirt sizes
+  - Claims for developer self-service
+
+#### Application Layer
+- **Backstage**: Developer portal
+  - Software catalog
+  - Templates for infrastructure + applications
+  - Tech docs
+  - Kubernetes plugin
+  - AWS plugin (via Crossplane)
+  - OIDC with Keycloak
+
+- **Argo Workflows**: CI/CD pipelines
+  - Artifact management
+  - Event-driven workflows
+  - OIDC with Keycloak
+
+## 3. IMPLEMENTATION PHASES
+
+### PHASE 0: Repo Skeleton + Contracts (COMPLETED)
+
+**Status**: COMPLETED
+**Duration**: 1-2 hours
+
+**Deliverables**:
+✅ Repository structure defined
+✅ README files for each repo
+✅ Top-level docs/ folder with platform concepts
+✅ Placeholder folders with YAML scaffolding
+
+**Files Created**:
+- platform-infra/README.md
+- platform-infra/docs/gitops.md
+- platform-infra/docs/crossplane.md
+- platform-infra/docs/backstage.md
+- platform-infra/gitops/argocd/root-app.yaml (placeholder)
+- platform-infra/crossplane/providers/ (placeholder)
+- platform-infra/crossplane/xrd/ (placeholder)
+- platform-infra/crossplane/compositions/ (placeholder)
+- platform-infra/backstage/templates/ (placeholder)
+
+**Definition of Done**:
+✅ Repo structure exists and is consistent
+✅ README explains how phases will be implemented
+✅ No actual infrastructure created yet, only scaffolding
+
+---
+
+### PHASE 1: EKS Bootstrap (Terraform) (COMPLETED)
+
+**Status**: COMPLETED
+**Duration**: 2-3 hours
+**Location**: cluster/terraform/
+
+**Deliverables**:
+✅ VPC provisioned via terraform-aws-modules/vpc/aws
+✅ EKS cluster via terraform-aws-modules/eks/aws
+✅ Managed node group OR Karpenter-managed nodes
+✅ IRSA enabled (OIDC provider)
+✅ IAM roles, security groups configured
+✅ outputs.tf exposing cluster_name, region, kubeconfig hints
+
+**Files Created/Modified**:
+- cluster/terraform/main.tf
+- cluster/terraform/versions.tf
+- cluster/terraform/variables.tf
+- cluster/terraform/outputs.tf
+- cluster/terraform/vpc.tf (or integrated in main.tf)
+- cluster/terraform/eks.tf (or integrated in main.tf)
+- cluster/terraform/karpenter.tf (if using Karpenter)
+- cluster/terraform/security_groups.tf
+- cluster/terraform/rds-keycloak.tf (RDS for Keycloak)
+- cluster/terraform/acm.tf (ACM certificates)
+- cluster/terraform/nlb.tf (Network Load Balancer)
+- cluster/terraform/secrets.tf (Secrets Manager)
+
+**Constraints**:
+- Minimal variables (CIDR, region, cluster name, node size/count)
+- Secure defaults (IMDSv2, encryption, private subnets)
+- Readable code, avoid complex locals
+
+**Definition of Done**:
+✅ terraform apply creates EKS cluster successfully
+✅ kubectl get nodes shows healthy nodes
+✅ OIDC provider exists in IAM
+✅ RDS PostgreSQL for Keycloak is provisioned
+✅ NLB with TLS termination is created
+✅ Security groups allow proper traffic flow
+
+**Testing**:
+```bash
+# 1. Apply Terraform
+cd cluster/terraform
+terraform init
+terraform plan
+terraform apply
+
+# 2. Configure kubectl
+aws eks update-kubeconfig --name $(terraform output -raw cluster_name) --region us-east-1
+
+# 3. Verify cluster
+kubectl get nodes
+kubectl get ns
+
+# 4. Verify OIDC provider
+aws eks describe-cluster --name $(terraform output -raw cluster_name) --query "cluster.identity.oidc.issuer" --output text
+
+# 5. Verify RDS
+aws rds describe-db-instances --query "DBInstances[?DBInstanceIdentifier=='idp-keycloak'].Endpoint.Address" --output text
+```
+
+**Common Failures**:
+1. **OIDC provider not created**: Check EKS cluster has enable_irsa = true
+2. **Nodes not joining**: Verify security group rules allow node-to-control-plane
+3. **RDS unreachable**: Check subnet routing and security group inbound rules
+4. **Terraform state lock**: Use S3 backend with locking enabled
+
+---
+
+### PHASE 2: ArgoCD App-of-Apps Bootstrap (IN PROGRESS)
+
+**Status**: IN PROGRESS (Keycloak OIDC integration being worked on by another agent)
+**Duration**: 2-3 hours
+**Location**: platform/argocd/
+
+**Deliverables**:
+✅ ArgoCD installed via Helm
+✅ Root application (app-of-apps) configured
+✅ Child applications for platform components
+✅ OIDC integration with Keycloak (IN PROGRESS)
+⏳ Bootstrap automation scripts
+
+**Files Created/Modified**:
+- platform/argocd/helm-values.yaml.tpl
+- platform/argocd/bootstrap-apps.yaml.tpl
+- platform/argocd/applications/keycloak.yaml.tpl
+- platform/argocd/applications/backstage.yaml.tpl
+- scripts/install-argocd.sh
+- scripts/install-keycloak.sh
+
+**Current Work**:
+- Keycloak OIDC integration with ArgoCD
+- Realm configuration with clients for ArgoCD and Backstage
+- Secret management for OIDC credentials
+- Testing authentication flow
+
+**Definition of Done**:
+✅ ArgoCD installed and healthy
+✅ Root application exists and syncs child apps
+✅ Keycloak deployed with external RDS
+✅ OIDC authentication working for ArgoCD UI
+⏳ All child applications defined (even if not fully configured)
+
+**Testing**:
+```bash
+# 1. Install ArgoCD
+./scripts/install-argocd.sh
+
+# 2. Verify installation
+kubectl get pods -n argocd
+kubectl get applications -n argocd
+
+# 3. Access UI (port-forward)
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+# 4. Login with OIDC
+# Navigate to https://localhost:8080
+# Click "Log in via Keycloak"
+
+# 5. Verify sync status
+kubectl get applications -n argocd -o wide
+```
+
+**Common Failures**:
+1. **ArgoCD pods CrashLooping**: Check resource limits and cluster capacity
+2. **OIDC callback fails**: Verify redirect URIs in Keycloak client config
+3. **Applications stuck syncing**: Check repository access and Git credentials
+4. **Keycloak not ready**: RDS connection issues or startup probe timeout
+5. **TLS certificate errors**: Verify ACM certificate ARN and NLB configuration
+
+---
+
+### PHASE 3: Crossplane + AWS Provider + IRSA
+
+**Status**: PENDING
+**Duration**: 3-4 hours
+**Location**: crossplane/
+
+**Deliverables**:
+- Crossplane installed via Helm
+- AWS Provider configured with IRSA (no static keys)
+- ProviderConfig using IRSA
+- IAM role for Crossplane with least privilege policy
+- Validation resource: S3 Bucket managed resource
+- GitOps application for Crossplane
+
+**Files to Create**:
+- crossplane/providers/crossplane-helm-values.yaml
+- crossplane/providers/provider-aws.yaml
+- crossplane/providers/providerconfig-irsa.yaml
+- crossplane/providers/iam/crossplane-irsa-policy.json
+- crossplane/examples/s3-bucket.yaml (validation)
+- platform/argocd/applications/crossplane.yaml
+- scripts/install-crossplane.sh
+
+**Constraints**:
+- NO static AWS keys in Kubernetes secrets
+- IRSA with dedicated IAM role for Crossplane service account
+- IAM policy: least privilege (start with S3 only, expand per phase)
+- All resources managed via GitOps (ArgoCD)
+
+**Definition of Done**:
+- Crossplane pods healthy in crossplane-system namespace
+- AWS Provider installed with Ready=True status
+- ProviderConfig using IRSA authentication
+- S3 bucket created via managed resource YAML
+- Deleting YAML cleanly removes bucket from AWS
+- No AWS credentials stored in secrets
+
+**Testing**:
+```bash
+# 1. Install Crossplane
+./scripts/install-crossplane.sh
+
+# 2. Verify Crossplane
+kubectl get pods -n crossplane-system
+kubectl get providers
+kubectl get providerconfigs
+
+# 3. Apply validation S3 bucket
+kubectl apply -f crossplane/examples/s3-bucket.yaml
+
+# 4. Verify bucket creation
+kubectl get bucket
+aws s3 ls | grep crossplane-test
+
+# 5. Test deletion
+kubectl delete -f crossplane/examples/s3-bucket.yaml
+# Wait 1-2 minutes
+aws s3 ls | grep crossplane-test  # Should return empty
+```
+
+**Common Failures**:
+1. **Provider not ready**: Check IRSA role trust policy includes OIDC provider
+2. **AccessDenied on AWS API**: Verify IAM policy attached to IRSA role
+3. **Bucket creation fails**: Check S3 permissions and naming conflicts
+4. **ProviderConfig not found**: Ensure ProviderConfig name matches Provider config
+5. **IRSA annotation missing**: Verify service account has eks.amazonaws.com/role-arn annotation
+
+---
+
+### PHASE 4: Hello Node App + ECR Build + GitOps Deploy
+
+**Status**: PENDING
+**Duration**: 3-4 hours
+**Repos**: hello-node-app (new), platform-infra
+
+**Deliverables**:
+
+**hello-node-app repo**:
+- Minimal Node.js hello world server (Express, port 3000)
+- Dockerfile + .dockerignore
+- Helm chart: helm/hello-node/
+  - Deployment
+  - Service
+  - Ingress (optional)
+- GitHub Actions pipeline with OIDC to AWS:
+  - Build Docker image
+  - Push to ECR
+  - Update Helm values with new image tag
+  - Commit back to trigger ArgoCD sync
+
+**platform-infra repo**:
+- Update gitops/apps/hello-app.yaml to point to hello-node-app repo
+- ArgoCD Application manifest
+- Documentation on GitOps flow
+
+**Files to Create**:
+
+**hello-node-app/**:
+- src/server.js
+- package.json
+- Dockerfile
+- .dockerignore
+- helm/hello-node/Chart.yaml
+- helm/hello-node/values.yaml
+- helm/hello-node/templates/deployment.yaml
+- helm/hello-node/templates/service.yaml
+- helm/hello-node/templates/ingress.yaml
+- .github/workflows/build-and-deploy.yaml
+
+**platform-infra/**:
+- platform/argocd/applications/hello-node.yaml
+
+**Constraints**:
+- NO static AWS keys in GitHub Secrets
+- Use GitHub OIDC provider with AWS STS assume role
+- Keep app simple and stable (minimal dependencies)
+- Image versioning: use Git commit SHA as tag
+- ArgoCD sync: automatic or via ArgoCD Image Updater
+
+**Definition of Done**:
+- Push code triggers pipeline automatically
+- Pipeline builds image and pushes to ECR
+- ArgoCD detects new image and deploys to cluster
+- curl to service endpoint returns expected "Hello World" response
+- Pods are healthy with readiness/liveness probes
+- Logs show successful requests
+
+**Testing**:
+```bash
+# 1. Run app locally
+cd hello-node-app
+npm install
+npm start
+curl http://localhost:3000
+
+# 2. Build Docker image locally (optional)
+docker build -t hello-node:test .
+docker run -p 3000:3000 hello-node:test
+curl http://localhost:3000
+
+# 3. Test Helm chart locally
+helm install hello-test helm/hello-node --dry-run --debug
+
+# 4. Push code and verify pipeline
+git add .
+git commit -m "feat: add hello node app"
+git push
+# Watch GitHub Actions logs
+
+# 5. Verify in cluster
+kubectl get application hello-node -n argocd
+kubectl get pods -l app=hello-node
+kubectl get svc hello-node
+kubectl port-forward svc/hello-node 3000:3000
+curl http://localhost:3000
+```
+
+**Common Failures**:
+1. **Pipeline fails authentication**: Verify OIDC trust relationship in IAM role
+2. **ECR push denied**: Check IAM policy includes ecr:PutImage permissions
+3. **Image pull fails**: Ensure EKS node role has ECR pull permissions
+4. **ArgoCD not syncing**: Check repository webhook or enable auto-sync
+5. **Pods CrashLooping**: Check container logs with kubectl logs
+
+---
+
+### PHASE 5: Crossplane EC2 Self-Service (XRD + Compositions P/M/G)
+
+**Status**: PENDING
+**Duration**: 4-5 hours
+**Location**: crossplane/
+
+**Deliverables**:
+- XRD (Composite Resource Definition) for EC2
+- Namespaced Claim: EC2InstanceClaim
+- 3 Compositions (t-shirt sizes):
+  - composition-small.yaml → t3a.small (2 vCPU, 2GB RAM)
+  - composition-medium.yaml → t3a.medium (2 vCPU, 4GB RAM)
+  - composition-large.yaml → t3a.large (2 vCPU, 8GB RAM)
+- Disk: Fixed at 50GB EBS gp3
+- AMI: Amazon Linux latest via SSM Parameter Store
+- Security group: Deny-by-default inbound (SSH from VPC only)
+- Connection secret with instanceId + privateIp
+- Example claims in crossplane/claims/examples/
+
+**Files to Create**:
+- crossplane/xrd/ec2.xrd.yaml
+- crossplane/compositions/ec2/composition-small.yaml
+- crossplane/compositions/ec2/composition-medium.yaml
+- crossplane/compositions/ec2/composition-large.yaml
+- crossplane/claims/examples/ec2-small-example.yaml
+- crossplane/claims/examples/ec2-medium-example.yaml
+- crossplane/claims/examples/ec2-large-example.yaml
+- docs/crossplane-ec2-usage.md
+
+**Developer Inputs (minimal)**:
+- name: string (unique identifier)
+- size: enum(small|medium|large)
+- vpcId: string (existing VPC ID)
+- subnetId: string (existing subnet ID)
+- owner: string (for tagging)
+- team: string (for tagging)
+
+**Outputs (connection secret)**:
+- instanceId: EC2 instance ID
+- privateIp: Private IP address
+- availabilityZone: AZ where instance was launched
+
+**Constraints**:
+- Minimal inbound security group rules (deny-by-default)
+- NO 0.0.0.0/0 inbound access
+- SSH only from VPC CIDR
+- Tagging: owner, team, app, managed-by:crossplane
+- Encryption: EBS volumes encrypted at rest
+- IMDSv2: Required (no IMDSv1)
+
+**Definition of Done**:
+- Claim creates EC2 instance with correct instance type
+- Deleting claim terminates instance cleanly
+- Connection secret is created in same namespace as claim
+- Tags are properly applied
+- Security group allows only specified traffic
+- Instance is accessible from within VPC
+
+**Testing**:
+```bash
+# 1. Apply XRD
+kubectl apply -f crossplane/xrd/ec2.xrd.yaml
+
+# 2. Apply compositions
+kubectl apply -f crossplane/compositions/ec2/
+
+# 3. Apply a claim (small)
+kubectl apply -f crossplane/claims/examples/ec2-small-example.yaml
+
+# 4. Watch claim status
+kubectl get ec2instanceclaim
+kubectl describe ec2instanceclaim my-ec2-small
+
+# 5. Verify in AWS
+aws ec2 describe-instances \
+  --filters "Name=tag:Name,Values=my-ec2-small" \
+  --query "Reservations[0].Instances[0].[InstanceId,InstanceType,State.Name,PrivateIpAddress]" \
+  --output table
+
+# 6. Check connection secret
+kubectl get secret my-ec2-small-connection -o yaml
+
+# 7. Test deletion
+kubectl delete ec2instanceclaim my-ec2-small
+# Wait 1-2 minutes
+aws ec2 describe-instances --instance-ids <instance-id>  # Should show "terminated"
+```
+
+**Common Failures**:
+1. **Instance not created**: Check Crossplane IAM policy includes ec2:RunInstances
+2. **Security group creation fails**: Verify ec2:CreateSecurityGroup permission
+3. **AMI not found**: Check SSM parameter path and region
+4. **Subnet incompatible**: Ensure subnet is in same VPC and AZ as specified
+5. **Connection secret not created**: Verify writeConnectionSecretToRef in claim
+
+---
+
+### PHASE 6: Backstage Template EC2 (generates Claim in Git)
+
+**Status**: PENDING
+**Duration**: 3-4 hours
+**Location**: backstage/templates/
+
+**Deliverables**:
+- Backstage Software Template for EC2 provisioning
+- Template form collects user inputs
+- Template generates Crossplane EC2InstanceClaim YAML
+- Generated claim committed to Git repository
+- ArgoCD automatically applies claim from Git
+- Template registered in Backstage catalog
+
+**Files to Create**:
+- backstage/templates/ec2-pmg/template.yaml
+- backstage/templates/ec2-pmg/skeleton/claim.yaml (Jinja2 template)
+- backstage/templates/ec2-pmg/README.md
+- catalog/templates.yaml (register template)
+
+**Template Inputs**:
+- name: string (EC2 instance name)
+- size: enum(small|medium|large) (t-shirt size)
+- vpcId: string (VPC ID from dropdown if possible)
+- subnetId: string (Subnet ID from dropdown if possible)
+- owner: string (resource owner)
+- team: string (team name)
+- description: text (optional, for documentation)
+
+**Template Actions**:
+1. **fetch:template**: Render skeleton/claim.yaml with user inputs
+2. **publish:github**: Create PR or direct commit to platform-infra repo
+   - Path: crossplane/claims/ec2/<name>.yaml
+   - Branch: main (or feature branch for PR workflow)
+3. **catalog:register**: Register claim in Backstage catalog (optional)
+
+**Workflow**:
+1. Developer opens Backstage
+2. Navigates to "Create" → "EC2 Instance (P/M/G)"
+3. Fills form with required inputs
+4. Clicks "Create"
+5. Template generates claim YAML
+6. Claim committed to Git (direct or via PR)
+7. ArgoCD detects change and applies claim
+8. Crossplane provisions EC2 instance
+9. Developer sees instance in AWS and Backstage catalog
+
+**Constraints**:
+- Template must NOT require manual kubectl apply
+- ArgoCD must apply claims automatically from repo path
+- Prefer PR workflow for audit trail (optional: direct commit for MVP)
+- Template should validate inputs (VPC/subnet existence)
+
+**Definition of Done**:
+- Running template produces claim YAML in Git
+- File is committed to correct path in repo
+- ArgoCD syncs and applies claim
+- Crossplane creates EC2 instance
+- Developer can see resource status in Backstage
+
+**Testing**:
+```bash
+# 1. Register template in Backstage
+kubectl apply -f catalog/templates.yaml
+
+# 2. Verify template appears in Backstage UI
+# Navigate to Create → EC2 Instance (P/M/G)
+
+# 3. Fill form and submit
+# Provide: name=test-ec2, size=small, vpcId=vpc-xxx, subnetId=subnet-yyy, owner=john, team=platform
+
+# 4. Check Git repository
+git pull
+ls crossplane/claims/ec2/test-ec2.yaml
+
+# 5. Watch ArgoCD sync
+kubectl get applications -n argocd
+kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller
+
+# 6. Verify claim applied
+kubectl get ec2instanceclaim test-ec2
+
+# 7. Verify instance in AWS
+aws ec2 describe-instances --filters "Name=tag:Name,Values=test-ec2"
+```
+
+**Common Failures**:
+1. **Template not appearing**: Verify catalog registration and backstage refresh
+2. **GitHub push fails**: Check GitHub token permissions (repo write)
+3. **ArgoCD not syncing**: Enable auto-sync or check sync interval
+4. **Claim invalid**: Validate YAML syntax and claim schema
+5. **PR creation fails**: Check branch protection rules
+
+---
+
+### PHASE 7: Expand Resources (RDS/S3/Lambda/Secrets/SSM/ECS/EKS)
+
+**Status**: PENDING
+**Duration**: 3-5 hours per resource
+**Location**: crossplane/xrd/, crossplane/compositions/, backstage/templates/
+
+**Strategy**: Use reusable template for each new resource
+
+**Resource Candidates**:
+1. **RDS PostgreSQL/MySQL**
+   - Sizes: db.t4g.micro (S), db.t4g.small (M), db.t4g.medium (L)
+   - Outputs: endpoint, port, username (password in secret)
+
+2. **S3 Bucket**
+   - Sizes: retention policy (7d/30d/90d), versioning, encryption
+   - Outputs: bucketName, ARN, region
+
+3. **Lambda Function**
+   - Sizes: memory (512MB/1GB/2GB), timeout (30s/60s/300s)
+   - Inputs: runtime, code from Git/S3
+   - Outputs: functionArn, functionName
+
+4. **Secrets Manager Secret**
+   - Sizes: single-value, key-value, auto-rotation
+   - Outputs: secretArn, secretName
+
+5. **SSM Parameter**
+   - Types: String, SecureString, StringList
+   - Outputs: parameterName, parameterArn
+
+6. **ECS Service**
+   - Sizes: task (0.5vCPU/1GB, 1vCPU/2GB, 2vCPU/4GB)
+   - Inputs: image, port, environment variables
+   - Outputs: serviceArn, taskDefinitionArn
+
+7. **EKS Cluster**
+   - Sizes: dev (1-3 nodes), staging (3-5 nodes), prod (5-10 nodes)
+   - Outputs: clusterName, endpoint, certificateAuthority
+
+**Deliverables (per resource)**:
+- XRD + namespaced Claim
+- 3 Compositions (small/medium/large or equivalent)
+- Secure-by-default configuration:
+  - Encryption at rest
+  - No public exposure by default
+  - Least privilege IAM policies
+  - Tagging (owner, team, managed-by)
+- Connection secret with outputs
+- Example claims in crossplane/claims/examples/
+- Backstage template for self-service
+- Documentation in docs/
+
+**Definition of Done (per resource)**:
+- Claim creates real AWS resource with correct configuration
+- Connection secret generated with appropriate outputs
+- Deleting claim cleanly removes resource (or preserves with deletion protection if enabled)
+- Backstage template allows self-service provisioning
+- Documentation includes usage examples and troubleshooting
+
+**Testing Template (per resource)**:
+```bash
+# 1. Apply XRD
+kubectl apply -f crossplane/xrd/<resource>.xrd.yaml
+
+# 2. Apply compositions
+kubectl apply -f crossplane/compositions/<resource>/
+
+# 3. Apply example claim
+kubectl apply -f crossplane/claims/examples/<resource>-small-example.yaml
+
+# 4. Verify resource creation
+kubectl get <resource>claim
+kubectl describe <resource>claim <name>
+
+# 5. Validate in AWS
+aws <service> describe-<resources> ...
+
+# 6. Check connection secret
+kubectl get secret <name>-connection -o yaml
+
+# 7. Test Backstage template
+# Navigate to Create → <Resource> (P/M/G)
+# Fill form and submit
+# Verify claim created in Git
+
+# 8. Test deletion
+kubectl delete <resource>claim <name>
+# Verify resource removed from AWS
+```
+
+**Common Failures**:
+1. **Resource creation fails**: Check Crossplane IAM policy includes required permissions
+2. **Connection secret not created**: Verify writeConnectionSecretToRef in composition
+3. **Deletion protection**: Some resources (RDS, S3) may have deletion protection enabled
+4. **Dependency errors**: Ensure VPC, subnets, security groups exist before resource creation
+5. **IAM policy too permissive**: Use least privilege, scope to specific resources
+
+---
+
+## 4. NON-NEGOTIABLE ENGINEERING RULES
+
+1. **Incremental Changes**: Work in small, PR-friendly chunks
+2. **Minimal Modifications**: Modify only files needed for current phase
+3. **Best Practices**: Security by default (IRSA, least privilege, encryption)
+4. **Testability**: Everything must be testable and reproducible
+5. **No Over-Engineering**: Keep code clean, simple, and maintainable
+6. **No Invented Tools**: If uncertain, propose safe verification steps
+7. **GitOps Everything**: No manual kubectl apply in production workflow
+8. **Infrastructure as Code**: All infrastructure defined declaratively
+9. **Observability**: Comprehensive logging, metrics, and alerting
+10. **Cost Optimization**: Leverage spot instances, right-sizing, auto-scaling
+
+## 5. OUTPUT FORMAT REQUIREMENTS
+
+For each phase implementation:
+
+1. **Brief Plan** (max 5 bullets)
+   - What will be implemented
+   - Why it's necessary
+   - Dependencies
+
+2. **Files to Create/Modify**
+   - List with full paths
+   - Brief description of changes
+
+3. **File Contents**
+   - Exact file paths
+   - FULL file contents (not snippets)
+
+4. **Testing Instructions**
+   - Exact commands to run
+   - Expected outputs
+   - Validation steps
+
+5. **Changed Files Summary**
+   - List ALL created/modified files
+   - Confirm no unrelated changes
+
+## 6. PROMPTS & WORKFLOWS
+
+### Base Prompt (use before EVERY phase)
+
+```
+You are a Senior Platform Engineer / DevOps Architect specialized in AWS, EKS, GitOps (ArgoCD), Backstage and Crossplane.
+
+Project goal:
+Build a complete Internal Developer Platform (IDP) from scratch starting at EKS.
+
+Target architecture:
+- Repo 1: platform-infra
+  - EKS bootstrap (IaC only for cluster)
+  - ArgoCD app-of-apps
+  - Crossplane + AWS providers
+  - XRDs/Compositions + Claims (t-shirt sizes)
+  - Backstage (catalog + templates to create Claims in Git)
+- Repo 2: hello-node-app
+  - Node.js hello world application
+  - Docker build + push to ECR
+  - Helm chart or Kustomize deployment
+  - Deployed automatically via ArgoCD
+
+Non-negotiable engineering rules:
+- Work in small incremental changes (PR-friendly)
+- Modify only the files needed for this phase (no unrelated refactors)
+- Create new files only when required
+- Prefer best practices + security by default (IRSA, least privilege)
+- Everything must be testable and reproducible (no manual final steps)
+- Avoid over-engineering; keep it clean and maintainable
+- Do NOT invent tools/commands; if uncertain propose a safe verification step
+
+Output format requirements:
+1) Brief plan (max 5 bullets)
+2) List of files to create/modify
+3) Provide exact file paths + FULL file contents
+4) How to test (exact commands + expected outputs)
+5) List ALL changed/created files at the end
+
+Now implement ONLY the phase described below.
+```
+
+### Validation Prompt (use AFTER each phase)
+
+```
+Now validate this phase.
+
+1) Provide the exact commands I should run locally to validate everything.
+2) Tell me the expected outputs (examples).
+3) List 5 common failures and how to troubleshoot each one.
+4) Confirm the Definition of Done checklist is satisfied.
+```
+
+### Debug Prompt (use when something breaks)
+
+```
+We have an issue. Here are the logs / error messages:
+
+<PASTE LOGS>
+
+Please:
+1) Identify the likely root cause
+2) Provide 2-3 hypotheses ordered by probability
+3) Give me the exact commands to confirm each hypothesis
+4) Provide the minimal fix (small diff) and explain why it works
+```
+
+### Golden Rule (remind AI when it gets off-track)
+
+```
+IMPORTANT:
+Do not touch unrelated files.
+If you need a new file, create it under the defined repo structure.
+Keep changes minimal and explicit.
+```
+
+## 7. CURRENT STATE ASSESSMENT
+
+### What Exists (as of Phase 2)
+
+✅ **Infrastructure (Phase 1)**:
+- VPC with multi-AZ subnets
+- EKS cluster (Kubernetes 1.33)
+- Karpenter for node autoscaling
+- RDS PostgreSQL for Keycloak
+- NLB with TLS termination (ACM)
+- Security groups configured
+- IRSA enabled (OIDC provider)
+
+✅ **Platform (Phase 2 - Partial)**:
+- ArgoCD installed with app-of-apps pattern
+- Keycloak deployed with external RDS
+- Keycloak OIDC integration (IN PROGRESS)
+- ingress-nginx for routing
+- external-dns for Route53 management
+- Backstage (basic installation, needs templates)
+
+⏳ **In Progress**:
+- Keycloak realm configuration
+- OIDC clients for ArgoCD and Backstage
+- Authentication flows testing
+
+❌ **Not Started (Phase 3+)**:
+- Crossplane installation
+- AWS Provider with IRSA
+- XRDs and Compositions
+- Self-service templates in Backstage
+- Hello Node App example
+- Additional resource types (RDS, S3, Lambda, etc.)
+
+### Known Gaps
+
+1. **Crossplane**: Not installed yet (Phase 3)
+2. **Self-Service**: No XRDs/Compositions for infrastructure (Phase 5-7)
+3. **Backstage Templates**: No templates for resource provisioning (Phase 6)
+4. **Example Application**: No hello-node-app repo yet (Phase 4)
+5. **OIDC Integration**: Partially complete, needs full testing
+6. **Observability**: Minimal logging/metrics/alerting
+7. **Documentation**: Technical docs incomplete
+
+### Next Steps
+
+1. **Complete Phase 2**: Finish Keycloak OIDC integration
+2. **Start Phase 3**: Install Crossplane with IRSA
+3. **Phase 4**: Create hello-node-app with CI/CD
+4. **Phase 5**: Implement EC2 self-service
+5. **Phase 6**: Add Backstage template for EC2
+6. **Phase 7**: Expand to other AWS resources
+
+## 8. SUCCESS METRICS
+
+### Technical Metrics
+- ✅ EKS cluster provisioned and operational
+- ✅ GitOps with ArgoCD (app-of-apps)
+- ⏳ OIDC authentication for all platform components
+- ❌ Crossplane managing AWS resources
+- ❌ Self-service infrastructure via Backstage
+- ❌ <15 min end-to-end provisioning time
+- ✅ 70%+ cost savings via Karpenter spot instances
+
+### Operational Metrics
+- ✅ Zero manual kubectl apply in workflows
+- ❌ Zero static AWS credentials in workloads
+- ✅ All infrastructure defined as code
+- ❌ Comprehensive observability (logs, metrics, traces)
+- ⏳ Documentation complete and up-to-date
+
+### Developer Experience
+- ❌ Self-service infrastructure provisioning
+- ❌ <5 min time to provision EC2/RDS/S3
+- ⏳ Single sign-on (SSO) across platform
+- ❌ Clear error messages and troubleshooting guides
+- ❌ Templates for common use cases
+
+## 9. RISKS & MITIGATIONS
+
+### Technical Risks
+
+1. **Crossplane Learning Curve**
+   - Mitigation: Start with simple resources (S3), document thoroughly
+
+2. **OIDC Complexity**
+   - Mitigation: Test with one service first (ArgoCD), then expand
+
+3. **Karpenter Spot Interruptions**
+   - Mitigation: PodDisruptionBudgets, graceful shutdown, multi-AZ
+
+4. **State Management**
+   - Mitigation: S3 backend with locking, regular backups
+
+### Operational Risks
+
+1. **Cost Overruns**
+   - Mitigation: Resource limits in Karpenter, budget alerts, tagging
+
+2. **Security Incidents**
+   - Mitigation: Least privilege everywhere, audit logs, secret rotation
+
+3. **Downtime**
+   - Mitigation: HA configurations, backups, disaster recovery plan
+
+### Process Risks
+
+1. **Scope Creep**
+   - Mitigation: Strict phase discipline, Definition of Done for each phase
+
+2. **Knowledge Silos**
+   - Mitigation: Comprehensive documentation, pair programming, code reviews
+
+## 10. REFERENCE LINKS
+
+- AWS Well-Architected Framework: https://aws.amazon.com/architecture/well-architected/
+- Crossplane Documentation: https://docs.crossplane.io/
+- ArgoCD Documentation: https://argo-cd.readthedocs.io/
+- Backstage Documentation: https://backstage.io/docs/
+- Karpenter Documentation: https://karpenter.sh/docs/
+- Keycloak Documentation: https://www.keycloak.org/documentation
+
+---
+
+END OF PRD

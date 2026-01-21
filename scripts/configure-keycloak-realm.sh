@@ -77,7 +77,7 @@ kubectl cp "${KEYCLOAK_DIR}/realm-config.json" \
 kubectl exec -n "$KEYCLOAK_NAMESPACE" "$POD_NAME" -- bash -c "
     # Set config file to writeable location
     export KC_OPTS='-Dkc.config.file=/tmp/kcadm.config'
-    
+
     /opt/bitnami/keycloak/bin/kcadm.sh config credentials \
         --server http://localhost:8080 \
         --realm master \
@@ -112,7 +112,7 @@ if [ -f "${KEYCLOAK_DIR}/clients/argocd-client.json" ]; then
 
     kubectl exec -n "$KEYCLOAK_NAMESPACE" "$POD_NAME" -- bash -c "
         export KC_OPTS='-Dkc.config.file=/tmp/kcadm.config'
-        
+
         /opt/bitnami/keycloak/bin/kcadm.sh config credentials \
             --server http://localhost:8080 \
             --realm master \
@@ -144,7 +144,7 @@ if [ -f "${KEYCLOAK_DIR}/clients/backstage-client.json" ]; then
 
     kubectl exec -n "$KEYCLOAK_NAMESPACE" "$POD_NAME" -- bash -c "
         export KC_OPTS='-Dkc.config.file=/tmp/kcadm.config'
-        
+
         /opt/bitnami/keycloak/bin/kcadm.sh config credentials \
             --server http://localhost:8080 \
             --realm master \

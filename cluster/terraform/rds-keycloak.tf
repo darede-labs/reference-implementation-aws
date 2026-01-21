@@ -9,25 +9,9 @@
 # - Storage 20GB gp3: ~$0.10/GB = ~$2/month
 # - Backup: $0 (1-day retention, minimal overhead)
 # Total: ~$14-16/month for POC/dev environment
+#
+# Configuration loaded from config.yaml via locals.tf
 ################################################################################
-
-locals {
-  # Keycloak RDS configuration from config.yaml
-  keycloak_enabled     = tobool(try(local.config_file.keycloak.enabled, "false"))
-  keycloak_db_name     = try(local.config_file.keycloak.database.name, "keycloak")
-  keycloak_db_username = try(local.config_file.keycloak.database.username, "keycloak")
-
-  # Instance configuration
-  keycloak_db_instance_class    = try(local.config_file.keycloak.database.instance_class, "db.t4g.micro")
-  keycloak_db_allocated_storage = try(local.config_file.keycloak.database.allocated_storage, 20)
-  keycloak_db_engine_version    = try(local.config_file.keycloak.database.postgres_version, "15.15")
-
-  # High availability (disable for cost savings in dev)
-  keycloak_db_multi_az = tobool(try(local.config_file.keycloak.database.multi_az, "false"))
-
-  # Backup configuration (minimal for cost savings)
-  keycloak_db_backup_retention = try(local.config_file.keycloak.database.backup_retention_days, 1)
-}
 
 ################################################################################
 # DB Subnet Group

@@ -6,27 +6,25 @@ repo:
   url: "https://github.com/darede-labs/reference-implementation-aws"
   revision: "main"
   basepath: "packages"
-
+# Git repository URL for ArgoCD (app-of-apps pattern)
+git_repo_url: "https://github.com/darede-labs/reference-implementation-aws"
+git_branch: "main"
 ################################################################################
 # EKS Cluster Configuration
 ################################################################################
 
 # The name of the EKS cluster you are installing the reference implementation on.
 cluster_name: "idp-poc-darede-cluster"
-
 # AWS Region of the EKS cluster
 region: "us-east-1"
-
 # Set this to "false" for Standard Mode with managed node groups (more control)
 # Set this to "true" for EKS Auto Mode (fully managed, less config)
 auto_mode: "false"
-
 # IAM authentication method for service accounts
 # Options: "irsa" (IAM Roles for Service Accounts - recommended, more compatible)
 #          "pod-identity" (EKS Pod Identity - newer, requires specific SCP permissions)
 # Recommended: "irsa" for most use cases (avoids SCP issues)
 iam_auth_method: "irsa"
-
 ################################################################################
 # Network Configuration
 ################################################################################
@@ -35,10 +33,8 @@ iam_auth_method: "irsa"
 vpc:
   # Set to "create" to create a new VPC, or "existing" to use an existing VPC
   mode: "create"
-
   # Only required if mode is "create"
   cidr: "10.0.0.0/16"
-
   # Only required if mode is "existing"
   # vpc_id: "vpc-xxxxx"
   # private_subnet_ids: ["subnet-xxxxx", "subnet-yyyyy", "subnet-zzzzz"]
@@ -47,11 +43,9 @@ vpc:
   # Number of Availability Zones (only for mode "create")
   # Recommended: 3 for production, 2 for dev/staging
   availability_zones: 3
-
   # NAT Gateway strategy (only for mode "create")
   # Options: "single" (cheaper, $32/month), "one_per_az" (HA, $96/month for 3 AZs)
   nat_gateway_mode: "single"
-
 ################################################################################
 # Node Provisioning Configuration
 ################################################################################
@@ -59,7 +53,6 @@ vpc:
 # Use Karpenter for dynamic node provisioning (recommended for cost optimization)
 # Set to "true" to enable Karpenter, "false" to use managed node groups
 use_karpenter: "true"
-
 # Karpenter Configuration (only when use_karpenter is "true")
 # Latest versions: https://github.com/aws/karpenter-provider-aws/tags
 karpenter:
@@ -69,96 +62,113 @@ karpenter:
   # v1.7.4 (Dec 12, 2025)
   # v1.1.1 (Legacy - your previous version)
   version: "1.8.5"
-
   # Default instance types (Karpenter will choose based on workload)
   # Recommended: Use instance families for flexibility
   instance_types:
-    - "t3a.medium"    # Primary: Best cost-performance
-    - "t3.medium"     # Fallback: Widely available
-    - "t2.medium"     # Fallback: Additional availability
-
+    - "t3a.medium" # Primary: Best cost-performance
+    - "t3.medium" # Fallback: Widely available
+    - "t2.medium" # Fallback: Additional availability
   # Capacity type: "spot" (70% cheaper) or "on-demand" (reliable)
   # Karpenter can mix both based on availability
-  capacity_type: "spot"  # Options: "spot", "on-demand", "spot-preferred"
-
+  capacity_type: "spot" # Options: "spot", "on-demand", "spot-preferred"
   # Resource limits (to prevent runaway costs)
   limits:
-    cpu: 20        # Maximum vCPUs across all Karpenter nodes
-    memory: 80Gi   # Maximum memory across all Karpenter nodes
-
+    cpu: 20 # Maximum vCPUs across all Karpenter nodes
+    memory: 80Gi # Maximum memory across all Karpenter nodes
   # Consolidation: Automatically remove underutilized nodes
   consolidation_enabled: true
-
   # TTL: Time nodes stay empty before termination (in seconds)
   ttl_seconds_after_empty: 30
-
   # Disruption budget: Limit node replacements
-  disruption_budget: "10%"  # Max 10% of nodes can be disrupted at once
-
+  disruption_budget: "10%" # Max 10% of nodes can be disrupted at once
   # Disk size per node in GB
   disk_size: 50
-
 ################################################################################
 # Legacy Node Group Configuration (only when use_karpenter is "false")
 ################################################################################
-
 node_groups:
   # Capacity type: "SPOT" (70% cheaper) or "ON_DEMAND" (reliable)
   capacity_type: "SPOT"
-
   instance_types:
     - "t3.medium"
     - "t3a.medium"
     - "t2.medium"
-
   # Auto Scaling configuration
   scaling:
-    min_size: 2      # Minimum nodes for POC
-    max_size: 4      # Maximum nodes
-    desired_size: 2  # Initial nodes (cost-optimized)
-
+    min_size: 2 # Minimum nodes for POC
+    max_size: 4 # Maximum nodes
+    desired_size: 2 # Initial nodes (cost-optimized)
   # Disk size per node in GB
   disk_size: 50
-
   # Node labels (for pod scheduling)
   labels:
     pool: "spot"
     workload: "general"
     cost-optimization: "enabled"
-
 ################################################################################
 # Backstage Integration Repositories
 ################################################################################
 
 # GitHub organization/user where repositories will be created
 github_org: "darede-labs"
-
 # GitHub Personal Access Token for Backstage integration
 # Required scopes: repo, workflow, read:org, read:user
 # Generate at: https://github.com/settings/tokens
-github_token: "yourGHTOKEN"
-
+# Set via environment variable: export GITHUB_TOKEN="ghp_..."
+github_token: "${GITHUB_TOKEN}"
 # Repository for infrastructure resources (S3, RDS, EKS, etc.)
 # Backstage will create Pull Requests here when provisioning resources
 infrastructure_repo: "infrastructureidp"
-
 # Repository for Backstage templates
 # Contains Software Templates for creating applications and resources
 templates_repo: "backstage-templates"
 
 ################################################################################
-# Secrets Configuration (change these for production!)
+# GitHub OIDC for CI/CD
 ################################################################################
 
+# GitHub OIDC Configuration for CI/CD without static credentials
+github:
+  # Enable GitHub OIDC provider for CI/CD pipelines
+  # Set to "true" to allow GitHub Actions to authenticate to AWS without credentials
+  # Set to "false" to disable (will require static AWS credentials in GitHub Secrets)
+  enable_oidc: true
+  # GitHub organization that can assume the ECR push role
+  # This allows any repository in this org to push images to ECR via OIDC
+  org: "darede-labs"
+
+################################################################################
+# ECR (Elastic Container Registry) Configuration
+################################################################################
+
+# ECR repositories for application images
+# Note: Repositories are created dynamically by CI/CD if they don't exist
+# This list is for pre-creating repositories during platform bootstrap
+ecr:
+  # List of ECR repository names to pre-create
+  # Leave empty [] for dynamic creation only
+  repositories: []
+  # Example:
+  # repositories:
+  #   - "sample-nodejs-app"
+  #   - "sample-python-app"
+  #   - "platform-backend"
+################################################################################
+# Secrets Configuration (change these for production!)
+################################################################################
 secrets:
   # ArgoCD admin credentials
   argocd:
     admin_password: "argocd-admin-2024"
-
+  # Keycloak OIDC client secrets
+  keycloak:
+    # ArgoCD OIDC client secret (must match Keycloak client configuration)
+    argocd_client_secret: "CfXz1wizSVMS+GN+uZ/llUlmawrYBh6bLIg4/ALTQFw="
+    # Backstage OIDC client secret (must match Keycloak client configuration)
+    backstage_client_secret: "your-backstage-client-secret-here"
   # Cognito default user password (auto-created from users-catalog.yaml)
   cognito:
     default_password: "Tampico@2024!"
-
   # Backstage configuration
   backstage:
     # PostgreSQL credentials (in-cluster StatefulSet with persistent storage)
@@ -172,7 +182,6 @@ secrets:
     # Auth session secret
     auth_session_secret: "backstage-session-secret-2024"
     backend_secret: "backstage-backend-secret-2024"
-
 ################################################################################
 # Terraform Backend Configuration
 ################################################################################
@@ -183,7 +192,6 @@ terraform_backend:
   region: "us-east-1"
   # Using S3 native locking (use_lockfile) instead of DynamoDB
   use_lockfile: true
-
 ################################################################################
 # Domain and DNS Configuration
 ################################################################################
@@ -193,21 +201,18 @@ terraform_backend:
 #   - argocd.timedevops.click (subdomain routing)
 #   - timedevops.click/argocd (path routing)
 domain: "timedevops.click"
-
 # Subdomain configuration for each service
 # Set to empty string "" to use root domain with path routing
 subdomains:
-  argocd: "argocd"        # argocd.timedevops.click
-  backstage: "backstage"  # backstage.timedevops.click
+  argocd: "argocd" # argocd.timedevops.click
+  backstage: "backstage" # backstage.timedevops.click
+  keycloak: "keycloak" # keycloak.timedevops.click
   # To use path routing, set all to "" and enable path_routing below
-
 # Route53 hosted zone ID for configuring external-dns
 route53_hosted_zone_id: "Z09212782MXWNY5EYNICO"
-
 # Set this to "true" for path-based routing (domain.com/argocd)
 # Set this to "false" for subdomain-based routing (argocd.domain.com)
 path_routing: "false"
-
 ################################################################################
 # TLS/SSL Configuration
 ################################################################################
@@ -216,11 +221,9 @@ path_routing: "false"
 # This certificate must cover *.domain (wildcard) or all subdomains
 # Example: arn:aws:acm:us-east-1:123456789:certificate/xxx-xxx-xxx
 acm_certificate_arn: "arn:aws:acm:us-east-1:948881762705:certificate/051f6515-0d0b-459c-a056-0663f7c88f5e"
-
 # TLS termination point: "nlb" (ACM at NLB) or "nginx" (cert-manager at nginx)
 # Recommended: "nlb" for ACM-managed certificates
 tls_termination: "nlb"
-
 ################################################################################
 # Identity Provider Configuration
 ################################################################################
@@ -229,25 +232,19 @@ tls_termination: "nlb"
 # - cognito: AWS managed, limited user management UI
 # - keycloak: Self-hosted, full admin UI, better for team management
 identity_provider: "keycloak"
-
 ################################################################################
 # Keycloak Configuration (when identity_provider: "keycloak")
 ################################################################################
-
 keycloak:
   # Enable Keycloak deployment and RDS database
   enabled: "true"
-
   # Keycloak deployment configuration
-  replicas: 1  # Single replica for POC (use 2+ for production HA)
-
+  replicas: 1 # Single replica for POC (use 2+ for production HA)
   # Admin credentials (stored in Secrets Manager)
   admin_user: "admin"
-  admin_password: "changeme"  # Change this!
-
+  admin_password: "changeme" # Change this!
   # Subdomain for Keycloak UI
-  subdomain: "keycloak"  # Will be: keycloak.timedevops.click
-
+  subdomain: "keycloak" # Will be: keycloak.timedevops.click
   # Database configuration
   database:
     # Instance type - cost optimized options:
@@ -255,23 +252,17 @@ keycloak:
     # - db.t3.micro: ~$14/month (x86, wider region support)
     # - db.t4g.small: ~$24/month (more performance if needed)
     instance_class: "db.t4g.micro"
-
     # Storage configuration (minimum for cost savings)
-    allocated_storage: 20  # GB - minimum recommended
-
+    allocated_storage: 20 # GB - minimum recommended
     # PostgreSQL version (Keycloak supports 12+)
     postgres_version: "15.15"
-
     # Database name and username
     name: "keycloak"
     username: "keycloak"
-
     # High availability (disable for cost savings in dev/POC)
-    multi_az: "false"  # Set to "true" for production
-
+    multi_az: "false" # Set to "true" for production
     # Backup retention (1 day minimum for cost savings)
-    backup_retention_days: 1  # Increase to 7-30 for production
-
+    backup_retention_days: 1 # Increase to 7-30 for production
 ################################################################################
 # AWS Cognito Configuration (DEPRECATED - use Keycloak instead)
 ################################################################################
@@ -286,11 +277,9 @@ keycloak:
 # Formato: "Darede-<CÓDIGO_JIRA>::<vertical>"
 # Exemplo: "Darede-RPCNE::netfound", "Darede-RPCNE::devops"
 ################################################################################
-
 tags:
   # OBRIGATÓRIO - Cloud Economics (vertical DevOps)
   cloud_economics: "Darede-IDP::devops"
-
   # Tags adicionais para organização
   githubRepo: "github.com/darede-labs/reference-implementation-aws"
   env: "poc"

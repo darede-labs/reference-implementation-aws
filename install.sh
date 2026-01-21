@@ -196,6 +196,26 @@ if [ "$SKIP_APPS" = false ]; then
     fi
   fi
 
+  # Install Ingress NGINX
+  info "Installing Ingress NGINX..."
+  if [ "$DRY_RUN" = false ]; then
+    if [ -f "scripts/install-ingress-nginx.sh" ]; then
+      bash scripts/install-ingress-nginx.sh
+    else
+      warn "install-ingress-nginx.sh not found, skipping"
+    fi
+  fi
+
+  # Install External DNS
+  info "Installing External DNS..."
+  if [ "$DRY_RUN" = false ]; then
+    if [ -f "scripts/install-external-dns.sh" ]; then
+      bash scripts/install-external-dns.sh
+    else
+      warn "install-external-dns.sh not found, skipping"
+    fi
+  fi
+
   # Install ArgoCD (if configured)
   info "Installing ArgoCD..."
   if [ "$DRY_RUN" = false ]; then

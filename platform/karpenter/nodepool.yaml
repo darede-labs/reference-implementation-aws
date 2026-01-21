@@ -41,35 +41,50 @@ spec:
           operator: In
           values: ["linux"]
 
-        # Instance category: general purpose (t-series)
+        # Instance category: T (burstable) and M (general purpose)
         - key: karpenter.k8s.aws/instance-category
           operator: In
-          values: ["t"]
+          values: ["t", "m"]
 
-        # Instance generation: 2, 3, or 3a
+        # Instance generation: 3+ for better performance
         - key: karpenter.k8s.aws/instance-generation
           operator: Gt
           values: ["2"]
 
-        # Specific instance types (from config.yaml)
+        # Specific instance types - expanded for higher pod capacity
         - key: node.kubernetes.io/instance-type
           operator: In
-          values: ["t3a.medium", "t3.medium", "t2.medium"]
+          values:
+            # T3 family - burstable, cost-effective (~17-58 pods)
+            - "t3a.medium"    # 2 vCPU, 4GB RAM, ~17 pods
+            - "t3.medium"     # 2 vCPU, 4GB RAM, ~17 pods
+            - "t3a.large"     # 2 vCPU, 8GB RAM, ~35 pods
+            - "t3.large"      # 2 vCPU, 8GB RAM, ~35 pods
+            - "t3a.xlarge"    # 4 vCPU, 16GB RAM, ~58 pods
+            - "t3.xlarge"     # 4 vCPU, 16GB RAM, ~58 pods
+            # M5 family - general purpose, stable workloads (~29-58 pods)
+            - "m5.large"      # 2 vCPU, 8GB RAM, ~29 pods
+            - "m5.xlarge"     # 4 vCPU, 16GB RAM, ~58 pods
+            - "m5a.large"     # 2 vCPU, 8GB RAM, ~29 pods
+            - "m5a.xlarge"    # 4 vCPU, 16GB RAM, ~58 pods
+            # M6i family - latest generation (~29-58 pods)
+            - "m6i.large"     # 2 vCPU, 8GB RAM, ~29 pods
+            - "m6i.xlarge"    # 4 vCPU, 16GB RAM, ~58 pods
 
-  # Limits for this NodePool
+  # Limits for this NodePool (from config.yaml)
   limits:
-    cpu: "20"      # Maximum 20 vCPUs across all nodes in this pool
-    memory: 80Gi   # Maximum 80GB RAM across all nodes in this pool
+    cpu: "20"      # Maximum vCPUs across all nodes in this pool
+    memory: 80Gi   # Maximum memory across all nodes in this pool
 
   # Disruption settings (consolidation, expiration, etc)
   disruption:
     # Consolidation: Replace underutilized nodes with cheaper/smaller ones
     consolidationPolicy: WhenEmptyOrUnderutilized
 
-    # Consolidate after 30 seconds of being empty
+    # Consolidate after configured TTL seconds
     consolidateAfter: 30s
 
-    # Budget for disruptions (max 10% of nodes can be disrupted at once)
+    # Budget for disruptions (from config.yaml)
     budgets:
       - nodes: "10%"
 

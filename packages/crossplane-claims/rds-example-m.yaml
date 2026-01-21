@@ -1,0 +1,29 @@
+apiVersion: platform.darede.io/v1alpha1
+kind: RDSInstanceClaim
+metadata:
+  name: my-app-db-m
+  namespace: default
+spec:
+  size: M
+  engine: postgres
+  databaseName: myapp
+  masterUsername: admin
+  # IMPORTANT: Replace with actual subnet IDs from your VPC
+  subnetIds:
+    - subnet-xxxxxxxx  # Replace with actual subnet ID from AZ 1
+    - subnet-yyyyyyyy  # Replace with actual subnet ID from AZ 2
+  # IMPORTANT: Replace with actual security group ID
+  vpcSecurityGroupIds:
+    - sg-zzzzzzzz  # Replace with actual security group ID
+  publiclyAccessible: false
+  backupRetentionPeriod: 7
+  multiAZ: false
+  storageEncrypted: true
+  writeConnectionSecretToRef:
+    name: my-app-db-secret
+    namespace: default
+  tags:
+    environment: staging
+    team: platform
+    application: my-app
+    size: M

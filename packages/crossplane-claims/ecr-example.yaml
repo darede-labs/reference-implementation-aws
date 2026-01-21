@@ -1,0 +1,13 @@
+apiVersion: platform.darede.io/v1alpha1
+kind: ECRRepositoryClaim
+metadata:
+  name: my-app-ecr
+  namespace: default
+spec:
+  repositoryName: my-app
+  imageScanningEnabled: true
+  encryptionType: AES256
+  tags:
+    environment: development
+    team: platform
+    application: my-app

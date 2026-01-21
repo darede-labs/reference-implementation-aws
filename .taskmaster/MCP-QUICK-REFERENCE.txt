@@ -1,0 +1,108 @@
+================================================================================
+AWS MCP SERVERS - REFERÊNCIA RÁPIDA
+================================================================================
+
+📦 10 MCP SERVERS ATIVOS:
+
+1. AWS Documentation      → Docs oficiais AWS
+2. AWS EKS 🆕            → Gerenciamento EKS clusters
+3. AWS ECS 🆕            → Gerenciamento ECS/Fargate
+4. AWS IAM 🆕            → Identidades e permissões
+5. AWS Pricing 🆕        → Consulta de preços
+6. AWS Billing 🆕        → Análise de custos
+7. GitHub                → Integração GitHub
+8. Terraform             → Terraform Registry
+9. Kubernetes            → kubectl via MCP
+10. Task Master AI       → Gerenciamento de tasks
+
+================================================================================
+⚡ USO AUTOMÁTICO - EXEMPLOS:
+================================================================================
+
+AWS EKS:
+> Show me my EKS clusters
+> List all node groups in cluster idp-poc-darede-cluster
+> What add-ons are installed?
+
+AWS IAM:
+> List all IAM roles with EKS in the name
+> Show OIDC provider configuration
+> What policies are attached to role X?
+
+AWS Billing:
+> How much am I spending this month?
+> Show me cost breakdown by service
+> Compare costs: this month vs last month
+
+AWS Pricing:
+> What's the price of t3a.medium in us-east-1?
+> Compare spot vs on-demand pricing
+> Show me RDS pricing for db.t4g.micro
+
+AWS ECS:
+> List all ECS clusters
+> Show running Fargate tasks
+> Describe service X
+
+================================================================================
+🔧 CONFIGURAÇÃO:
+================================================================================
+
+Arquivo: ~/.cursor/mcp.json
+Profile AWS: usa o padrão do sistema ($AWS_PROFILE ou [default])
+Region: usa a padrão do sistema ($AWS_REGION ou config)
+
+Configurar profile (exemplo):
+$ export AWS_PROFILE=seu-profile
+$ export AWS_REGION=sua-region
+$ aws sso login --profile seu-profile
+
+Ver profile atual:
+$ echo $AWS_PROFILE
+$ aws sts get-caller-identity
+
+================================================================================
+✅ PRÓXIMOS PASSOS:
+================================================================================
+
+1. Configurar profile AWS (para o projeto atual):
+   $ export AWS_PROFILE=seu-profile
+   $ export AWS_REGION=sua-region
+
+2. Fazer login AWS (se necessário):
+   $ aws sso login --profile $AWS_PROFILE
+
+3. Recarregar Cursor (OBRIGATÓRIO):
+   Cmd+Shift+P → "Reload Window"
+
+4. Testar:
+   > List available MCP servers
+   (Deve mostrar 10 servers)
+
+5. Usar:
+   > Show me my EKS clusters
+   > What's my AWS spending this month?
+
+================================================================================
+📚 DOCUMENTAÇÃO COMPLETA:
+================================================================================
+
+.taskmaster/AWS-MCP-SERVERS.md
+
+Inclui:
+- Descrição detalhada de cada MCP
+- Exemplos de uso
+- Casos de uso práticos
+- Troubleshooting
+
+================================================================================
+💡 DICAS:
+================================================================================
+
+• Use linguagem natural (português ou inglês)
+• Cursor escolhe automaticamente o MCP correto
+• Pode combinar múltiplos MCPs em uma pergunta
+• MCPs têm acesso ao código do projeto
+• Credenciais nunca expostas nos chats
+
+================================================================================
