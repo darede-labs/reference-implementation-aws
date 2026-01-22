@@ -96,5 +96,6 @@ locals {
 
   external_secret_policy = templatefile("${path.module}/../iam-policies/external-secrets.json", {
     AWS_ACCOUNT_ID = data.aws_caller_identity.current.account_id
+    CLUSTER_NAME   = local.cluster_name
   })
 }
