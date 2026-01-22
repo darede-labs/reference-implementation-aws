@@ -48,6 +48,8 @@ spec:
               echo "Using kcadm.sh at: $KCADM"
 
               echo "Logging in to Keycloak..."
+              export HOME=/tmp
+              mkdir -p /tmp/.keycloak
               $KCADM config credentials \
                 --server http://keycloak-http:80/auth \
                 --realm master \
