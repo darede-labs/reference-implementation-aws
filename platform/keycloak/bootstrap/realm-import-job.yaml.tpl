@@ -12,7 +12,13 @@ metadata:
     argocd.argoproj.io/sync-options: Replace=true
 spec:
   ttlSecondsAfterFinished: 300
+  selector:
+    matchLabels:
+      job-name: keycloak-realm-import
   template:
+    metadata:
+      labels:
+        job-name: keycloak-realm-import
     spec:
       restartPolicy: OnFailure
       containers:
