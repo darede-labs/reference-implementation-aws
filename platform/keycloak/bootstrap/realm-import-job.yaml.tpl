@@ -8,6 +8,8 @@ kind: Job
 metadata:
   name: keycloak-realm-import
   namespace: keycloak
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
   ttlSecondsAfterFinished: 300
   template:
