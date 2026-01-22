@@ -49,7 +49,9 @@ spec:
               echo "Using kcadm.sh at: $KCADM"
 
               echo "Logging in to Keycloak..."
+              export HOME="/tmp"
               export KCADM_CONFIG="/tmp/kcadm.config"
+              mkdir -p /tmp/.keycloak
               $KCADM config credentials \
                 --server http://keycloak-http:80/auth \
                 --realm master \
@@ -79,7 +81,11 @@ spec:
           volumeMounts:
             - name: realm-config
               mountPath: /config
+            - name: kcadm-home
+              mountPath: /home/keycloak
       volumes:
         - name: realm-config
           configMap:
             name: keycloak-realm-config
+        - name: kcadm-home
+          emptyDir: {}
