@@ -12,7 +12,7 @@ tfplan
 # OS
 .DS_Store
 Thumbs.db
-
+.env
 # IDE
 .vscode/
 .idea/
@@ -39,3 +39,4 @@ manifests/
 
 # Configuration file with secrets (never commit!)
 config.yaml
+

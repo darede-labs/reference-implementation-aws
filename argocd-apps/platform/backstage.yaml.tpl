@@ -17,7 +17,7 @@ spec:
   source:
     chart: backstage
     repoURL: https://backstage.github.io/charts
-    targetRevision: 1.10.0
+    targetRevision: 2.6.3
     helm:
       values: |
         ingress:
@@ -36,9 +36,8 @@ spec:
         backstage:
           replicas: 2
           image:
-            registry: public.ecr.aws
-            repository: a7h4f2f7/backstage-idp
-            tag: v1.1.6
+            repository: ghcr.io/backstage/backstage
+            tag: "v1.45.3"
             pullPolicy: IfNotPresent
 
           command: ["node", "packages/backend"]
