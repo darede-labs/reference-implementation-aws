@@ -78,6 +78,8 @@ resource "aws_iam_role_policy" "karpenter_additional_permissions" {
 
 # Install Karpenter Helm chart
 # CRITICAL: Must wait for bootstrap nodes to be ready AND addons installed
+data "aws_ecrpublic_authorization_token" "karpenter" {}
+
 resource "helm_release" "karpenter" {
   count = local.karpenter_enabled ? 1 : 0
 
@@ -86,6 +88,8 @@ resource "helm_release" "karpenter" {
   chart      = "karpenter"
   version    = "1.8.0"  # Latest stable version (Jan 2026) - https://karpenter.sh/docs/getting-started/
   namespace  = "kube-system"
+  repository_username = data.aws_ecrpublic_authorization_token.karpenter.user_name
+  repository_password = data.aws_ecrpublic_authorization_token.karpenter.password
 
   # Use values YAML to configure Karpenter
   # Ref: https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/
@@ -124,6 +128,9 @@ resource "helm_release" "karpenter" {
           }
         }
       }
+      # Allow scheduling on bootstrap and Karpenter-managed nodes
+      # (set to null to remove chart default nodeAffinity)
+      affinity = null
     })
   ]
 
