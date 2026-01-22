@@ -26,8 +26,8 @@ spec:
               set -euo pipefail
 
               echo "Waiting for Keycloak service..."
-              # Use /realms/master endpoint (more reliable than /health/ready for bitnamilegacy)
-              until curl -sf http://keycloak-http:80/realms/master >/dev/null 2>&1; do
+              # Use /auth/realms/master endpoint (more reliable than /health/ready for bitnamilegacy)
+              until curl -sf http://keycloak-http:80/auth/realms/master >/dev/null 2>&1; do
                 echo "Keycloak not ready yet..."
                 sleep 5
               done
@@ -49,7 +49,7 @@ spec:
 
               echo "Logging in to Keycloak..."
               $KCADM config credentials \
-                --server http://keycloak-http:80 \
+                --server http://keycloak-http:80/auth \
                 --realm master \
                 --user "${KEYCLOAK_ADMIN_USER}" \
                 --password "${KEYCLOAK_ADMIN_PASSWORD}"
