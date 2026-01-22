@@ -77,3 +77,32 @@ resource "aws_secretsmanager_secret_version" "github_app" {
     ignore_changes = [secret_string]
   }
 }
+
+################################################################################
+# Backstage RDS Secret (external DB)
+################################################################################
+resource "aws_secretsmanager_secret" "backstage_db" {
+  name        = "rds_secret"
+  description = "Backstage RDS database connection (host/port/username/password)"
+
+  recovery_window_in_days = 0
+
+  tags = merge(
+    local.tags,
+    {
+      Name        = "backstage-rds-credentials"
+      Application = "backstage"
+      DeployedAt  = timestamp()
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "backstage_db" {
+  secret_id = aws_secretsmanager_secret.backstage_db.id
+  secret_string = jsonencode({
+    host     = local.backstage_db_host
+    port     = local.backstage_db_port
+    username = local.backstage_db_user
+    password = local.backstage_db_pass
+  })
+}

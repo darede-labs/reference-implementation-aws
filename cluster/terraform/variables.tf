@@ -13,3 +13,11 @@
 #   - tags
 
 # No variables needed - everything comes from config.yaml
+
+# Sensitive overrides (avoid hardcoding secrets in config.yaml)
+variable "backstage_postgres_password" {
+  description = "Backstage RDS password (sensitive). Prefer TF_VAR_backstage_postgres_password."
+  type        = string
+  sensitive   = true
+  default     = null
+}

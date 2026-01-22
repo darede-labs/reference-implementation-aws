@@ -238,6 +238,28 @@ resource "null_resource" "validate_secrets_manager_names" {
 }
 
 ################################################################################
+# Backstage DB Secret Validations
+################################################################################
+resource "null_resource" "validate_backstage_db_secret" {
+  lifecycle {
+    precondition {
+      condition     = length(trimspace(local.backstage_db_host)) > 0
+      error_message = "Backstage DB host is empty. Set secrets.backstage.postgres_host in config.yaml."
+    }
+
+    precondition {
+      condition     = length(trimspace(local.backstage_db_pass)) > 0
+      error_message = "Backstage DB password is empty. Set secrets.backstage.postgres_password via ENV or config.yaml."
+    }
+
+    precondition {
+      condition     = !can(regex("\\$\\{", local.backstage_db_pass))
+      error_message = "Backstage DB password looks like a placeholder. Provide a real value via ENV or config.yaml."
+    }
+  }
+}
+
+################################################################################
 # S3 Bucket Name Validation
 ################################################################################
 

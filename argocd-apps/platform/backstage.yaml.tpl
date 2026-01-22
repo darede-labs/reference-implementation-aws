@@ -83,6 +83,26 @@ spec:
                   key: OIDC_CLIENT_SECRET
 
             # PostgreSQL (configured via appConfig.backend.database)
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-db-credentials
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-db-credentials
+                  key: POSTGRES_PORT
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-db-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-db-credentials
+                  key: POSTGRES_PASSWORD
 
             # Auth Secrets
             - name: AUTH_SESSION_SECRET
@@ -247,30 +267,7 @@ spec:
                       password: ${ARGOCD_ADMIN_PASSWORD}
 
         postgresql:
-          enabled: true
-          image:
-            registry: docker.io
-            repository: bitnamilegacy/postgresql
-            tag: 17.6.0-debian-12-r4
-          auth:
-            username: "{{ postgres_user }}"
-            existingSecret: "backstage-env-vars"
-            secretKeys:
-              adminPasswordKey: POSTGRES_PASSWORD
-              userPasswordKey: POSTGRES_PASSWORD
-          architecture: standalone
-          primary:
-            persistence:
-              enabled: true
-              size: 20Gi
-              storageClass: "gp2"
-            resources:
-              requests:
-                memory: "256Mi"
-                cpu: "250m"
-              limits:
-                memory: "512Mi"
-                cpu: "500m"
+          enabled: false
 
         serviceAccount:
           create: true

@@ -192,10 +192,8 @@ secrets:
     default_password: "${COGNITO_DEFAULT_PASSWORD}"
   # Backstage configuration
   backstage:
-    # PostgreSQL credentials (in-cluster StatefulSet with persistent storage)
-    # NOTE: PostgreSQL now runs as StatefulSet with 20Gi persistent volume (EBS gp3)
-    # Data survives pod restarts - no catalog loss
-    # Service name: backstage-postgresql (auto-created by Helm chart)
+    # PostgreSQL credentials (external RDS)
+    # Service name is provided via Secrets Manager (host/port/user/password)
     postgres_host: "backstage-postgresql"
     postgres_port: "5432"
     postgres_user: "backstage"

@@ -75,6 +75,13 @@ locals {
   keycloak_db_multi_az       = tobool(try(local.keycloak_db_config.multi_az, "false"))
   keycloak_db_backup_retention = try(local.keycloak_db_config.backup_retention_days, 1)
 
+  # Backstage Database Configuration (RDS - existing)
+  backstage_secrets   = try(local.config_file.secrets.backstage, {})
+  backstage_db_host   = try(local.backstage_secrets.postgres_host, "")
+  backstage_db_port   = try(local.backstage_secrets.postgres_port, "5432")
+  backstage_db_user   = try(local.backstage_secrets.postgres_user, "backstage")
+  backstage_db_pass   = coalesce(var.backstage_postgres_password, try(local.backstage_secrets.postgres_password, ""))
+
   # Tags from config
   config_tags = local.config_file.tags
 
