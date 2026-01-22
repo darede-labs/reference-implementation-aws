@@ -8,7 +8,7 @@ spec:
     metadata:
       # Labels applied to all nodes
       labels:
-        karpenter.sh/capacity-type: spot
+        karpenter.sh/capacity-type: on-demand
         workload-type: general
 
     spec:
@@ -26,10 +26,10 @@ spec:
 
       # Requirements for node selection
       requirements:
-        # Capacity type: prefer spot for cost savings
+        # Capacity type: on-demand only for Phase 0 stability
         - key: karpenter.sh/capacity-type
           operator: In
-          values: ["spot", "on-demand"]
+          values: ["on-demand"]
 
         # Architecture: ARM64 (Graviton) and x86_64 for maximum flexibility
         # Graviton instances (ARM) are ~20% cheaper with same performance
@@ -75,8 +75,8 @@ spec:
 
   # Disruption settings (consolidation, expiration, etc)
   disruption:
-    # Consolidation: Replace underutilized nodes with cheaper/smaller ones
-    consolidationPolicy: {{ karpenter_consolidation_policy }}
+    # Consolidation: Disabled for Phase 0 stability
+    consolidationPolicy: WhenEmpty
 
     # Consolidate after configured TTL seconds
     consolidateAfter: {{ karpenter_ttl_seconds }}s
