@@ -217,6 +217,11 @@ spec:
       name: kyverno-verify-mutating-webhook-cfg
       jqPathExpressions:
         - .webhooks[]?.clientConfig.caBundle
+    - group: apps
+      kind: Deployment
+      name: kyverno-cleanup-controller
+      jqPathExpressions:
+        - .spec.template.spec.containers[]?.image
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
