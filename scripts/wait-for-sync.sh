@@ -20,9 +20,9 @@ TIMEOUT=${1:-600}
 ELAPSED=0
 
 # Gate definitions (apps that MUST be ready vs apps that can drift)
-# Critical: Core infra that makes cluster usable
-CRITICAL_APPS="ingress-nginx|external-dns|keycloak|cert-manager"
-# Soft-gate: Can be Healthy+OutOfSync without blocking
+# Critical: Core infra that makes cluster usable (ACM-only, no cert-manager)
+CRITICAL_APPS="ingress-nginx|external-dns|keycloak"
+# Soft-gate: Can be Healthy+OutOfSync without blocking (kyverno drifts due to caBundle)
 SOFT_GATE_PATTERN="kyverno|prometheus|loki|grafana|promtail|observability|backstage"
 
 ################################################################################
@@ -76,10 +76,10 @@ PREV_STATE=""
 
 while [ $ELAPSED -lt $TIMEOUT ]; do
     INTERVAL=$(get_interval)
-    
+
     # OPTIMIZATION: Single kubectl call for ALL apps
     APP_STATUS=$(get_all_apps_status)
-    
+
     # Skip processing if state unchanged (reduces CPU, not API calls)
     if [ "$APP_STATUS" = "$PREV_STATE" ] && [ -n "$PREV_STATE" ]; then
         printf "\r⏱️  %3ds/%ds [stable] " "$ELAPSED" "$TIMEOUT"
@@ -88,21 +88,21 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
         continue
     fi
     PREV_STATE="$APP_STATUS"
-    
+
     # Single-pass evaluation
     SYNCED=0 HEALTHY=0 DEGRADED=0 PROGRESSING=0
     CRITICAL_READY=0 CRITICAL_TOTAL=0 CRITICAL_BLOCKED=""
     SOFT_READY=0 SOFT_TOTAL=0
     OTHER_READY=0 OTHER_TOTAL=0
-    
+
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     printf "⏱️  %3ds / %ds (poll: %ds)\n" "$ELAPSED" "$TIMEOUT" "$INTERVAL"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
     while IFS='|' read -r APP SYNC HEALTH; do
         [ -z "$APP" ] && continue
-        
+
         # Determine gate type and count
         if matches_pattern "$APP" "$CRITICAL_APPS"; then
             GATE="🔒" && ((CRITICAL_TOTAL++))
@@ -119,7 +119,7 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
             GATE="  " && ((OTHER_TOTAL++))
             [[ "$HEALTH" == "Healthy" || "$HEALTH" == "Progressing" ]] && ((OTHER_READY++))
         fi
-        
+
         # Global counters
         [[ "$SYNC" == "Synced" ]] && ((SYNCED++))
         case "$HEALTH" in
@@ -127,30 +127,30 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
             Degraded) ((DEGRADED++)) ;;
             Progressing) ((PROGRESSING++)) ;;
         esac
-        
+
         # Status icons
         case "$SYNC" in Synced) SI="✅";; OutOfSync) SI="🔄";; *) SI="❓";; esac
         case "$HEALTH" in Healthy) HI="✅";; Degraded) HI="❌";; Progressing) HI="🔄";; Missing) HI="⚠️";; *) HI="❓";; esac
-        
+
         printf "%s %-24s %s %-10s %s %s\n" "$GATE" "$APP" "$SI" "$SYNC" "$HI" "$HEALTH"
     done <<< "$APP_STATUS"
-    
+
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     printf "📊 Synced=%d/%d  Healthy=%d  Progressing=%d  Degraded=%d\n" \
         "$SYNCED" "$TOTAL_APPS" "$HEALTHY" "$PROGRESSING" "$DEGRADED"
     printf "🔒 Critical: %d/%d  🔓 Soft: %d/%d  Other: %d/%d\n" \
         "$CRITICAL_READY" "$CRITICAL_TOTAL" "$SOFT_READY" "$SOFT_TOTAL" "$OTHER_READY" "$OTHER_TOTAL"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
     # ==================== EARLY EXIT DECISIONS ====================
-    
+
     # BEST CASE: Perfect sync
     if [ "$SYNCED" -eq "$TOTAL_APPS" ] && [ "$HEALTHY" -eq "$TOTAL_APPS" ]; then
         echo ""
         info "✅ Perfect: All ${TOTAL_APPS} apps Synced+Healthy"
         exit 0
     fi
-    
+
     # GOOD CASE: Cluster is usable (critical ready + all effectively healthy)
     TOTAL_EFFECTIVE=$((CRITICAL_READY + SOFT_READY + OTHER_READY))
     if [ "$CRITICAL_TOTAL" -gt 0 ] && [ "$CRITICAL_READY" -eq "$CRITICAL_TOTAL" ] && [ "$TOTAL_EFFECTIVE" -eq "$TOTAL_APPS" ]; then
@@ -161,7 +161,7 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
         [ "$SYNCED" -lt "$TOTAL_APPS" ] && info "   ℹ️  Some apps OutOfSync - will sync in background"
         exit 0
     fi
-    
+
     # EARLY CASE: All healthy, even if not all synced
     if [ "$HEALTHY" -eq "$TOTAL_APPS" ] && [ "$CRITICAL_READY" -eq "$CRITICAL_TOTAL" ]; then
         echo ""
@@ -169,7 +169,7 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
         info "   ℹ️  ${SYNCED}/${TOTAL_APPS} synced, rest will sync in background"
         exit 0
     fi
-    
+
     # FAIL FAST: Degraded critical apps after grace period
     if [ "$DEGRADED" -gt 0 ] && [ $ELAPSED -gt 120 ]; then
         # Check if degraded apps are critical
@@ -183,13 +183,13 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
             fi
         done <<< "$APP_STATUS"
     fi
-    
+
     # ==================== STATUS MESSAGES ====================
-    
+
     if [ -n "$CRITICAL_BLOCKED" ]; then
         warn "⏳ Waiting for critical:$CRITICAL_BLOCKED"
     fi
-    
+
     sleep "$INTERVAL"
     ELAPSED=$((ELAPSED + INTERVAL))
 done
