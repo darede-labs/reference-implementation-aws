@@ -110,7 +110,7 @@ server:
 
   # Ingress configuration
   ingress:
-    enabled: true
+    enabled: false
     ingressClassName: nginx
     annotations:
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
