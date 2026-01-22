@@ -24,6 +24,11 @@ info "Rendering templates from Terraform outputs and config.yaml..."
 
 cd "$TERRAFORM_DIR"
 
+# Ensure AWS profile is set for Terraform outputs (same default as install-infra.sh)
+if [ -z "${AWS_PROFILE:-}" ]; then
+    export AWS_PROFILE="darede"
+fi
+
 # Get all Terraform outputs in one call (much faster)
 TF_OUTPUTS=$(terraform output -json 2>/dev/null || echo "{}")
 
