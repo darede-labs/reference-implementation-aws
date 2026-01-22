@@ -35,6 +35,8 @@ spec:
 
         backstage:
           replicas: 2
+          podAnnotations:
+            backstage-db-secret-refresh: "20260122"
           image:
             registry: ghcr.io
             repository: backstage/backstage
