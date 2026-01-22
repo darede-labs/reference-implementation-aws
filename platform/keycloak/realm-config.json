@@ -255,6 +255,6 @@
   "defaultLocale": "en",
   "authenticationFlows": [],
   "attributes": {
-    "frontendUrl": "https://{{ .config.subdomains.keycloak }}.{{ .config.domain }}"
+    "frontendUrl": "https://{{ .config.subdomains.keycloak }}.{{ .config.domain }}/auth"
   }
 }

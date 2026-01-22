@@ -56,7 +56,7 @@ configs:
     # IMPORTANT: clientSecret is injected via gomplate during bootstrap from ENV ARGOCD_CLIENT_SECRET
     oidc.config: |
       name: Keycloak
-      issuer: https://{{ .config.subdomains.keycloak }}.{{ .config.domain }}/realms/platform
+      issuer: https://{{ .config.subdomains.keycloak }}.{{ .config.domain }}/auth/realms/platform
       clientID: argocd
       clientSecret: {{ getenv "ARGOCD_CLIENT_SECRET" }}
       requestedScopes:

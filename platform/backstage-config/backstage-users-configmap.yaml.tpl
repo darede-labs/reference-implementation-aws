@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backstage-users
+  namespace: backstage
+  labels:
+    app.kubernetes.io/name: backstage
+    app.kubernetes.io/component: catalog
+data:
+  users-catalog.yaml: |
+    apiVersion: backstage.io/v1alpha1
+    kind: User
+    metadata:
+      name: admin
+      description: Platform Administrator
+    spec:
+      profile:
+        displayName: Admin User
+        email: admin@{{ domain }}
+      memberOf:
+        - admins
+    ---
+    apiVersion: backstage.io/v1alpha1
+    kind: Group
+    metadata:
+      name: admins
+      description: Platform Administrators
+    spec:
+      type: team
+      profile:
+        displayName: Administrators
+      children: []

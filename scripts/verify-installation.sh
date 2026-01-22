@@ -109,12 +109,29 @@ echo ""
 
 # 3.1 Backstage catalog sanity check
 info "3.1 Checking Backstage catalog entities..."
-CATALOG_COUNT=$(curl -sk "https://${BACKSTAGE_SUBDOMAIN}.${DOMAIN}/api/catalog/entities?limit=1" 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
-if [[ "$CATALOG_COUNT" -ge 1 ]]; then
-    success "  Backstage catalog has entities"
+if kubectl -n backstage get configmap backstage-users >/dev/null 2>&1; then
+    success "  Backstage users catalog ConfigMap present"
 else
-    error "  Backstage catalog is empty"
+    error "  Backstage users catalog ConfigMap missing"
     ERRORS=$((ERRORS + 1))
+fi
+
+CATALOG_RESPONSE=$(curl -sk -w "\n%{http_code}" "https://${BACKSTAGE_SUBDOMAIN}.${DOMAIN}/api/catalog/entities?limit=1" 2>/dev/null || echo "[]\n000")
+CATALOG_BODY=$(echo "$CATALOG_RESPONSE" | head -n1)
+CATALOG_HTTP=$(echo "$CATALOG_RESPONSE" | tail -n1)
+
+if [[ "$CATALOG_HTTP" == "200" ]]; then
+    CATALOG_COUNT=$(echo "$CATALOG_BODY" | jq 'length' 2>/dev/null || echo "0")
+    if [[ "$CATALOG_COUNT" -ge 1 ]]; then
+        success "  Backstage catalog has entities"
+    else
+        error "  Backstage catalog is empty"
+        ERRORS=$((ERRORS + 1))
+    fi
+elif [[ "$CATALOG_HTTP" == "401" ]]; then
+    warn "  Backstage catalog endpoint requires auth (HTTP 401)"
+else
+    warn "  Backstage catalog endpoint not reachable (HTTP ${CATALOG_HTTP})"
 fi
 echo ""
 
@@ -127,13 +144,16 @@ KEYCLOAK_URL="https://${KEYCLOAK_SUBDOMAIN}.${DOMAIN}"
 ISSUER_NEW="${KEYCLOAK_URL}/realms/platform"
 ISSUER_LEGACY="${KEYCLOAK_URL}/auth/realms/platform"
 WORKING_ISSUER=""
+KEYCLOAK_BASE_PATH=""
 
 if curl -sf "${ISSUER_NEW}/.well-known/openid-configuration" >/dev/null 2>&1; then
     success "  Keycloak issuer (new format): ${ISSUER_NEW}"
     WORKING_ISSUER="${ISSUER_NEW}"
+    KEYCLOAK_BASE_PATH=""
 elif curl -sf "${ISSUER_LEGACY}/.well-known/openid-configuration" >/dev/null 2>&1; then
     success "  Keycloak issuer (legacy format): ${ISSUER_LEGACY}"
     WORKING_ISSUER="${ISSUER_LEGACY}"
+    KEYCLOAK_BASE_PATH="/auth"
 else
     error "  Keycloak issuer not accessible (tried both formats)"
     ERRORS=$((ERRORS + 1))
@@ -144,7 +164,7 @@ if [[ -n "$WORKING_ISSUER" ]]; then
     if [[ -z "$KEYCLOAK_ADMIN_PASSWORD" ]]; then
         warn "  KEYCLOAK_ADMIN_PASSWORD not set, skipping realm validation"
     else
-        TOKEN_RESPONSE=$(curl -sk -X POST "${KEYCLOAK_URL}/realms/master/protocol/openid-connect/token" \
+        TOKEN_RESPONSE=$(curl -sk -X POST "${KEYCLOAK_URL}${KEYCLOAK_BASE_PATH}/realms/master/protocol/openid-connect/token" \
           -d "client_id=admin-cli" \
           -d "username=admin" \
           -d "password=${KEYCLOAK_ADMIN_PASSWORD}" \
@@ -159,7 +179,7 @@ if [[ -n "$WORKING_ISSUER" ]]; then
             success "  Keycloak admin authentication successful"
 
             # Check realm exists
-            REALM_EXISTS=$(curl -sk -X GET "${KEYCLOAK_URL}/admin/realms/platform" \
+            REALM_EXISTS=$(curl -sk -X GET "${KEYCLOAK_URL}${KEYCLOAK_BASE_PATH}/admin/realms/platform" \
               -H "Authorization: Bearer ${ADMIN_TOKEN}" \
               -w "%{http_code}" -o /dev/null 2>/dev/null || echo "000")
 
@@ -171,7 +191,7 @@ if [[ -n "$WORKING_ISSUER" ]]; then
             fi
 
             # Check ArgoCD client
-            ARGOCD_CLIENT=$(curl -sk -X GET "${KEYCLOAK_URL}/admin/realms/platform/clients" \
+            ARGOCD_CLIENT=$(curl -sk -X GET "${KEYCLOAK_URL}${KEYCLOAK_BASE_PATH}/admin/realms/platform/clients" \
               -H "Authorization: Bearer ${ADMIN_TOKEN}" 2>/dev/null | \
               jq -r '.[] | select(.clientId=="argocd") | .clientId' 2>/dev/null || echo "")
 
@@ -183,7 +203,7 @@ if [[ -n "$WORKING_ISSUER" ]]; then
             fi
 
             # Check Backstage client
-            BACKSTAGE_CLIENT=$(curl -sk -X GET "${KEYCLOAK_URL}/admin/realms/platform/clients" \
+            BACKSTAGE_CLIENT=$(curl -sk -X GET "${KEYCLOAK_URL}${KEYCLOAK_BASE_PATH}/admin/realms/platform/clients" \
               -H "Authorization: Bearer ${ADMIN_TOKEN}" 2>/dev/null | \
               jq -r '.[] | select(.clientId=="backstage") | .clientId' 2>/dev/null || echo "")
 

@@ -57,7 +57,7 @@ backstage:
 
     # Keycloak OIDC
     - name: OIDC_ISSUER_URL
-      value: "https://keycloak.timedevops.click/realms/platform"
+      value: "https://keycloak.timedevops.click/auth/realms/platform"
     - name: OIDC_CLIENT_ID
       value: "backstage"
     - name: OIDC_CLIENT_SECRET
@@ -189,7 +189,7 @@ backstage:
       providers:
         oidc:
           production:
-            metadataUrl: https://keycloak.timedevops.click/realms/platform/.well-known/openid-configuration
+            metadataUrl: https://keycloak.timedevops.click/auth/realms/platform/.well-known/openid-configuration
             clientId: backstage
             clientSecret: ${OIDC_CLIENT_SECRET}
             additionalScopes: ['profile', 'email', 'groups']

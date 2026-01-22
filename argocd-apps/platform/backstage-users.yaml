@@ -1,0 +1,35 @@
+################################################################################
+# ArgoCD Application: Backstage Users Catalog
+# Wave 1 - ensure catalog ConfigMap exists before Backstage starts
+# Generated from template - DO NOT EDIT MANUALLY
+################################################################################
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backstage-users
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/darede-labs/reference-implementation-aws
+    targetRevision: main
+    path: platform/backstage-config
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: backstage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
