@@ -14,14 +14,13 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  source:
-    chart: keycloak
-    repoURL: https://codecentric.github.io/helm-charts
-    targetRevision: 18.10.0
-    helm:
-      valueFiles:
-        - $values/platform/keycloak/helm-values.yaml
   sources:
+    - chart: keycloak
+      repoURL: https://codecentric.github.io/helm-charts
+      targetRevision: 18.10.0
+      helm:
+        valueFiles:
+          - $values/platform/keycloak/helm-values.yaml
     - repoURL: {{ git_repo_url }}
       targetRevision: {{ git_branch }}
       ref: values
