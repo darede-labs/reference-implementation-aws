@@ -41,10 +41,15 @@ controller:
   replicaCount: 2
 
   # Configuration for TLS termination at NLB
-  # Tell backends that original request was HTTPS
+  # CRITICAL: NLB terminates TLS but doesn't send X-Forwarded-Proto header
+  # We need to set it based on the port the request came in on
   config:
-    use-forwarded-headers: "true"
+    use-forwarded-headers: "false"  # Don't trust external headers
     compute-full-forwarded-for: "true"
+    # Always set X-Forwarded-Proto to https (all traffic comes via HTTPS at NLB)
+    use-proxy-protocol: "false"
+    # Custom headers to inject into backend requests
+    proxy-set-headers: "ingress-nginx/custom-headers"
 
   # Metrics
   metrics:
