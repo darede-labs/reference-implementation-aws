@@ -76,11 +76,21 @@ module "eks" {
 
   # Conditional cluster addons based on Auto Mode
   # Auto Mode automatically manages: CoreDNS, kube-proxy, VPC CNI, EBS CSI driver, AWS Load Balancer Controller, eks-pod-identity-agent
+  # CRITICAL: When using Karpenter, addons must wait for bootstrap node group to be ready
+  # Addons (especially CoreDNS) require nodes to run
+  # Solution: Create node group immediately after cluster, addons will retry until nodes are ready
   cluster_addons = local.auto_mode ? {
     # Auto Mode manages all addons automatically - no explicit addon configuration needed
     } : {
     # Standard mode requires all addons to be explicitly managed
-    coredns                = {}
+    # Node group is created immediately after cluster (see karpenter.tf)
+    # Addons have built-in retry logic and will wait for nodes to be ready
+    coredns = {
+      timeouts = {
+        create = "15m"  # Give CoreDNS time to wait for nodes
+        update = "15m"
+      }
+    }
     eks-pod-identity-agent = {}
     kube-proxy             = {}
     vpc-cni                = {}

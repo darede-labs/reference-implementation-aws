@@ -9,6 +9,15 @@ repo:
 # Git repository URL for ArgoCD (app-of-apps pattern)
 git_repo_url: "https://github.com/darede-labs/reference-implementation-aws"
 git_branch: "main"
+
+# GitOps repository configuration (for ArgoCD App-of-Apps)
+gitops:
+  repo_url: "https://github.com/darede-labs/reference-implementation-aws"
+  revision: "main"
+
+# Secrets (can be set via ENV vars or here - but NEVER commit real values!)
+# For security, prefer setting via environment variables
+# NOTE: Main secrets section is defined below (line 179)
 ################################################################################
 # EKS Cluster Configuration
 ################################################################################
@@ -63,11 +72,14 @@ karpenter:
   # v1.1.1 (Legacy - your previous version)
   version: "1.8.5"
   # Default instance types (Karpenter will choose based on workload)
-  # Recommended: Use instance families for flexibility
+  # Graviton (t4g) instances are prioritized for ~20% cost savings
   instance_types:
-    - "t3a.medium" # Primary: Best cost-performance
-    - "t3.medium" # Fallback: Widely available
-    - "t2.medium" # Fallback: Additional availability
+    - "t4g.small"  # Primary: Graviton2 ARM, cheapest option (~20% savings)
+    - "t4g.medium" # Primary: Graviton2 ARM, medium workload
+    - "t3a.small"  # Fallback: x86_64 AMD for compatibility
+    - "t3a.medium" # Fallback: x86_64 AMD for compatibility
+    - "t3.small"   # Fallback: x86_64 Intel for compatibility
+    - "t3.medium"  # Fallback: x86_64 Intel for compatibility
   # Capacity type: "spot" (70% cheaper) or "on-demand" (reliable)
   # Karpenter can mix both based on availability
   capacity_type: "spot" # Options: "spot", "on-demand", "spot-preferred"
@@ -89,10 +101,14 @@ karpenter:
 node_groups:
   # Capacity type: "SPOT" (70% cheaper) or "ON_DEMAND" (reliable)
   capacity_type: "SPOT"
+  # Graviton (t4g) instances prioritized for cost savings
   instance_types:
-    - "t3.medium"
-    - "t3a.medium"
-    - "t2.medium"
+    - "t4g.small"  # Graviton2 ARM, cheapest
+    - "t4g.medium" # Graviton2 ARM, medium workload
+    - "t3a.small"  # x86_64 AMD fallback
+    - "t3a.medium" # x86_64 AMD fallback
+    - "t3.small"   # x86_64 Intel fallback
+    - "t3.medium"  # x86_64 Intel fallback
   # Auto Scaling configuration
   scaling:
     min_size: 2 # Minimum nodes for POC
@@ -155,20 +171,25 @@ ecr:
   #   - "platform-backend"
 ################################################################################
 # Secrets Configuration (change these for production!)
+# IMPORTANT: These can be set here OR via environment variables
+# Environment variables take precedence over config.yaml values
+# NEVER commit real secrets - config.yaml is gitignored
 ################################################################################
 secrets:
+  # GitHub token for private repository access
+  github_token: "${GITHUB_TOKEN}"
   # ArgoCD admin credentials
   argocd:
-    admin_password: "argocd-admin-2024"
+    admin_password: "${ARGOCD_ADMIN_PASSWORD}"
   # Keycloak OIDC client secrets
   keycloak:
     # ArgoCD OIDC client secret (must match Keycloak client configuration)
-    argocd_client_secret: "CfXz1wizSVMS+GN+uZ/llUlmawrYBh6bLIg4/ALTQFw="
+    argocd_client_secret: "${ARGOCD_CLIENT_SECRET}"
     # Backstage OIDC client secret (must match Keycloak client configuration)
-    backstage_client_secret: "your-backstage-client-secret-here"
+    backstage_client_secret: "${BACKSTAGE_CLIENT_SECRET}"
   # Cognito default user password (auto-created from users-catalog.yaml)
   cognito:
-    default_password: "Tampico@2024!"
+    default_password: "${COGNITO_DEFAULT_PASSWORD}"
   # Backstage configuration
   backstage:
     # PostgreSQL credentials (in-cluster StatefulSet with persistent storage)
@@ -178,10 +199,21 @@ secrets:
     postgres_host: "backstage-postgresql"
     postgres_port: "5432"
     postgres_user: "backstage"
-    postgres_password: "backstage123"
+    postgres_password: "${BACKSTAGE_POSTGRES_PASSWORD}"
     # Auth session secret
-    auth_session_secret: "backstage-session-secret-2024"
-    backend_secret: "backstage-backend-secret-2024"
+    auth_session_secret: "${BACKSTAGE_AUTH_SESSION_SECRET}"
+    backend_secret: "${BACKSTAGE_BACKEND_SECRET}"
+    # Terraform version for scaffolder (used in terraform-installer ConfigMap)
+    terraform_version: "1.7.5"
+  # Metadata tags (not actual secrets)
+  env: "poc"
+  project: "idp"
+  owner: "platform-team"
+  cost-center: "engineering"
+  # Other secrets will be auto-generated if not set:
+  # - keycloak_admin_password: Auto-generated if not set
+  # - argocd_client_secret: Auto-generated if not set
+  # - backstage_client_secret: Auto-generated if not set
 ################################################################################
 # Terraform Backend Configuration
 ################################################################################
@@ -242,9 +274,11 @@ keycloak:
   replicas: 1 # Single replica for POC (use 2+ for production HA)
   # Admin credentials (stored in Secrets Manager)
   admin_user: "admin"
-  admin_password: "changeme" # Change this!
+  admin_password: "${KEYCLOAK_ADMIN_PASSWORD}" # Set via env
   # Subdomain for Keycloak UI
   subdomain: "keycloak" # Will be: keycloak.timedevops.click
+  # Keycloak image tag (pinned version for bitnamilegacy)
+  image_tag: "24.0.5" # Use same version in realm-import-job.yaml
   # Database configuration
   database:
     # Instance type - cost optimized options:
@@ -282,7 +316,9 @@ tags:
   cloud_economics: "Darede-IDP::devops"
   # Tags adicionais para organização
   githubRepo: "github.com/darede-labs/reference-implementation-aws"
-  env: "poc"
-  project: "idp"
-  owner: "platform-team"
-  cost-center: "engineering"
+
+################################################################################
+# Additional Secrets Metadata
+# NOTE: Main secrets section is defined above (line 179)
+# These are metadata tags, not actual secrets
+################################################################################

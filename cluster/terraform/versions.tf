@@ -21,7 +21,7 @@ terraform {
     }
     helm = {
       source  = "hashicorp/helm"
-      version = ">= 2.9"
+      version = "~> 2.12"
     }
     null = {
       source  = "hashicorp/null"
@@ -30,6 +30,10 @@ terraform {
     random = {
       source  = "hashicorp/random"
       version = ">= 3.0"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = ">= 0.9"
     }
   }
 }
