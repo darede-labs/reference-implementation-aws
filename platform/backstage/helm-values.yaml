@@ -20,7 +20,7 @@ backstage:
   image:
     registry: ghcr.io
     repository: backstage/backstage
-    tag: v1.45.3
+    tag: latest
     pullPolicy: IfNotPresent
 
   command: ["node", "packages/backend"]
