@@ -21,3 +21,24 @@ variable "backstage_postgres_password" {
   sensitive   = true
   default     = null
 }
+
+variable "github_token" {
+  description = "GitHub token used by Backstage integrations."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+variable "backstage_oidc_client_secret" {
+  description = "Backstage OIDC client secret (optional override)."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
+variable "argocd_admin_password" {
+  description = "ArgoCD admin password for Backstage integration (optional override)."
+  type        = string
+  sensitive   = true
+  default     = null
+}

@@ -106,3 +106,53 @@ resource "aws_secretsmanager_secret_version" "backstage_db" {
     password = local.backstage_db_pass
   })
 }
+
+################################################################################
+# Backstage Environment Variables Secret
+################################################################################
+resource "random_password" "backstage_auth_session_secret" {
+  length  = 32
+  special = false
+}
+
+resource "random_password" "backstage_backend_secret" {
+  length  = 32
+  special = false
+}
+
+resource "random_password" "backstage_oidc_client_secret" {
+  length  = 32
+  special = false
+}
+
+resource "random_password" "backstage_argocd_admin_password" {
+  length  = 32
+  special = false
+}
+
+resource "aws_secretsmanager_secret" "backstage_env" {
+  name        = "backstage-env-vars"
+  description = "Backstage env vars (GitHub/OIDC/Auth/ArgoCD)"
+
+  recovery_window_in_days = 0
+
+  tags = merge(
+    local.tags,
+    {
+      Name        = "backstage-env-vars"
+      Application = "backstage"
+      DeployedAt  = timestamp()
+    }
+  )
+}
+
+resource "aws_secretsmanager_secret_version" "backstage_env" {
+  secret_id = aws_secretsmanager_secret.backstage_env.id
+  secret_string = jsonencode({
+    GITHUB_TOKEN        = local.backstage_github_token_raw
+    OIDC_CLIENT_SECRET  = local.backstage_oidc_client_secret_raw != "" && !can(regex("^\\$\\{", local.backstage_oidc_client_secret_raw)) ? local.backstage_oidc_client_secret_raw : random_password.backstage_oidc_client_secret.result
+    AUTH_SESSION_SECRET = random_password.backstage_auth_session_secret.result
+    BACKEND_SECRET      = random_password.backstage_backend_secret.result
+    ARGOCD_ADMIN_PASSWORD = local.backstage_argocd_admin_password != "" && !can(regex("^\\$\\{", local.backstage_argocd_admin_password)) ? local.backstage_argocd_admin_password : random_password.backstage_argocd_admin_password.result
+  })
+}

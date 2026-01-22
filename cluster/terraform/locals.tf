@@ -82,6 +82,11 @@ locals {
   backstage_db_user   = try(local.backstage_secrets.postgres_user, "backstage")
   backstage_db_pass   = coalesce(var.backstage_postgres_password, try(local.backstage_secrets.postgres_password, ""))
 
+  # Backstage integration secrets
+  backstage_github_token_raw       = coalesce(var.github_token, try(local.config_file.secrets.github_token, ""))
+  backstage_oidc_client_secret_raw = coalesce(var.backstage_oidc_client_secret, try(local.config_file.secrets.keycloak.backstage_client_secret, ""))
+  backstage_argocd_admin_password  = coalesce(var.argocd_admin_password, "")
+
   # Tags from config
   config_tags = local.config_file.tags
 

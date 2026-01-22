@@ -260,6 +260,23 @@ resource "null_resource" "validate_backstage_db_secret" {
 }
 
 ################################################################################
+# Backstage GitHub Token Validation
+################################################################################
+resource "null_resource" "validate_backstage_github_token" {
+  lifecycle {
+    precondition {
+      condition     = length(trimspace(local.backstage_github_token_raw)) > 0
+      error_message = "Backstage GitHub token is empty. Set TF_VAR_github_token or secrets.github_token in config.yaml."
+    }
+
+    precondition {
+      condition     = !can(regex("^\\$\\{", local.backstage_github_token_raw))
+      error_message = "Backstage GitHub token looks like a placeholder. Provide a real value via TF_VAR_github_token."
+    }
+  }
+}
+
+################################################################################
 # S3 Bucket Name Validation
 ################################################################################
 
