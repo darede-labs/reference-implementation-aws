@@ -6,11 +6,11 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keycloak-realm-import
+  name: keycloak-realm-import-v2
   namespace: keycloak
   annotations:
     argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded,HookFailed
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
     argocd.argoproj.io/sync-options: Replace=true
 spec:
   ttlSecondsAfterFinished: 300
