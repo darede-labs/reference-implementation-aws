@@ -87,25 +87,9 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
     # Check if all apps are synced and healthy
-    # Special handling for Kyverno: allow Healthy even if OutOfSync (webhook caBundle drift)
-    KYVERNO_SYNC_STATUS=$(kubectl get application kyverno -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
-    KYVERNO_HEALTH_STATUS=$(kubectl get application kyverno -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
-
-    # Kyverno gets a pass if it's Healthy (even if OutOfSync due to webhook caBundle drift)
-    EFFECTIVE_SYNCED=$SYNCED
-    EFFECTIVE_HEALTHY=$HEALTHY
-
-    if [ "$KYVERNO_HEALTH_STATUS" = "Healthy" ] && [ "$KYVERNO_SYNC_STATUS" = "OutOfSync" ]; then
-        EFFECTIVE_SYNCED=$((SYNCED + 1))  # Count Kyverno as effectively synced
-        # HEALTHY is already counted correctly in the loop above
-    fi
-
-    if [ "$EFFECTIVE_SYNCED" -eq "$TOTAL_APPS" ] && [ "$EFFECTIVE_HEALTHY" -eq "$TOTAL_APPS" ]; then
+    if [ "$SYNCED" -eq "$TOTAL_APPS" ] && [ "$HEALTHY" -eq "$TOTAL_APPS" ]; then
         echo ""
-        info "✅ All applications are effectively synced and healthy!"
-        if [ "$KYVERNO_SYNC_STATUS" = "OutOfSync" ]; then
-            info "   (Kyverno allowed as Healthy despite OutOfSync - webhook caBundle drift)"
-        fi
+        info "✅ All applications are synced and healthy!"
         exit 0
     fi
 
