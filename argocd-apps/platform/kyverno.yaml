@@ -70,11 +70,6 @@ spec:
         cleanupController:
           enabled: true
           replicas: 1
-          # CRITICAL: Use bitnami-shell (kubectl image doesn't exist in ARM64)
-          image:
-            registry: docker.io
-            repository: bitnami/bitnami-shell
-            tag: 12-debian-12-r31
           resources:
             requests:
               cpu: 100m
@@ -174,6 +169,101 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
+
+  # Ignore webhook caBundle fields that are auto-managed by Kubernetes
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-cleanup-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-exception-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-global-context-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-policy-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-resource-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-ttl-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: kyverno-policy-mutating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: kyverno-resource-mutating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: kyverno-verify-mutating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+  # Ignore webhook caBundle fields that are auto-managed by Kubernetes
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-cleanup-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-exception-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-global-context-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-policy-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-resource-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kyverno-ttl-validating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: kyverno-policy-mutating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: kyverno-resource-mutating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: kyverno-verify-mutating-webhook-cfg
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
