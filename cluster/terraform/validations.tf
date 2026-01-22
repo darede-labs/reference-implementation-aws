@@ -146,17 +146,7 @@ resource "null_resource" "validate_iam_role_names" {
 ################################################################################
 # VPC Name Validation
 ################################################################################
-
-resource "null_resource" "validate_vpc_name" {
-  count = local.create_vpc ? 1 : 0
-
-  lifecycle {
-    precondition {
-      condition     = length("${local.cluster_name}-vpc") <= 255
-      error_message = "VPC name '${local.cluster_name}-vpc' is too long. VPC names (tags) should be under 255 characters."
-    }
-  }
-}
+# Removed - VPC is now in separate terraform-vpc module
 
 ################################################################################
 # Security Group Name Validations

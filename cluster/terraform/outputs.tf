@@ -177,36 +177,7 @@ output "keycloak_enabled" {
   value       = local.keycloak_enabled
 }
 
-output "keycloak_db_endpoint" {
-  description = "Keycloak RDS endpoint"
-  value       = local.keycloak_enabled ? aws_db_instance.keycloak[0].endpoint : null
-}
-
-output "keycloak_db_address" {
-  description = "Keycloak RDS address (hostname)"
-  value       = local.keycloak_enabled ? aws_db_instance.keycloak[0].address : null
-}
-
-output "keycloak_db_port" {
-  description = "Keycloak RDS port"
-  value       = local.keycloak_enabled ? aws_db_instance.keycloak[0].port : null
-}
-
-output "keycloak_db_name" {
-  description = "Keycloak database name"
-  value       = local.keycloak_enabled ? local.keycloak_db_name : null
-}
-
-output "keycloak_db_secret_arn" {
-  description = "ARN of Keycloak database credentials in Secrets Manager"
-  value       = local.keycloak_enabled ? aws_secretsmanager_secret.keycloak_db[0].arn : null
-}
-
-output "keycloak_jdbc_url" {
-  description = "JDBC URL for Keycloak database connection"
-  value       = local.keycloak_enabled ? "jdbc:postgresql://${aws_db_instance.keycloak[0].address}:${aws_db_instance.keycloak[0].port}/${local.keycloak_db_name}" : null
-  sensitive   = false
-}
+# Keycloak outputs removed - using Cognito instead (Phase 0)
 
 ################################################################################
 # External DNS Outputs
