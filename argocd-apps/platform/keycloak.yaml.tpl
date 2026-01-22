@@ -20,39 +20,30 @@ spec:
     targetRevision: 18.10.0
     helm:
       values: |
-        # Use external RDS database (no PVC needed)
+        # Disable internal PostgreSQL (use external RDS)
         postgresql:
           enabled: false
         
-        externalDatabase:
-          host: {{ keycloak_db_address }}
-          port: 5432
-          user: {{ keycloak_db_username }}
-          password: {{ keycloak_db_password }}
-          database: {{ keycloak_db_name }}
-        
-        # Keycloak admin credentials
-        keycloak:
-          username: {{ keycloak_admin_user }}
-          password: {{ keycloak_admin_password }}
-        
-        # Production settings
-        proxy: edge
-        proxyHeaders: xforwarded
-        
-        # Service and ingress
-        service:
-          type: ClusterIP
-        
-        ingress:
-          enabled: true
-          ingressClassName: nginx
-          hostname: {{ keycloak_hostname }}
-          annotations:
-            nginx.ingress.kubernetes.io/ssl-redirect: "true"
-            nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-            external-dns.alpha.kubernetes.io/hostname: {{ keycloak_hostname }}
-          tls: true
+        # External database configuration via environment variables
+        extraEnv: |
+          - name: DB_VENDOR
+            value: postgres
+          - name: DB_ADDR
+            value: {{ keycloak_db_address }}
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_DATABASE
+            value: {{ keycloak_db_name }}
+          - name: DB_USER
+            value: {{ keycloak_db_username }}
+          - name: DB_PASSWORD
+            value: {{ keycloak_db_password }}
+          - name: KEYCLOAK_USER
+            value: {{ keycloak_admin_user }}
+          - name: KEYCLOAK_PASSWORD
+            value: {{ keycloak_admin_password }}
+          - name: PROXY_ADDRESS_FORWARDING
+            value: "true"
         
         # Resources for cost optimization (Graviton ARM64)
         resources:
@@ -62,23 +53,6 @@ spec:
           limits:
             cpu: 2000m
             memory: 2Gi
-        
-        # Node affinity for Karpenter nodes
-        affinity:
-          nodeAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                preference:
-                  matchExpressions:
-                    - key: karpenter.sh/capacity-type
-                      operator: Exists
-              - weight: 50
-                preference:
-                  matchExpressions:
-                    - key: role
-                      operator: NotIn
-                      values:
-                        - karpenter-bootstrap
   destination:
     server: https://kubernetes.default.svc
     namespace: keycloak
