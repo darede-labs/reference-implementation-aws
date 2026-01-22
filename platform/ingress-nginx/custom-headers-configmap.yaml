@@ -1,0 +1,15 @@
+################################################################################
+# Custom Headers ConfigMap for Ingress NGINX
+# Injects X-Forwarded-Proto and X-Forwarded-Port headers to backend services
+# CRITICAL: Required for TLS termination at NLB
+################################################################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-headers
+  namespace: ingress-nginx
+data:
+  # Tell backend applications that the original request was HTTPS
+  # This is necessary because NLB terminates TLS and forwards HTTP to NGINX
+  X-Forwarded-Proto: "https"
+  X-Forwarded-Port: "443"
