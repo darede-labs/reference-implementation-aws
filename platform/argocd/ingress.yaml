@@ -9,6 +9,10 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"  # Disable redirect (TLS at NLB)
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    # Tell ArgoCD that the original request was HTTPS (terminated at NLB)
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Forwarded-Port 443;
 spec:
   ingressClassName: nginx
   rules:
