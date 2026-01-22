@@ -24,24 +24,42 @@ spec:
         postgresql:
           enabled: false
 
-        # External database configuration via environment variables
+        # External database configuration via Kubernetes Secret (populated by keycloak-db-secret job)
         extraEnv: |
           - name: DB_VENDOR
             value: postgres
           - name: DB_ADDR
-            value: {{ keycloak_db_address }}
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: host
           - name: DB_PORT
-            value: "5432"
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: port
           - name: DB_DATABASE
-            value: {{ keycloak_db_name }}
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: database
           - name: DB_USER
-            value: {{ keycloak_db_username }}
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: username
           - name: DB_PASSWORD
-            value: {{ keycloak_db_password }}
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: password
           - name: KEYCLOAK_USER
             value: {{ keycloak_admin_user }}
           - name: KEYCLOAK_PASSWORD
-            value: {{ keycloak_admin_password }}
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-admin
+                key: password
           - name: KEYCLOAK_FRONTEND_URL
             value: https://{{ keycloak_subdomain }}.{{ domain }}/auth
           - name: PROXY_ADDRESS_FORWARDING

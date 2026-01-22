@@ -24,24 +24,42 @@ spec:
         postgresql:
           enabled: false
 
-        # External database configuration via environment variables
+        # External database configuration via Kubernetes Secret (populated by keycloak-db-secret job)
         extraEnv: |
           - name: DB_VENDOR
             value: postgres
           - name: DB_ADDR
-            value: idp-poc-darede-cluster-keycloak.czmck2ak69il.us-east-1.rds.amazonaws.com
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: host
           - name: DB_PORT
-            value: "5432"
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: port
           - name: DB_DATABASE
-            value: keycloak
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: database
           - name: DB_USER
-            value: keycloak
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: username
           - name: DB_PASSWORD
-            value: TotE*31]9aR)E#}%fyDphyM6$s[AimOq
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-db-credentials
+                key: password
           - name: KEYCLOAK_USER
             value: admin
           - name: KEYCLOAK_PASSWORD
-            value: ${KEYCLOAK_ADMIN_PASSWORD}
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-admin
+                key: password
           - name: KEYCLOAK_FRONTEND_URL
             value: https://keycloak.timedevops.click/auth
           - name: PROXY_ADDRESS_FORWARDING
