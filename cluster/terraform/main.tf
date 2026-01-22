@@ -4,10 +4,6 @@ provider "aws" {
   # This allows multi-operator usage and AWS SSO compatibility
 }
 
-data "aws_eks_cluster_auth" "this" {
-  name = module.eks.cluster_name
-}
-
 data "aws_caller_identity" "current" {}
 data "aws_availability_zones" "available" {}
 
@@ -42,10 +38,11 @@ module "eks" {
   #   node_pools = ["general-purpose", "system"]
   # }
 
-  # Only create managed node groups when not using Auto Mode
+  # Only create managed node groups when not using Auto Mode AND not using Karpenter
   # Auto Mode handles compute resources automatically
+  # Karpenter provides dynamic node provisioning
   # Configuration loaded from config.yaml (node_groups section)
-  eks_managed_node_groups = local.auto_mode ? {} : {
+  eks_managed_node_groups = (local.auto_mode || local.karpenter_enabled) ? {} : {
     configurable_nodes = {
       name = "nodes"
 
@@ -53,7 +50,7 @@ module "eks" {
       instance_types = local.instance_types
 
       # Capacity type from config.yaml: SPOT or ON_DEMAND
-      capacity_type  = local.capacity_type
+      capacity_type = local.capacity_type
 
       # Auto Scaling from config.yaml
       min_size     = local.node_min_size
@@ -70,7 +67,7 @@ module "eks" {
       tags = merge(
         local.tags,
         {
-          "k8s.io/cluster-autoscaler/enabled" = "true"
+          "k8s.io/cluster-autoscaler/enabled"               = "true"
           "k8s.io/cluster-autoscaler/${local.cluster_name}" = "owned"
         }
       )
@@ -81,13 +78,13 @@ module "eks" {
   # Auto Mode automatically manages: CoreDNS, kube-proxy, VPC CNI, EBS CSI driver, AWS Load Balancer Controller, eks-pod-identity-agent
   cluster_addons = local.auto_mode ? {
     # Auto Mode manages all addons automatically - no explicit addon configuration needed
-  } : {
+    } : {
     # Standard mode requires all addons to be explicitly managed
-    coredns = {}
+    coredns                = {}
     eks-pod-identity-agent = {}
-    kube-proxy = {}
-    vpc-cni = {}
-    aws-ebs-csi-driver = {}
+    kube-proxy             = {}
+    vpc-cni                = {}
+    aws-ebs-csi-driver     = {}
   }
 
   tags = local.tags
@@ -115,7 +112,7 @@ module "aws_load_balancer_controller_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 1.0"
 
-  name = "aws_load_balancer_controller"
+  name                            = "aws_load_balancer_controller"
   attach_aws_lb_controller_policy = true
   associations = {
     external_secrets = {
@@ -133,9 +130,9 @@ module "external_dns_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 1.0"
 
-  name = "external-dns"
-  attach_external_dns_policy = true
-  external_dns_hosted_zone_arns = [ "*" ]
+  name                          = "external-dns"
+  attach_external_dns_policy    = true
+  external_dns_hosted_zone_arns = ["*"]
   associations = {
     external_secrets = {
       cluster_name    = module.eks.cluster_name
@@ -152,7 +149,7 @@ module "ebs_csi_driver_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 1.0"
 
-  name = "ebs-csi-driver"
+  name                      = "ebs-csi-driver"
   attach_aws_ebs_csi_policy = true
   associations = {
     external_secrets = {
@@ -171,7 +168,7 @@ module "crossplane_pod_identity" {
 
   name = "crossplane-provider-aws"
 
-  additional_policy_arns   = {
+  additional_policy_arns = {
     admin = "arn:aws:iam::aws:policy/AdministratorAccess"
   }
   permissions_boundary_arn = aws_iam_policy.crossplane_boundary.arn
@@ -194,8 +191,8 @@ module "external_secrets_pod_identity" {
   source  = "terraform-aws-modules/eks-pod-identity/aws"
   version = "~> 1.0"
 
-  name = "external-secrets"
-  attach_custom_policy = true
+  name                      = "external-secrets"
+  attach_custom_policy      = true
   override_policy_documents = [local.external_secret_policy]
   associations = {
     external_secrets = {
@@ -264,7 +261,7 @@ module "backstage_irsa" {
 }
 
 resource "aws_iam_policy" "backstage_terraform_policy" {
-  name   = "backstage-terraform-policy"
+  name = "backstage-terraform-policy"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -373,8 +370,8 @@ module "vpc" {
   public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
 
   # NAT Gateway configuration from config.yaml
-  enable_nat_gateway = true
-  single_nat_gateway = local.nat_gateway_single  # true = $32/month, false = $96/month (3 AZs)
+  enable_nat_gateway     = true
+  single_nat_gateway     = local.nat_gateway_single # true = $32/month, false = $96/month (3 AZs)
   one_nat_gateway_per_az = !local.nat_gateway_single
 
   enable_dns_hostnames = true

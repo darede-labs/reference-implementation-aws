@@ -2,9 +2,9 @@
 # Managed by Terraform to avoid orphaned resources during destroy
 
 resource "aws_lb" "ingress_nginx" {
-  count = var.enable_nlb ? 1 : 0
+  count = local.enable_nlb ? 1 : 0
 
-  name               = "${local.cluster_name}-ingress-nlb"
+  name               = "${local.cluster_name}-nlb"
   internal           = false
   load_balancer_type = "network"
   subnets            = module.vpc.public_subnets
@@ -22,7 +22,7 @@ resource "aws_lb" "ingress_nginx" {
 
 # Target Group for HTTP (port 80)
 resource "aws_lb_target_group" "http" {
-  count = var.enable_nlb ? 1 : 0
+  count = local.enable_nlb ? 1 : 0
 
   name     = "${local.cluster_name}-http"
   port     = 30080
@@ -43,7 +43,7 @@ resource "aws_lb_target_group" "http" {
 
 # Target Group for HTTPS (port 443)
 resource "aws_lb_target_group" "https" {
-  count = var.enable_nlb ? 1 : 0
+  count = local.enable_nlb ? 1 : 0
 
   name     = "${local.cluster_name}-https"
   port     = 30443

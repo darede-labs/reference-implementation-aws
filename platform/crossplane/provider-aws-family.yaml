@@ -1,0 +1,11 @@
+################################################################################
+# Crossplane AWS Provider Family
+# This includes all AWS providers (S3, EC2, RDS, IAM, etc.) in one package
+################################################################################
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: upbound-provider-family-aws
+spec:
+  package: xpkg.upbound.io/upbound/provider-family-aws:v1.16.0
+  packagePullPolicy: IfNotPresent

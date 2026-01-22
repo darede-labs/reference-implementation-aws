@@ -54,8 +54,13 @@ backstage:
       value: "/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     - name: GIT_EXEC_PATH
       value: "/tools/usr/lib/git-core"
+    # LD_LIBRARY_PATH will be set by initContainer based on detected architecture
+    # Default to x86_64 for backward compatibility, initContainer will update if needed
+    # LD_LIBRARY_PATH: Set to include both paths, initContainer will create correct structure
+    # The initContainer install script detects architecture and creates /tools/lib/{arch}-linux-gnu
+    # Using both paths ensures compatibility regardless of architecture
     - name: LD_LIBRARY_PATH
-      value: "/tools/lib/x86_64-linux-gnu"
+      value: "/tools/lib/aarch64-linux-gnu:/tools/lib/x86_64-linux-gnu"
     - name: SSL_CERT_DIR
       value: "/tools/etc/ssl/certs"
     - name: SSL_CERT_FILE

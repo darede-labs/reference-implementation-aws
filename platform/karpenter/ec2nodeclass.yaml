@@ -1,0 +1,53 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  # AMI Selection
+  amiSelectorTerms:
+    # Use latest EKS-optimized Amazon Linux 2023 AMI
+    - alias: al2023@latest
+
+  # IAM Role for nodes (created by Terraform)
+  
+  role: "Karpenter-idp-poc-darede-cluster-20260121200907518800000011"
+
+  # Subnet selection (private subnets for EKS)
+  subnetSelectorTerms:
+    - tags:
+        kubernetes.io/role/internal-elb: "1"
+
+  # Security group selection (cluster security group)
+  securityGroupSelectorTerms:
+    - tags:
+        aws:eks:cluster-name: "idp-poc-darede-cluster"
+
+  # Block device mappings (disk configuration)
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+        # gp3 performance settings (cost-optimized)
+        iops: 3000
+        throughput: 125
+
+  # Metadata options (IMDSv2 required for security)
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required  # Require IMDSv2
+
+  # Detailed monitoring (disabled to save costs in POC)
+  detailedMonitoring: false
+
+  # Tags applied to EC2 instances
+  tags:
+    Name: "karpenter-idp-poc-darede-cluster"
+    ManagedBy: karpenter
+    Environment: "poc"
+    cloud_economics: "Darede-IDP::devops"
+    karpenter.sh/discovery: "idp-poc-darede-cluster"

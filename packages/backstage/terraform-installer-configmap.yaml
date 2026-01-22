@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: terraform-installer
+  namespace: backstage
+data:
+  install.sh: |
+    #!/bin/bash
+    # Dynamic Terraform and Git installation script for Backstage
+    # Supports both ARM64 (Graviton) and x86_64 architectures
+    set -e
+
+    # Detect architecture
+    ARCH=$(uname -m)
+    case $ARCH in
+      aarch64|arm64)
+        TERRAFORM_ARCH="arm64"
+        LIB_DIR="aarch64-linux-gnu"
+        ;;
+      x86_64|amd64)
+        TERRAFORM_ARCH="amd64"
+        LIB_DIR="x86_64-linux-gnu"
+        ;;
+      *)
+        echo "ERROR: Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+    esac
+
+    echo "Detected architecture: $ARCH ($TERRAFORM_ARCH)"
+    echo "Installing Terraform and Git dependencies..."
+
+    # Install system packages
+    apt-get update -qq
+    apt-get install -y -qq ca-certificates git wget unzip curl > /dev/null 2>&1
+
+    # Download Terraform for detected architecture
+    # Version configured via config.yaml -> secrets.backstage.terraform_version
+    TERRAFORM_VERSION="1.7.5"
+    TERRAFORM_URL="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TERRAFORM_ARCH}.zip"
+
+    echo "Downloading Terraform ${TERRAFORM_VERSION} for ${TERRAFORM_ARCH}..."
+    wget -q "$TERRAFORM_URL" -O /tmp/tf.zip
+
+    # Extract and install Terraform
+    unzip -q /tmp/tf.zip -d /tools
+    chmod +x /tools/terraform
+
+    # Install Git binaries
+    echo "Installing Git..."
+    cp -r /usr/bin/git* /tools/ 2>/dev/null || true
+    chmod +x /tools/git
+
+    # Create library directories based on architecture
+    mkdir -p /tools/usr/lib /tools/lib/${LIB_DIR} /tools/usr/lib/${LIB_DIR}
+
+    # Copy Git core libraries
+    cp -r /usr/lib/git-core /tools/usr/lib/ 2>/dev/null || true
+
+    # Copy Git dependencies (dynamic based on architecture)
+    echo "Copying Git dependencies for ${LIB_DIR}..."
+    for binary in /usr/bin/git /usr/lib/git-core/git-remote-https /usr/lib/git-core/git-remote-http; do
+      if [ -f "$binary" ]; then
+        ldd "$binary" 2>/dev/null | grep '=>' | awk '{print $3}' | while read lib; do
+          if [ -f "$lib" ]; then
+            cp -L "$lib" /tools/lib/${LIB_DIR}/ 2>/dev/null || true
+          fi
+        done
+      fi
+    done
+
+    # Copy system libraries based on architecture
+    if [ -f "/lib/${LIB_DIR}/libc.so.6" ]; then
+      cp /lib/${LIB_DIR}/libc.so.6 /tools/lib/${LIB_DIR}/ 2>/dev/null || true
+    fi
+
+    if [ -f "/lib64/ld-linux-${TERRAFORM_ARCH}.so.2" ]; then
+      cp /lib64/ld-linux-${TERRAFORM_ARCH}.so.2 /tools/lib/${LIB_DIR}/ 2>/dev/null || true
+    elif [ -f "/lib64/ld-linux-x86-64.so.2" ] && [ "$TERRAFORM_ARCH" = "amd64" ]; then
+      cp /lib64/ld-linux-x86-64.so.2 /tools/lib/${LIB_DIR}/ 2>/dev/null || true
+    fi
+
+    # Copy additional libraries if they exist
+    if [ -d "/lib/${LIB_DIR}" ]; then
+      cp -r /lib/${LIB_DIR}/*.so* /tools/lib/${LIB_DIR}/ 2>/dev/null || true
+    fi
+
+    if [ -d "/usr/lib/${LIB_DIR}" ]; then
+      cp -r /usr/lib/${LIB_DIR}/*.so* /tools/lib/${LIB_DIR}/ 2>/dev/null || true
+    fi
+
+    # Install SSL certificates
+    mkdir -p /tools/etc/ssl/certs
+    cp -r /etc/ssl/certs/* /tools/etc/ssl/certs/ 2>/dev/null || true
+
+    # Create architecture config file for container to read
+    echo "ARCH=${ARCH}" > /tools/.arch-config
+    echo "TERRAFORM_ARCH=${TERRAFORM_ARCH}" >> /tools/.arch-config
+    echo "LIB_DIR=${LIB_DIR}" >> /tools/.arch-config
+    echo "LD_LIBRARY_PATH=/tools/lib/${LIB_DIR}" >> /tools/.arch-config
+
+    echo "Installation complete for ${ARCH} (${TERRAFORM_ARCH})"
+    echo "Terraform version:"
+    /tools/terraform version
+    echo "Git version:"
+    /tools/git --version
+    echo "Architecture config written to /tools/.arch-config"

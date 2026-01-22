@@ -6,19 +6,19 @@ metadata:
 spec:
   profile:
     displayName: Admin User
-    email: admin@darede.com.br
+    email: admin@timedevops.click
   memberOf:
     - admins
 ---
 apiVersion: backstage.io/v1alpha1
 kind: User
 metadata:
-  name: matheus-andrade
-  description: Platform Administrator
+  name: test-user
+  description: Test User
 spec:
   profile:
-    displayName: Matheus Andrade
-    email: matheus.andrade@darede.com.br
+    displayName: Test User
+    email: test-user@timedevops.click
   memberOf:
     - admins
 ---

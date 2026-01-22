@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "project": "idp-complete-platform-aws",
+  "generated": false,
+  "tasks": [],
+  "metadata": {
+    "total_tasks": 0,
+    "completed_tasks": 0,
+    "in_progress_tasks": 0,
+    "pending_tasks": 0,
+    "last_updated": null,
+    "notes": "This file will be populated by Task Master AI after parsing the PRD. Use: 'Parse my PRD at .taskmaster/docs/prd.txt'"
+  }
+}

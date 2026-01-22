@@ -9,9 +9,11 @@ locals {
   auto_mode    = tobool(local.config_file.auto_mode)
 
   # IAM authentication method: "irsa" or "pod-identity"
-  iam_auth_method = try(local.config_file.iam_auth_method, "irsa")
-  use_irsa        = local.iam_auth_method == "irsa"
+  iam_auth_method  = try(local.config_file.iam_auth_method, "irsa")
+  use_irsa         = local.iam_auth_method == "irsa"
   use_pod_identity = local.iam_auth_method == "pod-identity"
+
+  # Note: use_cognito is defined in cognito.tf
 
   # VPC configuration
   vpc_config = local.config_file.vpc
@@ -20,47 +22,68 @@ locals {
   azs_count  = try(local.vpc_config.availability_zones, 3)
   azs        = slice(data.aws_availability_zones.available.names, 0, local.azs_count)
 
-  # Existing VPC config (only used if mode is "existing")
-  existing_vpc_id            = try(local.vpc_config.vpc_id, null)
-  existing_private_subnets   = try(local.vpc_config.private_subnet_ids, [])
-  existing_public_subnets    = try(local.vpc_config.public_subnet_ids, [])
-
   # NAT Gateway mode: single or one_per_az
   nat_gateway_single = try(local.vpc_config.nat_gateway_mode, "single") == "single"
 
   # Node groups configuration
-  node_config      = try(local.config_file.node_groups, {})
-  capacity_type    = try(local.node_config.capacity_type, "SPOT")
-  instance_types   = try(local.node_config.instance_types, ["t3.medium", "t3a.medium", "t2.medium"])
-  node_min_size    = try(local.node_config.scaling.min_size, 1)
-  node_max_size    = try(local.node_config.scaling.max_size, 3)
-  node_desired     = try(local.node_config.scaling.desired_size, 1)
-  node_disk_size   = try(local.node_config.disk_size, 50)
-  node_labels      = try(local.node_config.labels, {})
+  node_config    = try(local.config_file.node_groups, {})
+  capacity_type  = try(local.node_config.capacity_type, "SPOT")
+  instance_types = try(local.node_config.instance_types, ["t3.medium", "t3a.medium", "t2.medium"])
+  node_min_size  = try(local.node_config.scaling.min_size, 1)
+  node_max_size  = try(local.node_config.scaling.max_size, 3)
+  node_desired   = try(local.node_config.scaling.desired_size, 1)
+  node_disk_size = try(local.node_config.disk_size, 50)
+  node_labels    = try(local.node_config.labels, {})
 
   # Domain configuration
-  domain                 = local.config_file.domain
-  route53_hosted_zone_id = local.config_file.route53_hosted_zone_id
-  path_routing           = tobool(try(local.config_file.path_routing, "false"))
+  domain       = local.config_file.domain
+  path_routing = tobool(try(local.config_file.path_routing, "false"))
 
   # Terraform state bucket for Backstage scaffolder
   terraform_state_bucket = try(local.config_file.terraform_backend.bucket, "poc-idp-tfstate")
+
+  # Karpenter configuration
+  karpenter_enabled = tobool(try(local.config_file.use_karpenter, "false"))
+  karpenter_config  = try(local.config_file.karpenter, {})
+  karpenter_version = try(local.karpenter_config.version, "1.8.5")
 
   # Subdomains
   subdomains = try(local.config_file.subdomains, {})
 
   # Network Load Balancer for ingress-nginx
-  enable_nlb = tobool(try(local.config_file.enable_nlb, true))
+  enable_nlb          = tobool(try(local.config_file.enable_nlb, true))
   acm_certificate_arn = try(local.config_file.acm_certificate_arn, "")
+
+  # Route53 Configuration for external-dns
+  route53_hosted_zone_id = try(local.config_file.route53_hosted_zone_id, "")
+
+  # Subdomain configuration
+  argocd_subdomain    = try(local.subdomains.argocd, "argocd")
+  keycloak_subdomain  = try(local.subdomains.keycloak, "keycloak")
+  backstage_subdomain = try(local.subdomains.backstage, "backstage")
+
+  # Keycloak Database Configuration
+  keycloak_config            = try(local.config_file.keycloak, {})
+  keycloak_enabled           = tobool(try(local.keycloak_config.enabled, "false"))
+  keycloak_db_config         = try(local.keycloak_config.database, {})
+  keycloak_db_name           = try(local.keycloak_db_config.name, "keycloak")
+  keycloak_db_username       = try(local.keycloak_db_config.username, "keycloak")
+  keycloak_db_instance_class = try(local.keycloak_db_config.instance_class, "db.t4g.micro")
+  keycloak_db_allocated_storage = try(local.keycloak_db_config.allocated_storage, 20)
+  keycloak_db_engine_version = try(local.keycloak_db_config.postgres_version, "15.15")
+  keycloak_db_multi_az       = tobool(try(local.keycloak_db_config.multi_az, "false"))
+  keycloak_db_backup_retention = try(local.keycloak_db_config.backup_retention_days, 1)
 
   # Tags from config
   config_tags = local.config_file.tags
 
   # Merge with additional tags
+  # cloud_economics tag is MANDATORY for all resources (Cloud Economics policy)
+  # Validation is performed in validations.tf
   tags = merge(
     local.config_tags,
     {
-      ManagedBy = "terraform"
+      ManagedBy    = "terraform"
       ConfigSource = "config.yaml"
     }
   )

@@ -5,12 +5,12 @@ resource "aws_secretsmanager_secret" "config" {
   name        = "cnoe-ref-impl/config"
   description = "CNOE Reference Implementation configuration for External Secrets"
 
-   recovery_window_in_days = 0
+  recovery_window_in_days = 0
 
   tags = merge(
     local.tags,
     {
-      Name = "cnoe-ref-impl-config"
+      Name       = "cnoe-ref-impl-config"
       DeployedAt = timestamp()
     }
   )
@@ -50,7 +50,7 @@ resource "aws_secretsmanager_secret" "github_app" {
   name        = "${local.cluster_name}-github-app-credentials"
   description = "GitHub App credentials for Backstage integration"
 
-   recovery_window_in_days = 0
+  recovery_window_in_days = 0
 
   tags = merge(
     local.tags,

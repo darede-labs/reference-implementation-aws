@@ -1,0 +1,54 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  title: ${{ values.name | title }}
+  description: ${{ values.description }}
+  annotations:
+    # GitHub
+    github.com/project-slug: ${{ values.gitHubOrg }}/${{ values.name }}
+
+    # Kubernetes
+    backstage.io/kubernetes-id: ${{ values.name }}
+    backstage.io/kubernetes-namespace: ${{ values.namespace }}
+
+    # ArgoCD
+    argocd/app-name: ${{ values.name }}
+
+    # Observability - Grafana Deep Links
+    grafana.io/loki-query-url: >-
+      https://grafana.${{ values.baseDomain }}/explore?left=["now-1h","now","Loki",{"expr":"{namespace=\"${{ values.namespace }}\",app_kubernetes_io_name=\"${{ values.name }}\"}"}]
+    grafana.io/dashboard-url: >-
+      https://grafana.${{ values.baseDomain }}/d/service-overview?var-namespace=${{ values.namespace }}&var-app=${{ values.name }}
+    grafana.io/dashboard-selector: app=${{ values.name }}
+    grafana.io/overview-dashboard: https://grafana.${{ values.baseDomain }}/d/service-overview?var-namespace=${{ values.namespace }}&var-app=${{ values.name }}
+
+    # Prometheus Metrics
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+
+    # TechDocs (optional)
+    backstage.io/techdocs-ref: dir:.
+
+  tags:
+    - python
+    - fastapi
+    - containerized
+    - microservice
+
+  links:
+    - url: https://grafana.${{ values.baseDomain }}/explore?left=["now-1h","now","Loki",{"expr":"{namespace=\"${{ values.namespace }}\",app_kubernetes_io_name=\"${{ values.name }}\"}"}]
+      title: View Logs
+      icon: dashboard
+    - url: https://grafana.${{ values.baseDomain }}/d/service-overview?var-namespace=${{ values.namespace }}&var-app=${{ values.name }}
+      title: View Metrics
+      icon: dashboard
+
+spec:
+  type: service
+  lifecycle: production
+  owner: ${{ values.owner }}
+  system: platform-services
+  dependsOn: []
+  providesApis: []

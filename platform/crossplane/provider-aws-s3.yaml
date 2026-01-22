@@ -1,0 +1,13 @@
+################################################################################
+# Crossplane AWS S3 Provider
+# Individual provider for S3 management
+################################################################################
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws-s3
+spec:
+  package: xpkg.upbound.io/upbound/provider-aws-s3:v1.16.0
+  packagePullPolicy: IfNotPresent
+  controllerConfigRef:
+    name: aws-config
