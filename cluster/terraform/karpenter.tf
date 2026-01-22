@@ -250,8 +250,8 @@ resource "aws_eks_node_group" "karpenter_bootstrap" {
   capacity_type = "ON_DEMAND"
 
   # Use Graviton (ARM64) for cost savings - cheapest option
-  # AL2 is the most stable EKS managed nodegroup AMI
-  ami_type = "AL2_ARM_64"
+  # AL2023_ARM_64_STANDARD is required for Kubernetes 1.33+
+  ami_type = "AL2023_ARM_64_STANDARD"
 
   # Use Graviton instances (t4g) - cheapest option
   # t4g.medium has 4GB RAM (needed for Karpenter which requires 1Gi)
