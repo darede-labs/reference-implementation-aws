@@ -250,8 +250,8 @@ resource "aws_eks_node_group" "karpenter_bootstrap" {
   capacity_type = "ON_DEMAND"
 
   # Use Graviton (ARM64) for cost savings - cheapest option
-  # AL2023_ARM_64_STANDARD is the AMI type for Graviton instances
-  ami_type = "AL2023_ARM_64_STANDARD"
+  # AL2 is the most stable EKS managed nodegroup AMI
+  ami_type = "AL2_ARM_64"
 
   # Use Graviton instances (t4g) - cheapest option
   # t4g.medium has 4GB RAM (needed for Karpenter which requires 1Gi)
@@ -270,7 +270,7 @@ resource "aws_eks_node_group" "karpenter_bootstrap" {
 
   # Labels for identification and taint to prevent workload scheduling
   labels = {
-    role                                = "karpenter-bootstrap"
+    role                                = "bootstrap"
     "karpenter.sh/discovery"            = module.eks.cluster_name
     "node-role.kubernetes.io/bootstrap" = "true"
   }
