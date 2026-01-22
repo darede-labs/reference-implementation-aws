@@ -22,6 +22,11 @@ controller:
 
       # Tags for cost tracking
       service.beta.kubernetes.io/aws-load-balancer-additional-resource-tags: "Darede-IDP::devops,ManagedBy=helm,Component=ingress-nginx"
+    
+    # CRITICAL: NLB terminates TLS, so both 80 and 443 should route to HTTP backend
+    targetPorts:
+      http: http
+      https: http  # Route HTTPS port to HTTP backend (TLS terminated at NLB)
 
   # Resource limits for cost optimization
   resources:
