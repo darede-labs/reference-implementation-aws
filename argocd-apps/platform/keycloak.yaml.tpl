@@ -19,18 +19,12 @@ spec:
     repoURL: https://codecentric.github.io/helm-charts
     targetRevision: 18.10.0
     helm:
-      valuesObject:
-        global:
-          storageClass: gp2
-        postgresql:
-          enabled: true
-          primary:
-            persistence:
-              storageClass: gp2
-        auth:
-          adminUser: admin
-          adminPassword: admin  # Temporary - should use secret
-        replicaCount: 1
+      valueFiles:
+        - $values/platform/keycloak/helm-values.yaml
+  sources:
+    - repoURL: {{ git_repo_url }}
+      targetRevision: {{ git_branch }}
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: keycloak
