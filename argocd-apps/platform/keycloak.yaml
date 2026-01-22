@@ -29,7 +29,7 @@ spec:
           - name: DB_VENDOR
             value: postgres
           - name: DB_ADDR
-            value: idp-poc-darede-cluster-keycloak.czmck2ak69il.us-east-1.rds.amazonaws.com
+            value: 
           - name: DB_PORT
             value: "5432"
           - name: DB_DATABASE
@@ -37,11 +37,13 @@ spec:
           - name: DB_USER
             value: keycloak
           - name: DB_PASSWORD
-            value: TotE*31]9aR)E#}%fyDphyM6$s[AimOq
+            value: 
           - name: KEYCLOAK_USER
             value: admin
           - name: KEYCLOAK_PASSWORD
-            value: changeme
+            value: ${KEYCLOAK_ADMIN_PASSWORD}
+          - name: KEYCLOAK_FRONTEND_URL
+            value: https://keycloak.timedevops.click/auth
           - name: PROXY_ADDRESS_FORWARDING
             value: "true"
 

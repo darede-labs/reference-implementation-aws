@@ -42,6 +42,8 @@ spec:
             value: {{ keycloak_admin_user }}
           - name: KEYCLOAK_PASSWORD
             value: {{ keycloak_admin_password }}
+          - name: KEYCLOAK_FRONTEND_URL
+            value: https://{{ keycloak_subdomain }}.{{ domain }}/auth
           - name: PROXY_ADDRESS_FORWARDING
             value: "true"
 
