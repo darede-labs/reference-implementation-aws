@@ -66,7 +66,7 @@ spec:
               echo "Done."
           env:
             - name: KEYCLOAK_ADMIN_USER
-              value: "admin"
+              value: {{ keycloak_admin_user }}
             - name: KEYCLOAK_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:

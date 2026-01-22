@@ -273,7 +273,7 @@ keycloak:
   # Keycloak deployment configuration
   replicas: 1 # Single replica for POC (use 2+ for production HA)
   # Admin credentials (stored in Secrets Manager)
-  admin_user: "admin"
+  admin_user: "bootstrap-admin"
   admin_password: "${KEYCLOAK_ADMIN_PASSWORD}" # Set via env
   # Subdomain for Keycloak UI
   subdomain: "keycloak" # Will be: keycloak.timedevops.click

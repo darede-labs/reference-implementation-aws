@@ -20,7 +20,7 @@ image:
 
 ## Keycloak configuration
 auth:
-  adminUser: admin
+  adminUser: bootstrap-admin
   adminPassword: ${KEYCLOAK_ADMIN_PASSWORD}
 
 ## Production mode (recommended)
