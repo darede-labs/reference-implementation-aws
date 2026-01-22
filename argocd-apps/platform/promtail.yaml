@@ -37,15 +37,10 @@ spec:
             memory: 128Mi
           limits:
             memory: 256Mi
-        # CRITICAL: DaemonSets must run on ALL nodes including bootstrap
-        # Tolerate bootstrap node taint
-        tolerations:
-          - key: node-role.kubernetes.io/bootstrap
-            operator: Exists
-            effect: NoSchedule
-        # Remove any nodeAffinity restrictions (DaemonSet must run on all nodes)
-        affinity: {}
-        nodeSelector: {}
+        # Promtail: Run only on Karpenter nodes (not bootstrap - too crowded)
+        # Bootstrap logs are not critical for MVP
+        nodeSelector:
+          workload-type: general
   destination:
     server: https://kubernetes.default.svc
     namespace: observability
