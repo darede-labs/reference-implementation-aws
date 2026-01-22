@@ -110,18 +110,17 @@ server:
 
   # Ingress configuration
   ingress:
-    enabled: false
+    enabled: true
     ingressClassName: nginx
     annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      # TLS is terminated at NLB, so NGINX receives HTTP traffic
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
       nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
       external-dns.alpha.kubernetes.io/hostname: {{ .config.subdomains.argocd }}.{{ .config.domain }}
     hosts:
       - {{ .config.subdomains.argocd }}.{{ .config.domain }}
-    tls:
-      - secretName: argocd-tls
-        hosts:
-          - {{ .config.subdomains.argocd }}.{{ .config.domain }}
+    tls: []
 
 ## Repo Server
 repoServer:
