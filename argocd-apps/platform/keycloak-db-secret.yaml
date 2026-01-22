@@ -10,6 +10,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: Replace=true
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
