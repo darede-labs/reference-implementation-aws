@@ -15,9 +15,12 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: {{ git_repo_url }}
-    targetRevision: {{ git_branch }}
-    path: platform/backstage
+    chart: backstage
+    repoURL: https://backstage.github.io/charts
+    targetRevision: 1.10.0
+    helm:
+      valuesObject: {}
+      # Values from platform/backstage/helm-values.yaml (managed separately)
   destination:
     server: https://kubernetes.default.svc
     namespace: backstage

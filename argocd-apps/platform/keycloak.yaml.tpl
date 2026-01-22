@@ -15,9 +15,12 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: {{ git_repo_url }}
-    targetRevision: {{ git_branch }}
-    path: platform/keycloak
+    chart: keycloak
+    repoURL: https://codecentric.github.io/helm-charts
+    targetRevision: 2.3.0
+    helm:
+      valuesObject: {}
+      # Values from platform/keycloak/helm-values.yaml (managed separately)
   destination:
     server: https://kubernetes.default.svc
     namespace: keycloak
