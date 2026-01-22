@@ -43,6 +43,9 @@ spec:
           - key: node-role.kubernetes.io/bootstrap
             operator: Exists
             effect: NoSchedule
+        # Remove any nodeAffinity restrictions (DaemonSet must run on all nodes)
+        affinity: {}
+        nodeSelector: {}
   destination:
     server: https://kubernetes.default.svc
     namespace: observability

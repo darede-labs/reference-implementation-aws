@@ -79,13 +79,10 @@ spec:
               installOperator: false
         test:
           enabled: false
+        # Loki Canary disabled for MVP (can be enabled later if needed)
+        # It's a verification tool, not critical for operations
         lokiCanary:
-          enabled: true
-          # CRITICAL: DaemonSet must tolerate bootstrap node taint
-          tolerations:
-            - key: node-role.kubernetes.io/bootstrap
-              operator: Exists
-              effect: NoSchedule
+          enabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: observability
