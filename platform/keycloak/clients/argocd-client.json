@@ -4,7 +4,7 @@
   "description": "ArgoCD GitOps Platform",
   "enabled": true,
   "clientAuthenticatorType": "client-secret",
-  "secret": "CfXz1wizSVMS+GN+uZ/llUlmawrYBh6bLIg4/ALTQFw=",
+  "secret": "${ARGOCD_CLIENT_SECRET}",
   "redirectUris": [
     "https://argocd.timedevops.click/auth/callback",
     "https://argocd.timedevops.click/api/dex/callback"

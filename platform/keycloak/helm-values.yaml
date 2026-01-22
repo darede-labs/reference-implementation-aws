@@ -21,7 +21,7 @@ image:
 ## Keycloak configuration
 auth:
   adminUser: admin
-  adminPassword: changeme
+  adminPassword: ${KEYCLOAK_ADMIN_PASSWORD}
 
 ## Production mode (recommended)
 production: true
