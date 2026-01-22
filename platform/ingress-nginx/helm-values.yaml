@@ -22,7 +22,7 @@ controller:
 
       # Tags for cost tracking
       service.beta.kubernetes.io/aws-load-balancer-additional-resource-tags: "Darede-IDP::devops,ManagedBy=helm,Component=ingress-nginx"
-    
+
     # CRITICAL: NLB terminates TLS, so HTTPS port should route to HTTP backend
     targetPorts:
       http: http
@@ -39,6 +39,12 @@ controller:
 
   # Replica configuration
   replicaCount: 2
+
+  # Configuration for TLS termination at NLB
+  # Tell backends that original request was HTTPS
+  config:
+    use-forwarded-headers: "true"
+    compute-full-forwarded-for: "true"
 
   # Metrics
   metrics:
