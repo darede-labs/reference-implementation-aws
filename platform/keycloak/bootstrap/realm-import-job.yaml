@@ -48,22 +48,21 @@ spec:
               echo "Using kcadm.sh at: $KCADM"
 
               echo "Logging in to Keycloak..."
-              export HOME=/tmp
-              mkdir -p /tmp/.keycloak
-              $KCADM config credentials \
+              KCADM_CONFIG="/tmp/kcadm.config"
+              $KCADM config credentials --config "$KCADM_CONFIG" \
                 --server http://keycloak-http:80/auth \
                 --realm master \
                 --user "${KEYCLOAK_ADMIN_USER}" \
                 --password "${KEYCLOAK_ADMIN_PASSWORD}"
 
               echo "Checking if realm 'platform' exists..."
-              if $KCADM get realms/platform >/dev/null 2>&1; then
+              if $KCADM --config "$KCADM_CONFIG" get realms/platform >/dev/null 2>&1; then
                 echo "Realm exists, updating..."
-                $KCADM update realms/platform -f /config/realm.json
+                $KCADM --config "$KCADM_CONFIG" update realms/platform -f /config/realm.json
                 echo "Realm updated successfully"
               else
                 echo "Realm does not exist, creating..."
-                $KCADM create realms -f /config/realm.json
+                $KCADM --config "$KCADM_CONFIG" create realms -f /config/realm.json
                 echo "Realm created successfully"
               fi
 
