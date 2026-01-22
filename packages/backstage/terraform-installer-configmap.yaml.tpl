@@ -36,7 +36,7 @@ data:
 
     # Download Terraform for detected architecture
     # Version configured via config.yaml -> secrets.backstage.terraform_version
-    TERRAFORM_VERSION="1.7.5"
+    TERRAFORM_VERSION="{{ terraform_version }}"
     TERRAFORM_URL="https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TERRAFORM_ARCH}.zip"
 
     echo "Downloading Terraform ${TERRAFORM_VERSION} for ${TERRAFORM_ARCH}..."

@@ -1,4 +1,4 @@
-apiVersion: karpenter.k8s.aws/v1
+apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 metadata:
   name: default
@@ -9,7 +9,6 @@ spec:
     - alias: al2023@latest
 
   # IAM Role for nodes (created by Terraform)
-  
   role: "Karpenter-idp-poc-darede-cluster-20260121200907518800000011"
 
   # Subnet selection (private subnets for EKS)

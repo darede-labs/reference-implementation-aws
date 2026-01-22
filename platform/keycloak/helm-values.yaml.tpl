@@ -11,11 +11,11 @@ global:
 
 ## Image configuration
 ## IMPORTANT: Since August 28, 2024, Bitnami moved non-hardened images to bitnamilegacy registry
-## Using latest tag as it's the most reliable for bitnamilegacy registry
+## Using pinned tag for stability - same version must be used in realm-import-job.yaml
 image:
   registry: docker.io
   repository: bitnamilegacy/keycloak
-  tag: latest
+  tag: {{ keycloak_image_tag }}
   pullPolicy: IfNotPresent
 
 ## Keycloak configuration

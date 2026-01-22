@@ -1,0 +1,49 @@
+################################################################################
+# ApplicationSet Placeholder
+# TODO: Future ApplicationSet implementation
+#
+# This is a placeholder for future ApplicationSet usage.
+# Current implementation uses individual Application resources.
+# Keep existing Applications - do not delete.
+#
+# Future implementation could use ApplicationSet for:
+# - Dynamic application discovery
+# - Multi-cluster deployments
+# - Template-based application generation
+################################################################################
+# apiVersion: argoproj.io/v1alpha1
+# kind: ApplicationSet
+# metadata:
+#   name: platform-appset
+#   namespace: argocd
+# spec:
+#   generators:
+#     - list:
+#         elements:
+#           - name: ingress-nginx
+#             wave: "0"
+#           - name: external-dns
+#             wave: "0"
+#           - name: keycloak
+#             wave: "1"
+#           - name: backstage
+#             wave: "2"
+#   template:
+#     metadata:
+#       name: '{{name}}'
+#       namespace: argocd
+#       annotations:
+#         argocd.argoproj.io/sync-wave: '{{wave}}'
+#     spec:
+#       project: default
+#       source:
+#         repoURL: {{ gitops.repo_url }}
+#         targetRevision: {{ gitops.revision }}
+#         path: argocd-apps/platform/{{name}}
+#       destination:
+#         server: https://kubernetes.default.svc
+#         namespace: '{{name}}'
+#       syncPolicy:
+#         automated:
+#           prune: true
+#           selfHeal: true

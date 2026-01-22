@@ -37,19 +37,12 @@ spec:
             memory: 128Mi
           limits:
             memory: 256Mi
-        # Avoid bootstrap nodes (they have limited capacity) using podAntiAffinity
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-                - matchExpressions:
-                    - key: role
-                      operator: NotIn
-                      values:
-                        - karpenter-bootstrap
+        # CRITICAL: DaemonSets must run on ALL nodes including bootstrap
+        # Tolerate bootstrap node taint
         tolerations:
-          - effect: NoSchedule
+          - key: node-role.kubernetes.io/bootstrap
             operator: Exists
+            effect: NoSchedule
   destination:
     server: https://kubernetes.default.svc
     namespace: observability

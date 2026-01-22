@@ -71,11 +71,11 @@
       "emailVerified": true,
       "firstName": "Platform",
       "lastName": "Admin",
-      "email": "admin@{{ domain }}",
+      "email": "admin@{{ .config.domain }}",
       "credentials": [
         {
           "type": "password",
-          "value": "{{ keycloak_admin_password }}",
+          "value": "{{ getenv "KEYCLOAK_ADMIN_PASSWORD" }}",
           "temporary": false
         }
       ],
@@ -83,7 +83,115 @@
       "groups": ["/platform-team"]
     }
   ],
-  "clients": [],
+  "clients": [
+    {
+      "clientId": "argocd",
+      "name": "ArgoCD",
+      "description": "ArgoCD GitOps Platform",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "{{ getenv "ARGOCD_CLIENT_SECRET" }}",
+      "redirectUris": [
+        "https://{{ .config.subdomains.argocd }}.{{ .config.domain }}/auth/callback"
+      ],
+      "webOrigins": [
+        "https://{{ .config.subdomains.argocd }}.{{ .config.domain }}"
+      ],
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email",
+        "groups"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "protocolMappers": [
+        {
+          "name": "argocd-groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "backstage",
+      "name": "Backstage IDP",
+      "description": "Internal Developer Platform - Backstage",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "{{ getenv "BACKSTAGE_CLIENT_SECRET" }}",
+      "redirectUris": [
+        "https://{{ .config.subdomains.backstage }}.{{ .config.domain }}/*",
+        "https://{{ .config.subdomains.backstage }}.{{ .config.domain }}/api/auth/oidc/handler/frame"
+      ],
+      "webOrigins": [
+        "https://{{ .config.subdomains.backstage }}.{{ .config.domain }}"
+      ],
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "groups"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "email",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "email",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
   "clientScopes": [
     {
       "name": "groups",
@@ -147,6 +255,6 @@
   "defaultLocale": "en",
   "authenticationFlows": [],
   "attributes": {
-    "frontendUrl": "https://{{ keycloak_subdomain }}.{{ domain }}"
+    "frontendUrl": "https://{{ .config.subdomains.keycloak }}.{{ .config.domain }}"
   }
 }

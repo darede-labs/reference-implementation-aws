@@ -5,7 +5,7 @@
 ################################################################################
 
 global:
-  domain: {{ argocd_subdomain }}.{{ domain }}
+  domain: {{ .config.subdomains.argocd }}.{{ .config.domain }}
 
 ## ArgoCD Configuration
 configs:
@@ -31,7 +31,7 @@ configs:
 
     # Git repositories (for app-of-apps)
     repositories: |
-      - url: {{ git_repo_url }}
+      - url: {{ .config.gitops.repo_url }}
         name: platform-infra
 
     # Resource customizations
@@ -50,14 +50,15 @@ configs:
       return hs
 
     # ArgoCD Server URL (required for OIDC redirects)
-    url: https://{{ argocd_subdomain }}.{{ domain }}
+    url: https://{{ .config.subdomains.argocd }}.{{ .config.domain }}
 
     # OIDC Configuration
+    # IMPORTANT: clientSecret is injected via gomplate during bootstrap from ENV ARGOCD_CLIENT_SECRET
     oidc.config: |
       name: Keycloak
-      issuer: https://{{ keycloak_subdomain }}.{{ domain }}/realms/platform
+      issuer: https://{{ .config.subdomains.keycloak }}.{{ .config.domain }}/realms/platform
       clientID: argocd
-      clientSecret: $oidc.keycloak.clientSecret
+      clientSecret: {{ getenv "ARGOCD_CLIENT_SECRET" }}
       requestedScopes:
         - openid
         - profile
@@ -80,9 +81,8 @@ configs:
       g, platform-team, role:org-admin
 
   # SSO Configuration (Keycloak OIDC)
-  secret:
-    extra:
-      oidc.keycloak.clientSecret: "{{ keycloak_argocd_client_secret }}"
+  # Note: clientSecret is injected directly in oidc.config via gomplate
+  # No need for secret.extra as we use env var injection
 
 ## Controller
 controller:
@@ -115,13 +115,13 @@ server:
     annotations:
       nginx.ingress.kubernetes.io/ssl-redirect: "true"
       nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
-      external-dns.alpha.kubernetes.io/hostname: {{ argocd_subdomain }}.{{ domain }}
+      external-dns.alpha.kubernetes.io/hostname: {{ .config.subdomains.argocd }}.{{ .config.domain }}
     hosts:
-      - {{ argocd_subdomain }}.{{ domain }}
+      - {{ .config.subdomains.argocd }}.{{ .config.domain }}
     tls:
       - secretName: argocd-tls
         hosts:
-          - {{ argocd_subdomain }}.{{ domain }}
+          - {{ .config.subdomains.argocd }}.{{ .config.domain }}
 
 ## Repo Server
 repoServer:

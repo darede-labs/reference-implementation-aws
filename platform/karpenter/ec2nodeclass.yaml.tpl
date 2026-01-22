@@ -9,6 +9,7 @@ spec:
     - alias: al2023@latest
 
   # IAM Role for nodes (created by Terraform)
+  
   role: "{{ karpenter_node_role_name }}"
 
   # Subnet selection (private subnets for EKS)

@@ -31,10 +31,11 @@ spec:
           operator: In
           values: ["spot", "on-demand"]
 
-        # Architecture: only x86_64
+        # Architecture: ARM64 (Graviton) and x86_64 for maximum flexibility
+        # Graviton instances (ARM) are ~20% cheaper with same performance
         - key: kubernetes.io/arch
           operator: In
-          values: ["amd64"]
+          values: ["arm64", "amd64"]
 
         # Operating system: only linux
         - key: kubernetes.io/os
@@ -51,25 +52,21 @@ spec:
           operator: Gt
           values: ["2"]
 
-        # Specific instance types - expanded for higher pod capacity
+        # Specific instance types - MVP cost-optimized with Graviton (ARM) support
+        # Graviton instances are prioritized for ~20% cost savings
         - key: node.kubernetes.io/instance-type
           operator: In
           values:
-            # T3 family - burstable, cost-effective (~17-58 pods)
-            - "t3a.medium"    # 2 vCPU, 4GB RAM, ~17 pods
-            - "t3.medium"     # 2 vCPU, 4GB RAM, ~17 pods
-            - "t3a.large"     # 2 vCPU, 8GB RAM, ~35 pods
-            - "t3.large"      # 2 vCPU, 8GB RAM, ~35 pods
-            - "t3a.xlarge"    # 4 vCPU, 16GB RAM, ~58 pods
-            - "t3.xlarge"     # 4 vCPU, 16GB RAM, ~58 pods
-            # M5 family - general purpose, stable workloads (~29-58 pods)
-            - "m5.large"      # 2 vCPU, 8GB RAM, ~29 pods
-            - "m5.xlarge"     # 4 vCPU, 16GB RAM, ~58 pods
-            - "m5a.large"     # 2 vCPU, 8GB RAM, ~29 pods
-            - "m5a.xlarge"    # 4 vCPU, 16GB RAM, ~58 pods
-            # M6i family - latest generation (~29-58 pods)
-            - "m6i.large"     # 2 vCPU, 8GB RAM, ~29 pods
-            - "m6i.xlarge"    # 4 vCPU, 16GB RAM, ~58 pods
+            # T4G family - Graviton2 (ARM), cheapest option (~20% savings)
+            - "t4g.small"     # 2 vCPU, 2GB RAM, ~11 pods - CHEAPEST (ARM)
+            - "t4g.medium"    # 2 vCPU, 4GB RAM, ~17 pods - Medium workload (ARM)
+            # T3 family - x86_64 fallback for compatibility
+            - "t3a.small"     # 2 vCPU, 2GB RAM, ~11 pods - x86_64 fallback
+            - "t3.small"      # 2 vCPU, 2GB RAM, ~11 pods - x86_64 fallback
+            - "t3a.medium"    # 2 vCPU, 4GB RAM, ~17 pods - x86_64 fallback
+            - "t3.medium"     # 2 vCPU, 4GB RAM, ~17 pods - x86_64 fallback
+            # Karpenter will prefer Graviton (t4g) instances when compatible
+            # Limits ({{ karpenter_limits_cpu }} vCPU, {{ karpenter_limits_memory }}) ensure cost control
 
   # Limits for this NodePool (from config.yaml)
   limits:
