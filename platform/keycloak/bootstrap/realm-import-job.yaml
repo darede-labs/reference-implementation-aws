@@ -9,16 +9,11 @@ metadata:
   name: keycloak-realm-import
   namespace: keycloak
   annotations:
-    argocd.argoproj.io/sync-options: Replace=true
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded,HookFailed
 spec:
   ttlSecondsAfterFinished: 300
-  selector:
-    matchLabels:
-      job-name: keycloak-realm-import
   template:
-    metadata:
-      labels:
-        job-name: keycloak-realm-import
     spec:
       restartPolicy: OnFailure
       containers:
