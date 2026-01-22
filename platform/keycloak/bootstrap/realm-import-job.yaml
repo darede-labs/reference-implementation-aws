@@ -1,0 +1,83 @@
+################################################################################
+# Keycloak Realm Import Job
+# Compatible with bitnamilegacy/keycloak
+# This Job imports the platform realm configuration after Keycloak is deployed
+################################################################################
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-realm-import
+  namespace: keycloak
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: realm-import
+          # IMPORTANT: Use same image tag as Helm chart (pinned version)
+          # This is injected via gomplate during template rendering
+          image: bitnamilegacy/keycloak:24.0.5
+          command: ["/bin/bash", "-lc"]
+          args:
+            - |
+              set -euo pipefail
+
+              echo "Waiting for Keycloak service..."
+              # Use /realms/master endpoint (more reliable than /health/ready for bitnamilegacy)
+              until curl -sf http://keycloak:8080/realms/master >/dev/null 2>&1; do
+                echo "Keycloak not ready yet..."
+                sleep 5
+              done
+
+              echo "Keycloak is ready"
+
+              # Detect kcadm.sh path defensively (bitnamilegacy may have different paths)
+              KCADM="$(command -v kcadm.sh || true)"
+              if [ -z "$KCADM" ]; then
+                KCADM="/opt/bitnami/keycloak/bin/kcadm.sh"
+              fi
+
+              if [ ! -f "$KCADM" ]; then
+                echo "ERROR: kcadm.sh not found at $KCADM"
+                exit 1
+              fi
+
+              echo "Using kcadm.sh at: $KCADM"
+
+              echo "Logging in to Keycloak..."
+              $KCADM config credentials \
+                --server http://keycloak:8080 \
+                --realm master \
+                --user "${KEYCLOAK_ADMIN_USER}" \
+                --password "${KEYCLOAK_ADMIN_PASSWORD}"
+
+              echo "Checking if realm 'platform' exists..."
+              if $KCADM get realms/platform >/dev/null 2>&1; then
+                echo "Realm exists, updating..."
+                $KCADM update realms/platform -f /config/realm.json
+                echo "Realm updated successfully"
+              else
+                echo "Realm does not exist, creating..."
+                $KCADM create realms -f /config/realm.json
+                echo "Realm created successfully"
+              fi
+
+              echo "Done."
+          env:
+            - name: KEYCLOAK_ADMIN_USER
+              value: "admin"
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin
+                  key: password
+          volumeMounts:
+            - name: realm-config
+              mountPath: /config
+      volumes:
+        - name: realm-config
+          configMap:
+            name: keycloak-realm-config

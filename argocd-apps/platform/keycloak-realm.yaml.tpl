@@ -17,7 +17,7 @@ spec:
   source:
     repoURL: {{ gitops_repo_url }}
     targetRevision: {{ gitops_branch }}
-    path: platform/keycloak/manifests
+    path: platform/keycloak/bootstrap
   destination:
     server: https://kubernetes.default.svc
     namespace: keycloak
