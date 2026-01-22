@@ -4,7 +4,7 @@ metadata:
   name: kyverno
   namespace: argocd
   annotations:
-    gitops.darede.io/reconcile: "''"
+    gitops.darede.io/reconcile: "1737529992"
   annotations:
     argocd.argoproj.io/sync-wave: "1" # After infra base, before workloads
 spec:
