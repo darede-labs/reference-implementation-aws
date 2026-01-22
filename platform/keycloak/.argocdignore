@@ -1,0 +1,4 @@
+# Ignore non-Kubernetes manifest files
+*.json
+*.json.tpl
+clients/
