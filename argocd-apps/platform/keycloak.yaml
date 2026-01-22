@@ -14,16 +14,71 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  sources:
-    - chart: keycloak
-      repoURL: https://codecentric.github.io/helm-charts
-      targetRevision: 18.10.0
-      helm:
-        valueFiles:
-          - $values/platform/keycloak/helm-values.yaml
-    - repoURL: https://github.com/darede-labs/reference-implementation-aws
-      targetRevision: main
-      ref: values
+  source:
+    chart: keycloak
+    repoURL: https://codecentric.github.io/helm-charts
+    targetRevision: 18.10.0
+    helm:
+      values: |
+        # Use external RDS database (no PVC needed)
+        postgresql:
+          enabled: false
+        
+        externalDatabase:
+          host: idp-poc-darede-cluster-keycloak.czmck2ak69il.us-east-1.rds.amazonaws.com
+          port: 5432
+          user: keycloak
+          password: TotE*31]9aR)E#}%fyDphyM6$s[AimOq
+          database: keycloak
+        
+        # Keycloak admin credentials
+        keycloak:
+          username: admin
+          password: changeme
+        
+        # Production settings
+        proxy: edge
+        proxyHeaders: xforwarded
+        
+        # Service and ingress
+        service:
+          type: ClusterIP
+        
+        ingress:
+          enabled: true
+          ingressClassName: nginx
+          hostname: keycloak.timedevops.click
+          annotations:
+            nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+            external-dns.alpha.kubernetes.io/hostname: keycloak.timedevops.click
+          tls: true
+        
+        # Resources for cost optimization (Graviton ARM64)
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        
+        # Node affinity for Karpenter nodes
+        affinity:
+          nodeAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                preference:
+                  matchExpressions:
+                    - key: karpenter.sh/capacity-type
+                      operator: Exists
+              - weight: 50
+                preference:
+                  matchExpressions:
+                    - key: role
+                      operator: NotIn
+                      values:
+                        - karpenter-bootstrap
   destination:
     server: https://kubernetes.default.svc
     namespace: keycloak
