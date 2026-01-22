@@ -16,6 +16,10 @@ warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 success() { echo -e "${GREEN}[✓]${NC} $1"; }
 
+is_placeholder() {
+    [[ "$1" =~ ^\$\{[A-Z0-9_]+\}$ ]]
+}
+
 # Load configuration and set environment variables
 load_config_and_secrets() {
     local SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
@@ -29,7 +33,7 @@ load_config_and_secrets() {
     # Load GITHUB_TOKEN from config.yaml if not in ENV
     if [ -z "${GITHUB_TOKEN:-}" ]; then
         GITHUB_TOKEN=$(yq eval '.secrets.github_token' "$CONFIG_FILE" 2>/dev/null || echo "")
-        if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "null" ]; then
+        if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "null" ] && ! is_placeholder "$GITHUB_TOKEN"; then
             export GITHUB_TOKEN
             info "Loaded GITHUB_TOKEN from config.yaml"
         fi
@@ -38,7 +42,7 @@ load_config_and_secrets() {
     # Generate KEYCLOAK_ADMIN_PASSWORD if not set
     if [ -z "${KEYCLOAK_ADMIN_PASSWORD:-}" ]; then
         KEYCLOAK_ADMIN_PASSWORD=$(yq eval '.secrets.keycloak_admin_password' "$CONFIG_FILE" 2>/dev/null || echo "")
-        if [ -z "$KEYCLOAK_ADMIN_PASSWORD" ] || [ "$KEYCLOAK_ADMIN_PASSWORD" == "null" ]; then
+        if [ -z "$KEYCLOAK_ADMIN_PASSWORD" ] || [ "$KEYCLOAK_ADMIN_PASSWORD" == "null" ] || is_placeholder "$KEYCLOAK_ADMIN_PASSWORD"; then
             KEYCLOAK_ADMIN_PASSWORD="$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)"
             info "Generated KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:0:10}..."
         fi
@@ -48,7 +52,7 @@ load_config_and_secrets() {
     # Generate ARGOCD_CLIENT_SECRET if not set
     if [ -z "${ARGOCD_CLIENT_SECRET:-}" ]; then
         ARGOCD_CLIENT_SECRET=$(yq eval '.secrets.argocd_client_secret' "$CONFIG_FILE" 2>/dev/null || echo "")
-        if [ -z "$ARGOCD_CLIENT_SECRET" ] || [ "$ARGOCD_CLIENT_SECRET" == "null" ]; then
+        if [ -z "$ARGOCD_CLIENT_SECRET" ] || [ "$ARGOCD_CLIENT_SECRET" == "null" ] || is_placeholder "$ARGOCD_CLIENT_SECRET"; then
             ARGOCD_CLIENT_SECRET="$(openssl rand -hex 32)"
             info "Generated ARGOCD_CLIENT_SECRET"
         fi
@@ -58,7 +62,7 @@ load_config_and_secrets() {
     # Generate BACKSTAGE_CLIENT_SECRET if not set
     if [ -z "${BACKSTAGE_CLIENT_SECRET:-}" ]; then
         BACKSTAGE_CLIENT_SECRET=$(yq eval '.secrets.backstage_client_secret' "$CONFIG_FILE" 2>/dev/null || echo "")
-        if [ -z "$BACKSTAGE_CLIENT_SECRET" ] || [ "$BACKSTAGE_CLIENT_SECRET" == "null" ]; then
+        if [ -z "$BACKSTAGE_CLIENT_SECRET" ] || [ "$BACKSTAGE_CLIENT_SECRET" == "null" ] || is_placeholder "$BACKSTAGE_CLIENT_SECRET"; then
             BACKSTAGE_CLIENT_SECRET="$(openssl rand -hex 32)"
             info "Generated BACKSTAGE_CLIENT_SECRET"
         fi
