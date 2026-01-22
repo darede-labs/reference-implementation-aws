@@ -32,8 +32,6 @@ spec:
           path: "/"
           tls:
             enabled: true
-            hosts:
-              - {{ backstage_hostname }}
 
         backstage:
           replicas: 2

@@ -32,8 +32,6 @@ spec:
           path: "/"
           tls:
             enabled: true
-            hosts:
-              - backstage.timedevops.click
 
         backstage:
           replicas: 2
