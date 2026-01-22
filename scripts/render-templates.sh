@@ -52,6 +52,8 @@ EXTERNAL_SECRETS_ROLE_ARN=$(echo "$TF_OUTPUTS" | jq -r '.external_secrets_role_a
 DOMAIN=$(echo "$CONFIG_VALUES" | jq -r '.domain // "example.com"' 2>/dev/null || echo "example.com")
 GIT_REPO=$(echo "$CONFIG_VALUES" | jq -r '.git_repo_url // "https://github.com/your-org/platform-infra"' 2>/dev/null || echo "https://github.com/your-org/platform-infra")
 GIT_BRANCH=$(echo "$CONFIG_VALUES" | jq -r '.git_branch // "main"' 2>/dev/null || echo "main")
+GITOPS_REPO_URL=$(echo "$CONFIG_VALUES" | jq -r '.gitops.repo_url // .git_repo_url // "https://github.com/your-org/platform-infra"' 2>/dev/null || echo "https://github.com/your-org/platform-infra")
+GITOPS_BRANCH=$(echo "$CONFIG_VALUES" | jq -r '.gitops.revision // .git_branch // "main"' 2>/dev/null || echo "main")
 ARGOCD_SUBDOMAIN=$(echo "$CONFIG_VALUES" | jq -r '.subdomains.argocd // "argocd"' 2>/dev/null || echo "argocd")
 KEYCLOAK_SUBDOMAIN=$(echo "$CONFIG_VALUES" | jq -r '.subdomains.keycloak // "keycloak"' 2>/dev/null || echo "keycloak")
 BACKSTAGE_SUBDOMAIN=$(echo "$CONFIG_VALUES" | jq -r '.subdomains.backstage // "backstage"' 2>/dev/null || echo "backstage")
@@ -134,6 +136,8 @@ s|{{ region }}|$REGION|g
 s|{{ domain }}|$DOMAIN|g
 s|{{ git_repo_url }}|$GIT_REPO|g
 s|{{ git_branch }}|$GIT_BRANCH|g
+s|{{ gitops_repo_url }}|$GITOPS_REPO_URL|g
+s|{{ gitops_branch }}|$GITOPS_BRANCH|g
 s|{{ argocd_subdomain }}|$ARGOCD_SUBDOMAIN|g
 s|{{ keycloak_subdomain }}|$KEYCLOAK_SUBDOMAIN|g
 s|{{ backstage_subdomain }}|$BACKSTAGE_SUBDOMAIN|g

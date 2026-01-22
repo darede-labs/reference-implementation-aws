@@ -15,8 +15,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: {{ gitops_repo_url }}
-    targetRevision: {{ gitops_branch }}
+    repoURL: https://github.com/darede-labs/reference-implementation-aws
+    targetRevision: main
     path: platform/keycloak
   destination:
     server: https://kubernetes.default.svc
