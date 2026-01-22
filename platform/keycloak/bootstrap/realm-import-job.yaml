@@ -79,7 +79,11 @@ spec:
           volumeMounts:
             - name: realm-config
               mountPath: /config
+            - name: kcadm-home
+              mountPath: /home/keycloak
       volumes:
         - name: realm-config
           configMap:
             name: keycloak-realm-config
+        - name: kcadm-home
+          emptyDir: {}
