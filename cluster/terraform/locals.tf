@@ -15,16 +15,6 @@ locals {
 
   # Note: use_cognito is defined in cognito.tf
 
-  # VPC configuration
-  vpc_config = local.config_file.vpc
-  create_vpc = local.vpc_config.mode == "create"
-  vpc_cidr   = try(local.vpc_config.cidr, "10.0.0.0/16")
-  azs_count  = try(local.vpc_config.availability_zones, 3)
-  azs        = slice(data.aws_availability_zones.available.names, 0, local.azs_count)
-
-  # NAT Gateway mode: single or one_per_az
-  nat_gateway_single = try(local.vpc_config.nat_gateway_mode, "single") == "single"
-
   # Node groups configuration
   node_config    = try(local.config_file.node_groups, {})
   capacity_type  = try(local.node_config.capacity_type, "SPOT")
@@ -82,10 +72,11 @@ locals {
   backstage_db_user_raw  = try(local.backstage_secrets.postgres_user, "backstage")
   backstage_db_pass_raw  = var.backstage_postgres_password != null && var.backstage_postgres_password != "" ? var.backstage_postgres_password : try(local.backstage_secrets.postgres_password, "")
 
-  backstage_db_host = (local.backstage_db_host_raw != "" && local.backstage_db_host_raw != "backstage-postgresql") ? local.backstage_db_host_raw : (local.keycloak_enabled ? aws_db_instance.keycloak[0].address : local.backstage_db_host_raw)
-  backstage_db_port = (local.backstage_db_port_raw != "" && local.backstage_db_port_raw != "5432") ? local.backstage_db_port_raw : (local.keycloak_enabled ? tostring(aws_db_instance.keycloak[0].port) : local.backstage_db_port_raw)
-  backstage_db_user = (local.backstage_db_user_raw != "" && local.backstage_db_user_raw != "backstage") ? local.backstage_db_user_raw : (local.keycloak_enabled ? local.keycloak_db_username : local.backstage_db_user_raw)
-  backstage_db_pass = (local.backstage_db_pass_raw != "" && !can(regex("^\\$\\{", local.backstage_db_pass_raw))) ? local.backstage_db_pass_raw : (local.keycloak_enabled ? random_password.keycloak_db_password[0].result : local.backstage_db_pass_raw)
+  # Backstage DB config - no Keycloak fallback (Phase 0: Cognito only)
+  backstage_db_host = local.backstage_db_host_raw != "" ? local.backstage_db_host_raw : "backstage-postgresql"
+  backstage_db_port = local.backstage_db_port_raw != "" ? local.backstage_db_port_raw : "5432"
+  backstage_db_user = local.backstage_db_user_raw != "" ? local.backstage_db_user_raw : "backstage"
+  backstage_db_pass = local.backstage_db_pass_raw
 
   # Backstage integration secrets
   backstage_github_token_raw       = var.github_token != null && var.github_token != "" ? var.github_token : try(local.config_file.secrets.github_token, "")
