@@ -15,8 +15,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: {{ gitops.repo_url }}
-    targetRevision: {{ gitops.revision }}
+    repoURL: https://github.com/darede-labs/reference-implementation-aws
+    targetRevision: main
     path: platform/backstage
   destination:
     server: https://kubernetes.default.svc

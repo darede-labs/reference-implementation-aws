@@ -15,8 +15,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: {{ gitops.repo_url }}
-    targetRevision: {{ gitops.revision }}
+    repoURL: {{ git_repo_url }}
+    targetRevision: {{ git_branch }}
     path: platform/keycloak
   destination:
     server: https://kubernetes.default.svc
