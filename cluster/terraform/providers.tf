@@ -8,24 +8,13 @@
 # They are configured after the cluster is created
 ################################################################################
 
-# Data source to get EKS cluster info for provider configuration
-# These are used by Helm and kubectl providers to connect to the cluster
-data "aws_eks_cluster" "this" {
-  name = module.eks.cluster_name
-}
-
-data "aws_eks_cluster_auth" "this" {
-  name = module.eks.cluster_name
-}
-
 # Configure Helm provider to use EKS cluster
-# This allows Terraform to install Helm charts directly
+# Using module outputs directly to avoid chicken-and-egg problem
 # Reference: https://registry.terraform.io/providers/hashicorp/helm/latest/docs
-# Using exec with aws eks get-token to avoid dependency issues
 provider "helm" {
   kubernetes {
-    host                   = data.aws_eks_cluster.this.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
@@ -33,7 +22,7 @@ provider "helm" {
         "eks",
         "get-token",
         "--cluster-name",
-        data.aws_eks_cluster.this.name,
+        module.eks.cluster_name,
         "--region",
         local.region
       ]
@@ -42,11 +31,10 @@ provider "helm" {
 }
 
 # Configure kubectl provider to use EKS cluster
-# This allows Terraform to apply Kubernetes manifests directly
-# Using exec with aws eks get-token to avoid dependency issues
+# Using module outputs directly to avoid chicken-and-egg problem
 provider "kubectl" {
-  host                   = data.aws_eks_cluster.this.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
@@ -54,7 +42,7 @@ provider "kubectl" {
       "eks",
       "get-token",
       "--cluster-name",
-      data.aws_eks_cluster.this.name,
+      module.eks.cluster_name,
       "--region",
       local.region
     ]
