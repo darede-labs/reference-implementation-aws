@@ -74,9 +74,9 @@ spec:
           DB_HOST=$(echo "$SECRET_JSON" | jq -r .host)
           DB_PORT=$(echo "$SECRET_JSON" | jq -r .port)
           DB_NAME=$(echo "$SECRET_JSON" | jq -r .dbname)
-          
+
           echo "Creating Kubernetes secret via API..."
-          
+
           # Base64 encode values
           USERNAME_B64=$(echo -n "$DB_USERNAME" | base64 -w 0)
           PASSWORD_B64=$(echo -n "$DB_PASSWORD" | base64 -w 0)
@@ -84,7 +84,7 @@ spec:
           PORT_B64=$(echo -n "$DB_PORT" | base64 -w 0)
           DATABASE_B64=$(echo -n "$DB_NAME" | base64 -w 0)
           JDBC_URL_B64=$(echo -n "jdbc:postgresql://$DB_HOST:$DB_PORT/$DB_NAME" | base64 -w 0)
-          
+
           # Create secret JSON
           cat <<EOF > /tmp/secret.json
           {
@@ -105,7 +105,7 @@ spec:
             }
           }
           EOF
-          
+
           # Apply via Kubernetes API
           curl -s -X POST \
             -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
