@@ -203,16 +203,16 @@ while read -r template; do
 done < <(find platform apps packages argocd-apps -name "*.tpl" -type f 2>/dev/null)
 
 # Special handling for realm-configmap.yaml - inject realm-config.json content
-if [ -f "platform/keycloak/realm-configmap.yaml" ] && [ -f "platform/keycloak/realm-config.json" ]; then
+if [ -f "platform/keycloak/manifests/realm-configmap.yaml" ] && [ -f "platform/keycloak/realm-config.json" ]; then
     info "Injecting realm config into ConfigMap..."
     # Create a temporary file with the ConfigMap header
-    grep -B 100 "REALM_CONFIG_PLACEHOLDER" platform/keycloak/realm-configmap.yaml | grep -v "REALM_CONFIG_PLACEHOLDER" > platform/keycloak/realm-configmap.yaml.tmp
+    grep -B 100 "REALM_CONFIG_PLACEHOLDER" platform/keycloak/manifests/realm-configmap.yaml | grep -v "REALM_CONFIG_PLACEHOLDER" > platform/keycloak/manifests/realm-configmap.yaml.tmp
     # Add the realm.json key with proper YAML literal block syntax
-    echo "  realm.json: |" >> platform/keycloak/realm-configmap.yaml.tmp
+    echo "  realm.json: |" >> platform/keycloak/manifests/realm-configmap.yaml.tmp
     # Indent the JSON content by 4 spaces for YAML
-    sed 's/^/    /' platform/keycloak/realm-config.json >> platform/keycloak/realm-configmap.yaml.tmp
+    sed 's/^/    /' platform/keycloak/realm-config.json >> platform/keycloak/manifests/realm-configmap.yaml.tmp
     # Move the temp file to the final location
-    mv platform/keycloak/realm-configmap.yaml.tmp platform/keycloak/realm-configmap.yaml
+    mv platform/keycloak/manifests/realm-configmap.yaml.tmp platform/keycloak/manifests/realm-configmap.yaml
 fi
 
 info "✓ Rendered templates complete"
