@@ -95,9 +95,27 @@ check_endpoint() {
     fi
 }
 
+if kubectl get ingress -n argocd argocd-server >/dev/null 2>&1; then
+    success "  ArgoCD ingress present"
+else
+    error "  ArgoCD ingress missing"
+    ERRORS=$((ERRORS + 1))
+fi
+
 check_endpoint "https://${ARGOCD_SUBDOMAIN}.${DOMAIN}" "ArgoCD UI"
 check_endpoint "https://${KEYCLOAK_SUBDOMAIN}.${DOMAIN}" "Keycloak UI"
 check_endpoint "https://${BACKSTAGE_SUBDOMAIN}.${DOMAIN}" "Backstage UI" || warn "  Backstage may not be deployed yet"
+echo ""
+
+# 3.1 Backstage catalog sanity check
+info "3.1 Checking Backstage catalog entities..."
+CATALOG_COUNT=$(curl -sk "https://${BACKSTAGE_SUBDOMAIN}.${DOMAIN}/api/catalog/entities?limit=1" 2>/dev/null | jq 'length' 2>/dev/null || echo "0")
+if [[ "$CATALOG_COUNT" -ge 1 ]]; then
+    success "  Backstage catalog has entities"
+else
+    error "  Backstage catalog is empty"
+    ERRORS=$((ERRORS + 1))
+fi
 echo ""
 
 # 4. Validate Keycloak realm configuration
