@@ -15,7 +15,7 @@ global:
 image:
   registry: docker.io
   repository: bitnamilegacy/keycloak
-  tag: {{ keycloak_image_tag }}
+  tag: 24.0.5
   pullPolicy: IfNotPresent
 
 ## Keycloak configuration

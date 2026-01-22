@@ -19,7 +19,7 @@ spec:
         - name: realm-import
           # IMPORTANT: Use same image tag as Helm chart (pinned version)
           # This is injected via gomplate during template rendering
-          image: bitnamilegacy/keycloak:24.0.5
+          image: bitnamilegacy/keycloak:{{ keycloak_image_tag }}
           command: ["/bin/bash", "-lc"]
           args:
             - |

@@ -80,6 +80,7 @@ fi
 KEYCLOAK_ADMIN_USER=$(echo "$CONFIG_VALUES" | jq -r '.keycloak.admin_user // "admin"' 2>/dev/null || echo "admin")
 KEYCLOAK_ADMIN_PASSWORD=$(echo "$CONFIG_VALUES" | jq -r '.keycloak.admin_password // "changeme"' 2>/dev/null || echo "changeme")
 KEYCLOAK_REPLICAS=$(echo "$CONFIG_VALUES" | jq -r '.keycloak.replicas // "2"' 2>/dev/null || echo "2")
+KEYCLOAK_IMAGE_TAG=$(echo "$CONFIG_VALUES" | jq -r '.keycloak.image_tag // "16.1.1"' 2>/dev/null || echo "16.1.1")
 
 # Get OIDC client secrets from config.yaml
 ARGOCD_CLIENT_SECRET=$(echo "$CONFIG_VALUES" | jq -r '.secrets.keycloak.argocd_client_secret // "change-argocd-secret"' 2>/dev/null || echo "change-argocd-secret")
@@ -147,6 +148,7 @@ s|{{ backstage_hostname }}|$BACKSTAGE_HOSTNAME|g
 s|{{ keycloak_admin_user }}|$KEYCLOAK_ADMIN_USER|g
 s|{{ keycloak_admin_password }}|$KEYCLOAK_ADMIN_PASSWORD|g
 s|{{ keycloak_replicas }}|$KEYCLOAK_REPLICAS|g
+s|{{ keycloak_image_tag }}|$KEYCLOAK_IMAGE_TAG|g
 s|{{ keycloak_db_address }}|$KEYCLOAK_DB_ADDRESS|g
 s|{{ keycloak_db_name }}|$KEYCLOAK_DB_NAME|g
 s|{{ keycloak_db_username }}|$KEYCLOAK_DB_USERNAME|g
