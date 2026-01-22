@@ -186,9 +186,9 @@ trap cleanup EXIT
 # Render all .tpl files (single pass, much faster)
 info "Rendering templates..."
 TEMPLATE_COUNT=0
-find platform apps packages argocd-apps -name "*.tpl" -type f 2>/dev/null | while read -r template; do
+while read -r template; do
     render_template "$template"
     TEMPLATE_COUNT=$((TEMPLATE_COUNT + 1))
-done
+done < <(find platform apps packages argocd-apps -name "*.tpl" -type f 2>/dev/null)
 
 info "✓ Rendered templates complete"
