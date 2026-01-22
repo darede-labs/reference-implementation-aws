@@ -32,6 +32,10 @@ secrets/
 # Generated manifests (created from templates)
 manifests/
 
-# Rendered Helm values
+# Rendered Helm values (allow platform/ directory for GitOps)
 **/helm-values.yaml
+!platform/**/helm-values.yaml
 !**/helm-values.yaml.tpl
+
+# Configuration file with secrets (never commit!)
+config.yaml
