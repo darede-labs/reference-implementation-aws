@@ -136,7 +136,8 @@ github_org: "darede-labs"
 # GitHub Personal Access Token for Backstage integration
 # Required scopes: repo, workflow, read:org, read:user
 # Generate at: https://github.com/settings/tokens
-github_token: "yourGHTOKEN"
+# IMPORTANT: Set via environment variable GITHUB_TOKEN (never commit secrets!)
+# github_token: "yourGHTOKEN"  # Set via: export GITHUB_TOKEN="ghp_xxxxx"
 
 # Repository for infrastructure resources (S3, RDS, EKS, etc.)
 # Backstage will create Pull Requests here when provisioning resources
@@ -147,31 +148,32 @@ infrastructure_repo: "infrastructureidp"
 templates_repo: "backstage-templates"
 
 ################################################################################
-# Secrets Configuration (change these for production!)
+# GitOps Repository Configuration
 ################################################################################
 
-secrets:
-  # ArgoCD admin credentials
-  argocd:
-    admin_password: "argocd-admin-2024"
+# GitOps repository URL and revision for ArgoCD App-of-Apps
+# This repository contains the platform applications (Keycloak, Backstage, etc.)
+gitops:
+  repo_url: "https://github.com/<org>/<repo>"
+  revision: "main"
 
-  # Cognito default user password (auto-created from users-catalog.yaml)
-  cognito:
-    default_password: "Tampico@2024!"
-
-  # Backstage configuration
-  backstage:
-    # PostgreSQL credentials (in-cluster StatefulSet with persistent storage)
-    # NOTE: PostgreSQL now runs as StatefulSet with 20Gi persistent volume (EBS gp3)
-    # Data survives pod restarts - no catalog loss
-    # Service name: backstage-postgresql (auto-created by Helm chart)
-    postgres_host: "backstage-postgresql"
-    postgres_port: "5432"
-    postgres_user: "backstage"
-    postgres_password: "backstage123"
-    # Auth session secret
-    auth_session_secret: "backstage-session-secret-2024"
-    backend_secret: "backstage-backend-secret-2024"
+################################################################################
+# Secrets Configuration
+################################################################################
+# IMPORTANT: All secrets must be set via environment variables!
+# Never commit secrets to this file - config.yaml is gitignored.
+#
+# Required environment variables:
+#   - GITHUB_TOKEN: GitHub Personal Access Token (for repo access and Backstage)
+#   - KEYCLOAK_ADMIN_PASSWORD: Keycloak admin password
+#   - ARGOCD_CLIENT_SECRET: OIDC client secret for ArgoCD
+#   - BACKSTAGE_CLIENT_SECRET: OIDC client secret for Backstage
+#
+# Example:
+#   export GITHUB_TOKEN="ghp_xxxxx"
+#   export KEYCLOAK_ADMIN_PASSWORD="changeme"
+#   export ARGOCD_CLIENT_SECRET="$(openssl rand -hex 32)"
+#   export BACKSTAGE_CLIENT_SECRET="$(openssl rand -hex 32)"
 
 ################################################################################
 # Terraform Backend Configuration
@@ -241,12 +243,15 @@ keycloak:
   # Keycloak deployment configuration
   replicas: 1  # Single replica for POC (use 2+ for production HA)
 
-  # Admin credentials (stored in Secrets Manager)
+  # Admin credentials (set via environment variable)
   admin_user: "admin"
-  admin_password: "changeme"  # Change this!
+  # admin_password: Set via environment variable KEYCLOAK_ADMIN_PASSWORD
 
   # Subdomain for Keycloak UI
   subdomain: "keycloak"  # Will be: keycloak.timedevops.click
+
+  # Keycloak image tag (pinned version for bitnamilegacy)
+  image_tag: "24.0.5"  # Use same version in realm-import-job.yaml
 
   # Database configuration
   database:

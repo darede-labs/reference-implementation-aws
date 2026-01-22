@@ -163,6 +163,11 @@ output "karpenter_node_role_name" {
   value       = local.karpenter_enabled ? module.karpenter[0].node_iam_role_name : null
 }
 
+output "karpenter_instance_profile_name" {
+  description = "Instance profile name for Karpenter-provisioned nodes (EC2NodeClass)"
+  value       = local.karpenter_enabled ? module.karpenter[0].instance_profile_name : null
+}
+
 ################################################################################
 # Keycloak RDS Outputs
 ################################################################################

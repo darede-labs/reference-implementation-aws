@@ -23,7 +23,7 @@ spec:
         # Disable internal PostgreSQL (use external RDS)
         postgresql:
           enabled: false
-        
+
         # External database configuration via environment variables
         extraEnv: |
           - name: DB_VENDOR
@@ -44,7 +44,7 @@ spec:
             value: changeme
           - name: PROXY_ADDRESS_FORWARDING
             value: "true"
-        
+
         # Resources for cost optimization (Graviton ARM64)
         resources:
           requests:
