@@ -84,11 +84,11 @@ data:
           "emailVerified": true,
           "firstName": "Platform",
           "lastName": "Admin",
-          "email": "admin@{{ .config.domain }}",
+          "email": "admin@timedevops.click",
           "credentials": [
             {
               "type": "password",
-              "value": "{{ getenv "KEYCLOAK_ADMIN_PASSWORD" }}",
+              "value": "${KEYCLOAK_ADMIN_PASSWORD}",
               "temporary": false
             }
           ],
@@ -103,12 +103,12 @@ data:
           "description": "ArgoCD GitOps Platform",
           "enabled": true,
           "clientAuthenticatorType": "client-secret",
-          "secret": "{{ getenv "ARGOCD_CLIENT_SECRET" }}",
+          "secret": "${ARGOCD_CLIENT_SECRET}",
           "redirectUris": [
-            "https://{{ .config.subdomains.argocd }}.{{ .config.domain }}/auth/callback"
+            "https://argocd.timedevops.click/auth/callback"
           ],
           "webOrigins": [
-            "https://{{ .config.subdomains.argocd }}.{{ .config.domain }}"
+            "https://argocd.timedevops.click"
           ],
           "protocol": "openid-connect",
           "publicClient": false,
@@ -151,13 +151,13 @@ data:
           "enabled": true,
           "protocol": "openid-connect",
           "publicClient": false,
-          "secret": "{{ getenv "BACKSTAGE_CLIENT_SECRET" }}",
+          "secret": "${BACKSTAGE_CLIENT_SECRET}",
           "redirectUris": [
-            "https://{{ .config.subdomains.backstage }}.{{ .config.domain }}/*",
-            "https://{{ .config.subdomains.backstage }}.{{ .config.domain }}/api/auth/oidc/handler/frame"
+            "https://backstage.timedevops.click/*",
+            "https://backstage.timedevops.click/api/auth/oidc/handler/frame"
           ],
           "webOrigins": [
-            "https://{{ .config.subdomains.backstage }}.{{ .config.domain }}"
+            "https://backstage.timedevops.click"
           ],
           "standardFlowEnabled": true,
           "implicitFlowEnabled": false,
@@ -268,6 +268,6 @@ data:
       "defaultLocale": "en",
       "authenticationFlows": [],
       "attributes": {
-        "frontendUrl": "https://{{ .config.subdomains.keycloak }}.{{ .config.domain }}/auth"
+        "frontendUrl": "https://keycloak.timedevops.click/auth"
       }
     }

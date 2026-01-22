@@ -71,11 +71,11 @@
       "emailVerified": true,
       "firstName": "Platform",
       "lastName": "Admin",
-      "email": "admin@{{ .config.domain }}",
+      "email": "admin@{{ domain }}",
       "credentials": [
         {
           "type": "password",
-          "value": "{{ getenv "KEYCLOAK_ADMIN_PASSWORD" }}",
+          "value": "{{ keycloak_admin_password }}",
           "temporary": false
         }
       ],
@@ -90,12 +90,12 @@
       "description": "ArgoCD GitOps Platform",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
-      "secret": "{{ getenv "ARGOCD_CLIENT_SECRET" }}",
+      "secret": "{{ argocd_client_secret }}",
       "redirectUris": [
-        "https://{{ .config.subdomains.argocd }}.{{ .config.domain }}/auth/callback"
+        "https://{{ argocd_subdomain }}.{{ domain }}/auth/callback"
       ],
       "webOrigins": [
-        "https://{{ .config.subdomains.argocd }}.{{ .config.domain }}"
+        "https://{{ argocd_subdomain }}.{{ domain }}"
       ],
       "protocol": "openid-connect",
       "publicClient": false,
@@ -138,13 +138,13 @@
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
-      "secret": "{{ getenv "BACKSTAGE_CLIENT_SECRET" }}",
+      "secret": "{{ backstage_client_secret }}",
       "redirectUris": [
-        "https://{{ .config.subdomains.backstage }}.{{ .config.domain }}/*",
-        "https://{{ .config.subdomains.backstage }}.{{ .config.domain }}/api/auth/oidc/handler/frame"
+        "https://{{ backstage_subdomain }}.{{ domain }}/*",
+        "https://{{ backstage_subdomain }}.{{ domain }}/api/auth/oidc/handler/frame"
       ],
       "webOrigins": [
-        "https://{{ .config.subdomains.backstage }}.{{ .config.domain }}"
+        "https://{{ backstage_subdomain }}.{{ domain }}"
       ],
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
@@ -255,6 +255,6 @@
   "defaultLocale": "en",
   "authenticationFlows": [],
   "attributes": {
-    "frontendUrl": "https://{{ .config.subdomains.keycloak }}.{{ .config.domain }}/auth"
+    "frontendUrl": "https://{{ keycloak_subdomain }}.{{ domain }}/auth"
   }
 }
