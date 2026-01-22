@@ -68,7 +68,7 @@ resource "aws_security_group_rule" "ingress_nginx_nodeport_http" {
   from_port         = 30080
   to_port           = 30080
   protocol          = "tcp"
-  cidr_blocks       = [local.vpc_cidr]
+  cidr_blocks       = [data.terraform_remote_state.vpc.outputs.vpc_cidr_block]
   security_group_id = aws_security_group.ingress_nginx[0].id
   description       = "Allow NodePort HTTP from VPC"
 }
@@ -80,7 +80,7 @@ resource "aws_security_group_rule" "ingress_nginx_nodeport_https" {
   from_port         = 30443
   to_port           = 30443
   protocol          = "tcp"
-  cidr_blocks       = [local.vpc_cidr]
+  cidr_blocks       = [data.terraform_remote_state.vpc.outputs.vpc_cidr_block]
   security_group_id = aws_security_group.ingress_nginx[0].id
   description       = "Allow NodePort HTTPS from VPC"
 }

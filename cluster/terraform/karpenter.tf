@@ -243,7 +243,7 @@ resource "aws_eks_node_group" "karpenter_bootstrap" {
   cluster_name    = module.eks.cluster_name
   node_group_name = "${local.cluster_name}-karpenter-bootstrap"
   node_role_arn   = aws_iam_role.karpenter_bootstrap_node[0].arn
-  subnet_ids      = data.terraform_remote_state.vpc.outputs.private_subnets
+  subnet_ids      = module.vpc.private_subnets
 
   # Use ON_DEMAND for bootstrap reliability (Phase 0 requirement)
   # Bootstrap nodes must be stable to run Karpenter controller

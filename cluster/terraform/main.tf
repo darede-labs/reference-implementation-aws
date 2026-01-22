@@ -5,9 +5,43 @@ provider "aws" {
 }
 
 data "aws_caller_identity" "current" {}
-data "aws_availability_zones" "available" {}
 
-# Configuration is loaded from config.yaml via locals.tf
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+################################################################################
+# VPC
+################################################################################
+
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
+
+  name = "${local.cluster_name}-vpc"
+  cidr = local.vpc_cidr
+
+  azs             = local.azs
+  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
+  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
+
+  enable_nat_gateway     = true
+  single_nat_gateway     = local.nat_gateway_single
+  one_nat_gateway_per_az = !local.nat_gateway_single
+
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = 1
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb" = 1
+  }
+
+  tags = local.tags
+}
 
 ################################################################################
 # Cluster
@@ -364,39 +398,6 @@ resource "aws_iam_policy" "backstage_terraform_policy" {
 ################################################################################
 # VPC
 ################################################################################
-
-# VPC Module - Configuration from config.yaml
-# Supports: create new VPC or use existing VPC
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
-
-  # Only create VPC if mode is "create"
-  create_vpc = local.create_vpc
-
-  name = "${local.cluster_name}-vpc"
-  cidr = local.vpc_cidr
-
-  # Availability Zones from config.yaml
-  azs             = local.azs
-  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
-  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
-
-  # NAT Gateway configuration from config.yaml
-  enable_nat_gateway     = true
-  single_nat_gateway     = local.nat_gateway_single # true = $32/month, false = $96/month (3 AZs)
-  one_nat_gateway_per_az = !local.nat_gateway_single
-
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-
-  public_subnet_tags = {
-    "kubernetes.io/role/elb" = 1
-  }
-
-  private_subnet_tags = {
-    "kubernetes.io/role/internal-elb" = 1
-  }
-
-  tags = local.tags
-}
+# VPC is now managed in a separate Terraform workspace (terraform-vpc)
+# This module reads VPC outputs via remote state
+################################################################################

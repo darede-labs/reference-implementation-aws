@@ -27,7 +27,7 @@ resource "aws_lb_target_group" "http" {
   name     = "${local.cluster_name}-http"
   port     = 30080
   protocol = "TCP"
-  vpc_id   = module.vpc.vpc_id
+  vpc_id   = data.terraform_remote_state.vpc.outputs.vpc_id
 
   health_check {
     enabled             = true
@@ -48,7 +48,7 @@ resource "aws_lb_target_group" "https" {
   name     = "${local.cluster_name}-https"
   port     = 30443
   protocol = "TCP"
-  vpc_id   = module.vpc.vpc_id
+  vpc_id   = data.terraform_remote_state.vpc.outputs.vpc_id
 
   health_check {
     enabled             = true

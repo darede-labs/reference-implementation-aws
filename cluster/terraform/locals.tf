@@ -13,6 +13,14 @@ locals {
   use_irsa         = local.iam_auth_method == "irsa"
   use_pod_identity = local.iam_auth_method == "pod-identity"
 
+  # VPC Configuration
+  vpc_config          = try(local.config_file.vpc, {})
+  vpc_cidr            = try(local.vpc_config.cidr, "10.0.0.0/16")
+  availability_zones  = try(local.vpc_config.availability_zones, 3)
+  nat_gateway_mode    = try(local.vpc_config.nat_gateway_mode, "single")
+  nat_gateway_single  = local.nat_gateway_mode == "single"
+  azs                 = slice(data.aws_availability_zones.available.names, 0, local.availability_zones)
+
   # Note: use_cognito is defined in cognito.tf
 
   # Node groups configuration
