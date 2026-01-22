@@ -16,8 +16,8 @@ spec:
   project: default
   source:
     chart: keycloak
-    repoURL: https://codecentric.github.io/helm-charts
-    targetRevision: 2.3.0
+    repoURL: https://charts.bitnami.com/bitnami
+    targetRevision: 25.2.0
     helm:
       valuesObject: {}
       # Values from platform/keycloak/helm-values.yaml (managed separately)
