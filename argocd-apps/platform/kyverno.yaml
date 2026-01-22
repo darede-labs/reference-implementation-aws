@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     gitops.darede.io/reconcile: "1737529992"
+    argocd.argoproj.io/sync-options: Replace=true
   annotations:
     argocd.argoproj.io/sync-wave: "1" # After infra base, before workloads
 spec:
