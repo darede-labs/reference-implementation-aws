@@ -76,11 +76,16 @@ locals {
   keycloak_db_backup_retention = try(local.keycloak_db_config.backup_retention_days, 1)
 
   # Backstage Database Configuration (RDS - existing)
-  backstage_secrets   = try(local.config_file.secrets.backstage, {})
-  backstage_db_host   = try(local.backstage_secrets.postgres_host, "")
-  backstage_db_port   = try(local.backstage_secrets.postgres_port, "5432")
-  backstage_db_user   = try(local.backstage_secrets.postgres_user, "backstage")
-  backstage_db_pass   = coalesce(var.backstage_postgres_password, try(local.backstage_secrets.postgres_password, ""))
+  backstage_secrets      = try(local.config_file.secrets.backstage, {})
+  backstage_db_host_raw  = try(local.backstage_secrets.postgres_host, "")
+  backstage_db_port_raw  = try(local.backstage_secrets.postgres_port, "5432")
+  backstage_db_user_raw  = try(local.backstage_secrets.postgres_user, "backstage")
+  backstage_db_pass_raw  = var.backstage_postgres_password != null && var.backstage_postgres_password != "" ? var.backstage_postgres_password : try(local.backstage_secrets.postgres_password, "")
+
+  backstage_db_host = (local.backstage_db_host_raw != "" && local.backstage_db_host_raw != "backstage-postgresql") ? local.backstage_db_host_raw : (local.keycloak_enabled ? aws_db_instance.keycloak[0].address : local.backstage_db_host_raw)
+  backstage_db_port = (local.backstage_db_port_raw != "" && local.backstage_db_port_raw != "5432") ? local.backstage_db_port_raw : (local.keycloak_enabled ? tostring(aws_db_instance.keycloak[0].port) : local.backstage_db_port_raw)
+  backstage_db_user = (local.backstage_db_user_raw != "" && local.backstage_db_user_raw != "backstage") ? local.backstage_db_user_raw : (local.keycloak_enabled ? local.keycloak_db_username : local.backstage_db_user_raw)
+  backstage_db_pass = (local.backstage_db_pass_raw != "" && !can(regex("^\\$\\{", local.backstage_db_pass_raw))) ? local.backstage_db_pass_raw : (local.keycloak_enabled ? random_password.keycloak_db_password[0].result : local.backstage_db_pass_raw)
 
   # Backstage integration secrets
   backstage_github_token_raw       = var.github_token != null && var.github_token != "" ? var.github_token : try(local.config_file.secrets.github_token, "")
