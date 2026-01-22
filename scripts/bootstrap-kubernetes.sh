@@ -120,13 +120,9 @@ else
     info "Skipping repo credentials (assuming public repository)"
 fi
 
-# 5. Create realm ConfigMap (renderizado com gomplate)
+# 5. Create realm ConfigMap (rendered by render-templates.sh + envsubst)
 info "Creating Keycloak realm ConfigMap..."
-gomplate -f "${REPO_ROOT}/platform/keycloak/realm-config.json.tpl" \
-    -c config="${CONFIG_FILE}" \
-    | kubectl -n keycloak create configmap keycloak-realm-config \
-        --from-file=realm.json=/dev/stdin \
-        --dry-run=client -o yaml | kubectl apply -f -
+envsubst < "${REPO_ROOT}/platform/keycloak/bootstrap/realm-configmap.yaml" | kubectl apply -f -
 info "✓ ConfigMap 'keycloak-realm-config' created"
 
 # 6. Add Helm repositories

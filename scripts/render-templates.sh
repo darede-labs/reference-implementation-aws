@@ -93,7 +93,6 @@ INFRASTRUCTURE_REPO=$(echo "$CONFIG_VALUES" | jq -r '.infrastructure_repo // "in
 POSTGRES_HOST=$(echo "$CONFIG_VALUES" | jq -r '.secrets.backstage.postgres_host // "backstage-postgresql"' 2>/dev/null || echo "backstage-postgresql")
 POSTGRES_PORT=$(echo "$CONFIG_VALUES" | jq -r '.secrets.backstage.postgres_port // "5432"' 2>/dev/null || echo "5432")
 POSTGRES_USER=$(echo "$CONFIG_VALUES" | jq -r '.secrets.backstage.postgres_user // "backstage"' 2>/dev/null || echo "backstage")
-BACKSTAGE_POSTGRES_SECRET_NAME=$(echo "$CONFIG_VALUES" | jq -r '.secrets.backstage.postgres_secret_name // ""' 2>/dev/null || echo "")
 TERRAFORM_BACKEND_BUCKET=$(echo "$CONFIG_VALUES" | jq -r '.terraform_backend.bucket // "tfstate-bucket"' 2>/dev/null || echo "tfstate-bucket")
 TERRAFORM_VERSION=$(echo "$CONFIG_VALUES" | jq -r '.secrets.backstage.terraform_version // "1.7.5"' 2>/dev/null || echo "1.7.5")
 
@@ -178,7 +177,6 @@ s|{{ infrastructure_repo }}|$INFRASTRUCTURE_REPO|g
 s|{{ postgres_host }}|$POSTGRES_HOST|g
 s|{{ postgres_port }}|$POSTGRES_PORT|g
 s|{{ postgres_user }}|$POSTGRES_USER|g
-s|{{ backstage_postgres_secret_name }}|$BACKSTAGE_POSTGRES_SECRET_NAME|g
 s|{{ terraform_backend_bucket }}|$TERRAFORM_BACKEND_BUCKET|g
 s|{{ terraform_version }}|$TERRAFORM_VERSION|g
 EOF
