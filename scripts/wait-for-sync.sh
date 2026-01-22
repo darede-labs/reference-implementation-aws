@@ -35,23 +35,23 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     PROGRESSING=0
     MISSING=0
     UNKNOWN=0
-    
+
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     printf "⏱️  Elapsed: %3ds / %ds\n" "$ELAPSED" "$TIMEOUT"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
     # Check each application
     for APP in $APPS; do
         SYNC_STATUS=$(kubectl get application "$APP" -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
         HEALTH_STATUS=$(kubectl get application "$APP" -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
-        
+
         # Count statuses
         case "$SYNC_STATUS" in
             "Synced") ((SYNCED++)) || true ;;
             "OutOfSync") ;;
             "Unknown") ((UNKNOWN++)) || true ;;
         esac
-        
+
         case "$HEALTH_STATUS" in
             "Healthy") ((HEALTHY++)) || true ;;
             "Degraded") ((DEGRADED++)) || true ;;
@@ -59,17 +59,17 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
             "Missing") ((MISSING++)) || true ;;
             "Unknown") ;;
         esac
-        
+
         # Format status with colors
         SYNC_ICON="⏳"
         HEALTH_ICON="⏳"
-        
+
         case "$SYNC_STATUS" in
             "Synced") SYNC_ICON="✅" ;;
             "OutOfSync") SYNC_ICON="🔄" ;;
             "Unknown") SYNC_ICON="❓" ;;
         esac
-        
+
         case "$HEALTH_STATUS" in
             "Healthy") HEALTH_ICON="✅" ;;
             "Degraded") HEALTH_ICON="❌" ;;
@@ -77,15 +77,15 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
             "Missing") HEALTH_ICON="⚠️ " ;;
             "Unknown") HEALTH_ICON="❓" ;;
         esac
-        
+
         printf "%-25s %s %-12s %s %-12s\n" "$APP" "$SYNC_ICON" "$SYNC_STATUS" "$HEALTH_ICON" "$HEALTH_STATUS"
     done
-    
+
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     printf "📊 Summary: Synced=%d/%d  Healthy=%d/%d  Progressing=%d  Missing=%d  Unknown=%d\n" \
         "$SYNCED" "$TOTAL_APPS" "$HEALTHY" "$TOTAL_APPS" "$PROGRESSING" "$MISSING" "$UNKNOWN"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
     # Check if all apps are synced and healthy
     # Special handling for Kyverno: allow Healthy even if OutOfSync (webhook caBundle drift)
     KYVERNO_SYNC_STATUS=$(kubectl get application kyverno -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
@@ -96,7 +96,8 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
     EFFECTIVE_HEALTHY=$HEALTHY
 
     if [ "$KYVERNO_HEALTH_STATUS" = "Healthy" ] && [ "$KYVERNO_SYNC_STATUS" = "OutOfSync" ]; then
-        EFFECTIVE_HEALTHY=$((HEALTHY + 1))  # Count Kyverno as effectively healthy
+        EFFECTIVE_SYNCED=$((SYNCED + 1))  # Count Kyverno as effectively synced
+        # HEALTHY is already counted correctly in the loop above
     fi
 
     if [ "$EFFECTIVE_SYNCED" -eq "$TOTAL_APPS" ] && [ "$EFFECTIVE_HEALTHY" -eq "$TOTAL_APPS" ]; then
@@ -107,14 +108,14 @@ while [ $ELAPSED -lt $TIMEOUT ]; do
         fi
         exit 0
     fi
-    
+
     # Check for stuck apps (Missing for too long)
     if [ "$MISSING" -gt 0 ] && [ $ELAPSED -gt 120 ]; then
         echo ""
         warn "⚠️  Some applications are Missing (may indicate configuration issues)"
         warn "   Check ArgoCD UI or logs for details"
     fi
-    
+
     echo ""
     info "⏳ Waiting ${CHECK_INTERVAL}s before next check..."
     sleep $CHECK_INTERVAL
