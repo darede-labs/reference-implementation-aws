@@ -36,8 +36,9 @@ spec:
         backstage:
           replicas: 2
           image:
-            repository: ghcr.io/backstage/backstage
-            tag: "v1.45.3"
+            registry: ghcr.io
+            repository: backstage/backstage
+            tag: v1.45.3
             pullPolicy: IfNotPresent
 
           command: ["node", "packages/backend"]

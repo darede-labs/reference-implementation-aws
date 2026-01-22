@@ -18,9 +18,9 @@ ingress:
 backstage:
   replicas: 2
   image:
-    registry: public.ecr.aws
-    repository: a7h4f2f7/backstage-idp
-    tag: v1.1.6
+    registry: ghcr.io
+    repository: backstage/backstage
+    tag: v1.45.3
     pullPolicy: IfNotPresent
 
   command: ["node", "packages/backend"]
