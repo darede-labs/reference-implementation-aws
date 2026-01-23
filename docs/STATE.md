@@ -150,6 +150,29 @@ Current Step: Phases A, B, C ✅ COMPLETE
 
 ## 🔄 RECENT CHANGES (Latest First)
 
+### 2026-01-23: Phase 1 refactor started (BLOCKED)
+**Status:** ⛔️ BLOCKED
+
+**What Changed:**
+- Moved Karpenter locals into `terraform/eks/locals.tf`
+- Consolidated Karpenter outputs into `terraform/eks/outputs.tf`
+- Removed `terraform/eks/karpenter-outputs.tf`
+- Ensured data sources remain in `terraform/eks/data-sources.tf`
+- Backend lock now uses `use_lockfile = true` (no DynamoDB)
+
+**Commands Run:**
+```bash
+export AWS_PROFILE=darede
+aws sso login --profile darede
+terraform fmt (in terraform/eks)
+terraform init -reconfigure (in terraform/eks)
+terraform plan (in terraform/eks)
+```
+
+**Validation:**
+- `terraform plan` failed: missing VPC remote state (`s3://poc-idp-tfstate/vpc/terraform.tfstate`)
+- No-op plan requirement NOT satisfied (blocked)
+
 ### 2026-01-23: Phases A, B, C - Foundation Complete ✅
 **Status:** COMPLETE
 

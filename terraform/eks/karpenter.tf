@@ -4,11 +4,6 @@
 # Replaces: Cluster Autoscaler (slower, less flexible)
 ################################################################################
 
-locals {
-  karpenter_namespace        = "karpenter"
-  karpenter_service_account = "karpenter"
-}
-
 ################################################################################
 # Karpenter IAM Role (IRSA)
 ################################################################################
@@ -20,9 +15,9 @@ module "karpenter" {
   cluster_name = module.eks.cluster_name
 
   # Enable spot instance support
-  enable_spot_termination          = true
-  enable_v1_permissions            = true
-  
+  enable_spot_termination = true
+  enable_v1_permissions   = true
+
   # Node IAM role
   create_node_iam_role = false # We'll use the EKS module's node role
   node_iam_role_arn    = module.eks.eks_managed_node_groups["bootstrap"].iam_role_arn
@@ -58,8 +53,8 @@ resource "helm_release" "karpenter" {
       }
 
       settings = {
-        clusterName     = module.eks.cluster_name
-        clusterEndpoint = module.eks.cluster_endpoint
+        clusterName       = module.eks.cluster_name
+        clusterEndpoint   = module.eks.cluster_endpoint
         interruptionQueue = module.karpenter.queue_name
       }
 
@@ -236,7 +231,7 @@ resource "kubernetes_manifest" "karpenter_node_pool" {
       disruption = {
         consolidationPolicy = "WhenEmpty" # Only consolidate empty nodes
         expireAfter         = "720h"      # 30 days - rotate nodes monthly
-        
+
         budgets = [{
           nodes = "10%" # Allow disrupting 10% of nodes at a time
         }]
