@@ -9,11 +9,11 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "poc-idp-tfstate"
-    key            = "vpc/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    dynamodb_table = "terraform-state-lock"
+    bucket       = "poc-idp-tfstate"
+    key          = "vpc/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
   }
 }
 

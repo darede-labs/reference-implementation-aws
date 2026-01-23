@@ -173,6 +173,39 @@ terraform plan (in terraform/eks)
 - `terraform plan` failed: missing VPC remote state (`s3://poc-idp-tfstate/vpc/terraform.tfstate`)
 - No-op plan requirement NOT satisfied (blocked)
 
+### 2026-01-23: VPC applied (UNBLOCKED VPC STATE)
+**Status:** ✅ COMPLETE
+
+**What Changed:**
+- VPC provisioned with 3 AZs, public/private subnets, single NAT
+- VPC backend now uses `use_lockfile = true` (no DynamoDB)
+
+**Commands Run:**
+```bash
+export AWS_PROFILE=darede
+cd terraform/vpc
+terraform init -reconfigure
+terraform apply -auto-approve
+```
+
+**Validation:**
+- VPC apply succeeded (23 resources created)
+- Outputs available in `s3://poc-idp-tfstate/vpc/terraform.tfstate`
+
+### 2026-01-23: EKS plan after VPC (BLOCKED)
+**Status:** ⛔️ BLOCKED
+
+**Commands Run:**
+```bash
+export AWS_PROFILE=darede
+cd terraform/eks
+terraform plan
+```
+
+**Validation:**
+- Plan shows **creates** (cluster + Karpenter) because EKS not applied yet
+- Phase 1 no-op requirement NOT satisfied; stop before apply
+
 ### 2026-01-23: Phases A, B, C - Foundation Complete ✅
 **Status:** COMPLETE
 
