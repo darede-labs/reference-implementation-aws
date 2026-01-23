@@ -89,19 +89,31 @@ Phase: FULL RESET AND REBUILD
 Status: 🔄 IN PROGRESS
 Branch: platform-rebuild-clean
 
-Current Step: Phase C - Karpenter Installation
-- [x] Phase A Complete - Repository cleaned
-- [x] Phase B Complete - Base infrastructure created
-  - VPC with 3 AZs ✓
+Current Step: Phases A, B, C ✅ COMPLETE
+- [x] **Phase A** - Total Destruction
+  - Repository cleaned ✓
+  - All old files removed ✓
+  - New branch created ✓
+- [x] **Phase B** - Base Infrastructure
+  - VPC with 3 AZs (public + private subnets) ✓
+  - Single NAT Gateway (cost-optimized) ✓
   - EKS 1.31 with IRSA ✓
-  - Bootstrap node group ✓
-  - Makefile for deployment ✓
-- [ ] Install Karpenter via Helm
-- [ ] Create EC2NodeClass (ARM64)
-- [ ] Create NodePool (on-demand only)
-- [ ] Validate Karpenter provisions nodes
+  - Bootstrap node group (t4g.medium ARM64) ✓
+  - Makefile for easy deployment ✓
+- [x] **Phase C** - Karpenter
+  - Karpenter IAM (IRSA) ✓
+  - Helm chart installation (v1.0.6) ✓
+  - EC2NodeClass for ARM64 nodes ✓
+  - NodePool with on-demand instances ✓
+  - Disruption budget configured ✓
+  - Documentation and validation commands ✓
 
-Next: Phase D - GitOps Base (ArgoCD, ingress-nginx, external-dns, external-secrets, Backstage)
+**Status**: Foundation complete and ready for deployment.
+
+**Next Steps** (Phase D):
+- Deploy infrastructure: `make install`
+- Validate Karpenter: `make test-karpenter`
+- Install GitOps tooling (ArgoCD, ingress-nginx, etc.)
 
 ---
 
@@ -138,22 +150,44 @@ Next: Phase D - GitOps Base (ArgoCD, ingress-nginx, external-dns, external-secre
 
 ## 🔄 RECENT CHANGES (Latest First)
 
-### 2026-01-23: Phase A - Total Destruction ✅
+### 2026-01-23: Phases A, B, C - Foundation Complete ✅
 **Status:** COMPLETE
 
-**What Was Done:**
-- Created new branch: `platform-rebuild-clean`
-- Removed all Terraform directories (cluster/terraform, cluster/terraform-vpc)
-- Removed all Kubernetes manifests (argocd-apps/, platform/, applications/)
-- Removed all scripts
-- Removed all old config files
-- Cleaned repository to minimal state (README, Makefile, docs/, LICENSE)
-- Committed all cleanup: `chore(reset): full platform teardown`
+**Phase A - Total Destruction:**
+- New branch: `platform-rebuild-clean`
+- Removed all old Terraform, Kubernetes manifests, scripts
+- Repository cleaned to minimal state
 
-**Current State:**
-- Repository is clean and ready for fresh build
-- AWS infrastructure cleanup in progress (destroy script running)
-- Next: Phase B - Base Infrastructure (VPC + EKS + Bootstrap nodes)
+**Phase B - Base Infrastructure:**
+- VPC with 3 AZs, private/public subnets, single NAT
+- EKS 1.31 cluster with IRSA enabled
+- Bootstrap node group (t4g.medium ARM64, 1-2 nodes, tainted)
+- Makefile with deployment automation
+
+**Phase C - Karpenter:**
+- Karpenter v1.0.6 installed via Helm
+- IRSA configured for Karpenter controller
+- EC2NodeClass for ARM64 Graviton nodes
+- NodePool with on-demand only, consolidation policy
+- Security groups tagged for discovery
+- Validation commands in Makefile
+
+**Files Created:**
+- `terraform/vpc/*` - VPC module
+- `terraform/eks/*` - EKS + Karpenter module
+- `docs/karpenter.md` - Comprehensive Karpenter documentation
+- `Makefile` - Deployment automation
+
+**Commits:**
+1. `chore(reset): full platform teardown`
+2. `feat(infra): Phase B - clean base infrastructure`
+3. `feat(karpenter): Phase C - Karpenter installation`
+
+**Ready for Deployment:**
+```bash
+make install          # Deploy VPC + EKS + Karpenter
+make test-karpenter   # Validate Karpenter works
+```
 
 ### 2026-01-22: Bootstrap Node Group Stabilization
 **Status:** ✅ COMPLETE
