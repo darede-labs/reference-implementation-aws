@@ -34,6 +34,11 @@ output "bootstrap_node_group_id" {
   value       = module.eks.eks_managed_node_groups["bootstrap"].node_group_id
 }
 
+output "bootstrap_node_role_name" {
+  description = "Bootstrap node IAM role name"
+  value       = module.eks.eks_managed_node_groups["bootstrap"].iam_role_name
+}
+
 output "configure_kubectl" {
   description = "Command to configure kubectl"
   value       = "aws eks update-kubeconfig --region ${var.region} --name ${module.eks.cluster_name} --profile darede"
@@ -49,7 +54,3 @@ output "karpenter_queue_name" {
   value       = module.karpenter.queue_name
 }
 
-output "karpenter_installed" {
-  description = "Karpenter installation status"
-  value       = "Karpenter ${helm_release.karpenter.version} installed in namespace ${local.karpenter_namespace}"
-}

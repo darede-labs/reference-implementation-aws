@@ -9,7 +9,3 @@ data "terraform_remote_state" "vpc" {
   }
 }
 
-# EKS cluster authentication
-data "aws_eks_cluster_auth" "cluster" {
-  name = module.eks.cluster_name
-}

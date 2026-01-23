@@ -2,9 +2,16 @@
 *.tfstate
 *.tfstate.*
 .terraform/
-.terraform.lock.hcl
 tfplan
 *.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Keep lock files for reproducibility
+!.terraform.lock.hcl
 
 # Logs
 *.log
@@ -12,7 +19,12 @@ tfplan
 # OS
 .DS_Store
 Thumbs.db
+
+# Environment
 .env
+.env.*
+!.env.example
+
 # IDE
 .vscode/
 .idea/
@@ -24,19 +36,26 @@ Thumbs.db
 tmp/
 temp/
 
-# Secrets
+# Secrets (never commit!)
 *.pem
 *.key
 secrets/
+**/secrets/
+*.tfvars
+!*.tfvars.example
 
-# Generated manifests (created from templates)
+# Generated manifests
 manifests/
 
-# Rendered Helm values (allow platform/ directory for GitOps)
+# Helm
 **/helm-values.yaml
 !platform/**/helm-values.yaml
 !**/helm-values.yaml.tpl
 
-# Configuration file with secrets (never commit!)
+# Configuration with secrets
 config.yaml
+
+# Kubeconfig
+kubeconfig
+.kube/
 

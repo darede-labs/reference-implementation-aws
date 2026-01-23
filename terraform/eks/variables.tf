@@ -13,7 +13,7 @@ variable "cluster_name" {
 variable "cluster_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.31" # Latest stable as of Jan 2026
+  default     = "1.34" # Latest stable as of Jan 2026
 }
 
 variable "default_tags" {

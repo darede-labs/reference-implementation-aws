@@ -20,6 +20,10 @@ module "eks" {
   # Why: Best practice for pod-level IAM permissions
   enable_irsa = true
 
+  # Cluster creator admin permissions
+  # Why: Allow current user to access cluster via kubectl
+  enable_cluster_creator_admin_permissions = true
+
   # VPC configuration from remote state
   vpc_id     = data.terraform_remote_state.vpc.outputs.vpc_id
   subnet_ids = data.terraform_remote_state.vpc.outputs.private_subnet_ids
@@ -32,6 +36,19 @@ module "eks" {
   cluster_addons = {
     coredns = {
       most_recent = true
+      # Tolerate bootstrap node taint so CoreDNS can schedule
+      configuration_values = jsonencode({
+        tolerations = [
+          {
+            key      = "node-role.kubernetes.io/${local.bootstrap_node_group.name}"
+            operator = "Exists"
+            effect   = "NoSchedule"
+          }
+        ]
+        nodeSelector = {
+          role = local.bootstrap_node_group.name
+        }
+      })
     }
     kube-proxy = {
       most_recent = true
@@ -53,33 +70,29 @@ module "eks" {
   # This node group hosts Karpenter itself, then Karpenter manages all other workloads
   eks_managed_node_groups = {
     bootstrap = {
-      name = "${var.cluster_name}-bootstrap"
+      name = local.bootstrap_node_group.name
 
-      # ARM64 Graviton instances
-      # Why: Cost-effective, modern, good performance
-      ami_type       = "AL2_ARM_64"
-      instance_types = ["t4g.medium"]
+      # ARM64 Graviton instances - Cost-effective, modern, good performance
+      ami_type       = local.bootstrap_node_group.ami_type
+      instance_types = local.bootstrap_node_group.instance_types
 
-      # On-demand only for stability
-      # Why: Bootstrap nodes must be reliable, no spot interruptions
-      capacity_type = "ON_DEMAND"
+      # On-demand only for stability - Bootstrap nodes must be reliable
+      capacity_type = local.bootstrap_node_group.capacity_type
 
-      # Minimal scaling
-      # Why: Only need capacity for core platform tools (Karpenter, CoreDNS, etc.)
-      min_size     = 1
-      max_size     = 2
-      desired_size = 1
+      # Minimal scaling - Only need capacity for core platform tools
+      min_size     = local.bootstrap_node_group.min_size
+      max_size     = local.bootstrap_node_group.max_size
+      desired_size = local.bootstrap_node_group.desired_size
 
       # Taint to prevent workloads from scheduling here
-      # Why: Workloads should go to Karpenter-managed nodes
       taints = [{
-        key    = "node-role.kubernetes.io/bootstrap"
+        key    = "node-role.kubernetes.io/${local.bootstrap_node_group.name}"
         value  = "true"
-        effect = "NoSchedule"
+        effect = "NO_SCHEDULE"
       }]
 
       labels = {
-        role = "bootstrap"
+        role = local.bootstrap_node_group.name
       }
 
       # Block device configuration
@@ -87,7 +100,7 @@ module "eks" {
         xvda = {
           device_name = "/dev/xvda"
           ebs = {
-            volume_size           = 50
+            volume_size           = local.bootstrap_node_group.disk_size_gb
             volume_type           = "gp3"
             encrypted             = true
             delete_on_termination = true
@@ -112,6 +125,11 @@ module "eks" {
       type        = "ingress"
       cidr_blocks = ["0.0.0.0/0"] # Consider restricting in production
     }
+  }
+
+  # Tag node security group for Karpenter discovery
+  node_security_group_tags = {
+    "karpenter.sh/discovery" = var.cluster_name
   }
 }
 
