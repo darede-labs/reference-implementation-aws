@@ -1,4 +1,0 @@
-IMPORTANT:
-Do not touch unrelated files.
-If you need a new file, create it under the defined repo structure.
-Keep changes minimal and explicit.

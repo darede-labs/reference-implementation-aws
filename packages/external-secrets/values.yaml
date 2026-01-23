@@ -1,5 +1,0 @@
-installCRDs: true
-
-serviceAccount:
-  annotations:
-    eks.amazonaws.com/role-arn: ${EXTERNAL_SECRETS_ROLE_ARN}

@@ -261,13 +261,13 @@ tls_termination: "nlb"
 # Choose identity provider: "cognito" or "keycloak"
 # - cognito: AWS managed, limited user management UI
 # - keycloak: Self-hosted, full admin UI, better for team management
-identity_provider: "keycloak"
+identity_provider: "cognito"
 ################################################################################
 # Keycloak Configuration (when identity_provider: "keycloak")
 ################################################################################
 keycloak:
   # Enable Keycloak deployment and RDS database
-  enabled: "true"
+  enabled: "false"
   # Keycloak deployment configuration
   replicas: 1 # Single replica for POC (use 2+ for production HA)
   # Admin credentials (stored in Secrets Manager)

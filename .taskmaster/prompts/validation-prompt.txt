@@ -1,6 +1,0 @@
-Now validate this phase.
-
-1) Provide the exact commands I should run locally to validate everything.
-2) Tell me the expected outputs (examples).
-3) List 5 common failures and how to troubleshoot each one.
-4) Confirm the Definition of Done checklist is satisfied.
