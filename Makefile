@@ -42,8 +42,21 @@ validate: configure-kubectl ## Validate cluster is ready
 	kubectl get nodes
 	@echo "\n=== Checking pods ==="
 	kubectl get pods -A
+	@echo "\n=== Checking Karpenter ==="
+	kubectl get pods -n karpenter
+	kubectl get nodepool
+	kubectl get ec2nodeclass
 	@echo "\n=== Checking cluster info ==="
 	kubectl cluster-info
+
+test-karpenter: configure-kubectl ## Test Karpenter node provisioning
+	@echo "Creating test deployment to trigger Karpenter..."
+	kubectl create deployment karpenter-test --image=public.ecr.aws/eks-distro/kubernetes/pause --replicas=3 || true
+	@echo "Waiting for nodes..."
+	@sleep 30
+	kubectl get nodes -l karpenter.sh/managed=true
+	kubectl get pods -l app=karpenter-test
+	@echo "\nCleanup test deployment? Run: kubectl delete deployment karpenter-test"
 
 ##@ Complete workflows
 
