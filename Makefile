@@ -1,65 +1,55 @@
-.PHONY: install validate-config terraform bootstrap verify clean doctor preflight preflight-dry-run
+.PHONY: help init-vpc init-eks plan-vpc plan-eks apply-vpc apply-eks destroy-eks destroy-vpc configure-kubectl validate
 
-# Main installation target - ArgoCD does the rest!
-install: validate-config terraform bootstrap verify
-	@echo "✅ Installation complete!"
+AWS_PROFILE := darede
+AWS_REGION := us-east-1
 
-# Pre-flight check (with warnings about existing resources)
-preflight: doctor
-	@echo "🔍 Running pre-flight check..."
-	@./scripts/pre-flight-check.sh
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-# Pre-flight check in dry-run mode (no warnings about existing resources)
-preflight-dry-run: doctor
-	@echo "🔍 Running pre-flight check (dry-run)..."
-	@./scripts/pre-flight-check.sh --dry-run
+##@ Infrastructure
 
-# Validate config.yaml (non-sensitive) + secrets (ENV/SSM)
-validate-config:
-	@echo "🔍 Validating configuration..."
-	@./scripts/validate-config.sh || (echo "💡 Tip: Run 'make doctor' to check CLI tools"; exit 1)
+init-vpc: ## Initialize VPC Terraform
+	cd terraform/vpc && terraform init -backend-config="profile=$(AWS_PROFILE)"
 
-# Terraform infrastructure (idempotent)
-terraform:
-	@echo "🏗️  Provisioning infrastructure..."
-	@./scripts/install-infra.sh
+init-eks: ## Initialize EKS Terraform
+	cd terraform/eks && terraform init -backend-config="profile=$(AWS_PROFILE)"
 
-# Bootstrap ONLY ArgoCD + apply applications
-bootstrap:
-	@echo "🚀 Bootstrapping ArgoCD + Applications..."
-	@./scripts/bootstrap-kubernetes.sh
-	@echo ""
-	@echo "⏳ Waiting for applications to sync..."
-	@./scripts/wait-for-sync.sh 300 || echo "⚠️  Some applications are still syncing (this is normal)"
+plan-vpc: init-vpc ## Plan VPC changes
+	cd terraform/vpc && terraform plan
 
-# Verify installation health (comprehensive check)
-verify:
-	@echo "🔍 Verifying installation..."
-	@./scripts/verify-installation.sh
+plan-eks: init-eks ## Plan EKS changes
+	cd terraform/eks && terraform plan
 
-# Clean up resources
-clean:
-	@echo "🧹 Cleaning up..."
-	@./scripts/destroy-cluster.sh
+apply-vpc: init-vpc ## Apply VPC infrastructure
+	cd terraform/vpc && terraform apply -auto-approve
 
-# Check required CLI tools are installed
-doctor:
-	@echo "🔍 Checking required CLI tools..."
-	@MISSING=$$(for tool in aws kubectl helm yq jq gomplate terraform; do \
-		command -v $$tool >/dev/null 2>&1 || echo $$tool; \
-	done); \
-	if [ -n "$$MISSING" ]; then \
-		echo "❌ Missing tools: $$MISSING"; \
-		echo ""; \
-		echo "Install missing tools:"; \
-		echo "  - aws: https://aws.amazon.com/cli/"; \
-		echo "  - kubectl: https://kubernetes.io/docs/tasks/tools/"; \
-		echo "  - helm: https://helm.sh/docs/intro/install/"; \
-		echo "  - yq: https://github.com/mikefarah/yq"; \
-		echo "  - jq: https://stedolan.github.io/jq/download/"; \
-		echo "  - gomplate: https://docs.gomplate.ca/installing/"; \
-		echo "  - terraform: https://www.terraform.io/downloads"; \
-		exit 1; \
-	else \
-		echo "✅ All required tools installed"; \
-	fi
+apply-eks: init-eks ## Apply EKS infrastructure
+	cd terraform/eks && terraform apply -auto-approve
+
+destroy-eks: init-eks ## Destroy EKS cluster
+	cd terraform/eks && terraform destroy -auto-approve
+
+destroy-vpc: init-vpc ## Destroy VPC
+	cd terraform/vpc && terraform destroy -auto-approve
+
+##@ Kubernetes
+
+configure-kubectl: ## Configure kubectl for EKS cluster
+	aws eks update-kubeconfig --region $(AWS_REGION) --name platform-eks --profile $(AWS_PROFILE)
+
+validate: configure-kubectl ## Validate cluster is ready
+	@echo "=== Checking nodes ==="
+	kubectl get nodes
+	@echo "\n=== Checking pods ==="
+	kubectl get pods -A
+	@echo "\n=== Checking cluster info ==="
+	kubectl cluster-info
+
+##@ Complete workflows
+
+install: apply-vpc apply-eks configure-kubectl validate ## Install everything (VPC + EKS)
+	@echo "\n✅ Platform infrastructure deployed successfully"
+	@echo "Next step: Install Karpenter (coming in Phase C)"
+
+destroy: destroy-eks destroy-vpc ## Destroy everything (EKS first, then VPC)
+	@echo "\n✅ All infrastructure destroyed"
